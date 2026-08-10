@@ -1,0 +1,41 @@
+.validation-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 13px;
+  padding: 12px;
+  border-radius: 9px;
+  color: var(--secondary);
+  font-size: 11px;
+}
+
+.validation-summary > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #344054;
+}
+
+.validation-passed { background: #f0fdf4; }
+.validation-passed > div { color: #16803c; }
+.validation-failed { background: #fff5f5; }
+.validation-failed > div { color: #c53030; }
+.validation-warning { display: flex; align-items: center; gap: 5px; color: #9a6700; }
+
+.quality-review-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 9px;
+  background: #f6f3ff;
+  color: var(--secondary);
+  font-size: 11px;
+}
+
+.quality-review-summary > div { display: flex; align-items: center; gap: 7px; color: #5b43d6; }
+.quality-review-summary details { margin-top: 3px; color: #475467; }
+.quality-review-summary summary { cursor: pointer; font-weight: 600; color: #5b43d6; }
+.quality-review-summary ul { margin: 8px 0 0 16px; padding: 0; }
+.quality-review-summary li { margin-top: 5px; }

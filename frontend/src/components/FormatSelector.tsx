@@ -1,0 +1,3 @@
+import { Check, Braces, Table2 } from 'lucide-react'
+import type { OutputFormat } from '../api/types'
+export function FormatSelector({ value, onChange }: { value: OutputFormat, onChange: (value: OutputFormat) => void }) { return <div className="format-grid">{([['json', 'JSON', 'Structured and flexible', Braces], ['csv', 'CSV', 'Easy to open in spreadsheets', Table2] ] as const).map(([id, label, copy, Icon]) => <button key={id} className={`format-option ${value === id ? 'format-option-active' : ''}`} onClick={() => onChange(id)}><Icon size={21} /><span><strong>{label}</strong><small>{copy}</small></span>{value === id && <Check className="format-check" size={18} />}</button>)}</div> }

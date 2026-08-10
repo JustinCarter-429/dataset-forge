@@ -1,0 +1,2 @@
+import { Github, HelpCircle, FileOutput, BookOpen } from 'lucide-react'
+export function AppHeader() { return <header className="app-header"><div className="brand"><div className="brand-mark"><FileOutput size={18} /></div><span>Dataset Forge</span></div><nav><a href="#workflow"><HelpCircle size={15} /> How it works</a><a href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer"><BookOpen size={15} /> Docs</a><span className="github-disabled"><Github size={15} /> Star on GitHub</span></nav></header> }

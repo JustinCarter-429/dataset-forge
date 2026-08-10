@@ -1,0 +1,25 @@
+Dataset Forge Phase 6 synthetic software-testing reference.
+
+Functional testing verifies that each user-facing workflow produces the expected result.
+
+Negative testing checks invalid inputs, missing values, and rejected operations.
+
+Boundary-value analysis exercises values at the lower and upper limits of an accepted range.
+
+Accessibility testing verifies keyboard operation, visible focus, labels, and readable status feedback.
+
+Regression testing reruns a stable scenario after a code change to detect unintended breakage.
+
+Performance testing measures response time, throughput, and behavior under a defined workload.
+
+API testing verifies request methods, status codes, response schemas, and authentication behavior.
+
+Error handling checks that failures are safe, actionable, and do not expose internal details.
+
+Data validation checks required fields, allowed values, and deterministic rejection messages.
+
+Retry testing confirms transient failures do not create duplicate external jobs.
+
+Cancellation testing confirms a user stop request prevents packaging and leaves inputs available.
+
+Export testing verifies JSON and CSV contain the same final canonical records.

@@ -1,0 +1,39 @@
+Dataset Forge Community License 1.0
+
+Copyright (c) 2026 Dataset Forge contributors.
+
+This source-available license applies only to the original Dataset Forge code and documentation that the copyright holder may license. It does not relicense third-party software, which remains subject to its own terms.
+
+1. License grant
+
+Subject to this License, you may use, copy, study, modify, and redistribute the Software, including modified versions, for the permitted purposes below.
+
+2. Permitted use
+
+Personal, educational, academic/research, nonprofit, and other noncommercial use is permitted without a separate commercial license. Commercial use is also permitted while the licensee and all organizations that control, are controlled by, or are under common control with the licensee had combined gross revenue of less than US $250,000 during the immediately preceding 12-month fiscal or tax period.
+
+3. Commercial license requirement
+
+If the combined gross revenue described above is US $250,000 or more, continued commercial use requires a separate commercial license from the copyright holder. A commercial license may also be required for OEM, resale, hosted product, or other negotiated rights that are not permitted by this License. Contact the repository owner through the project’s GitHub Issues or Discussions to begin that conversation.
+
+4. Modifications and distribution
+
+You may modify and redistribute the Software, provided that each copy or substantial portion includes this License and all copyright notices, identifies material changes, and does not suggest that the copyright holder endorses your version. You may not remove or obscure these notices.
+
+5. Product and trademark boundary
+
+This License does not grant rights to use the Dataset Forge name, logo, or other project branding. You may not resell Dataset Forge itself as a competing hosted or product offering without appropriate commercial permission.
+
+6. Termination and cure
+
+Your rights terminate automatically upon material breach of this License. If you cure the breach within 30 days of receiving written notice from the copyright holder, your rights are reinstated unless the breach was willful or repeated.
+
+7. No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+8. Limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM THE SOFTWARE OR THIS LICENSE.
+
+This is a provisional custom source-available license, not an OSI-approved open-source license. The copyright holder may publish separate commercial terms. Legal review is recommended before material commercial enforcement.

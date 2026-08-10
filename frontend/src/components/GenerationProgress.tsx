@@ -1,0 +1,3 @@
+import { Check, LoaderCircle } from 'lucide-react'
+const stages = ['Reading request', 'Preparing document', 'Building dataset', 'Validating dataset', 'Creating ZIP']
+export function GenerationProgress({ active }: { active: number }) { return <div className="progress-panel">{stages.map((stage, index) => <div className="progress-row" key={stage}><div className={`progress-dot ${index < active ? 'done' : index === active ? 'current' : ''}`}>{index < active ? <Check size={14} /> : index === active ? <LoaderCircle size={14} className="spin" /> : index + 1}</div><span className={index <= active ? 'progress-active' : ''}>{stage}</span></div>)}</div> }
