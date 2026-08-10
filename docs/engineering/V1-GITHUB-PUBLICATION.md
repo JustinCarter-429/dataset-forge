@@ -35,12 +35,12 @@ The following values are completed only after GitHub publication:
 | Public repository | https://github.com/JustinCarter-429/dataset-forge |
 | Visibility | Public (requested) |
 | Default branch | `main` |
-| Release tag | `v1.0.0` |
-| GitHub release | Pending final documentation commit, tag, and release creation |
+| Release tag | `v1.0.0` — https://github.com/JustinCarter-429/dataset-forge/releases/tag/v1.0.0 |
+| GitHub release | https://github.com/JustinCarter-429/dataset-forge/releases/tag/v1.0.0 |
 
 ## GitHub publication
 
-The repository was created as **public** under `JustinCarter-429/dataset-forge`. The `main` branch was pushed successfully from the reviewed local initial history. The final publication documentation commit is pushed before tagging; the `v1.0.0` tag and release point to that final commit.
+The repository was created as **public** under `JustinCarter-429/dataset-forge`. The `main` branch was pushed successfully from the reviewed local initial history. The final publication documentation commit is pushed before tagging; the `v1.0.0` tag and release point to that final commit. Repository topics were set for document AI, dataset generation, FastAPI, React, Docling, RunPod, vLLM, and gpt-oss.
 
 ## Known limitations
 
