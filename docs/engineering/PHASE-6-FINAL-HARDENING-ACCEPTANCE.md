@@ -8,7 +8,7 @@ Status: **COMPLETE / POC RELEASE READY**. Phase 6A deterministically reproduced 
 
 ## Architecture inventory
 
-React/Vite frontend → FastAPI → Docling/TXT extraction → canonical extraction model → bounded context planner → native RunPod `/run` and `/status` → vLLM Chat Completions passthrough → Dataset Schema 2.0 → deterministic schema/grounding/duplicate validation → bounded AI review/revision → JSON/CSV packaging.
+React/Vite frontend → FastAPI → Docling/TXT extraction → canonical extraction model → bounded context planner → Techie custom agentic agents → Dataset Schema 2.0 → deterministic schema/grounding/duplicate validation → bounded AI review/revision → JSON/CSV packaging.
 
 Phase 6 preserved the existing architecture and added cancellation state, a process-local one-active-generation guard, stale-upload cleanup, safe download filenames, response security headers, keyboard upload activation, same-external-job status retry, global application-owned record ID rebasing during multi-batch assembly, and immutable batch-scoped provider aliases. Provider-visible `source_1...source_N` aliases are resolved to canonical extraction IDs before assembly; unknown, canonical-ID, and cross-batch references fail closed, and evidence is verified first against the exact quoteable projection supplied to the model and then by the complete Phase 4 validator.
 

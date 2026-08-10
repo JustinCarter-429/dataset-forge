@@ -40,7 +40,7 @@ The following values are completed only after GitHub publication:
 
 ## GitHub publication
 
-The repository was created as **public** under `JustinCarter-429/dataset-forge`. The `main` branch was pushed successfully from the reviewed local initial history. The final publication documentation commit is pushed before tagging; the `v1.0.0` tag and release point to that final commit. Repository topics were set for document AI, dataset generation, FastAPI, React, Docling, RunPod, vLLM, and gpt-oss.
+The repository was created as **public** under `JustinCarter-429/dataset-forge`. The `main` branch was pushed successfully from the reviewed local initial history. The final publication documentation commit is pushed before tagging; the `v1.0.0` tag and release point to that final commit. Repository topics were set for document AI, dataset generation, FastAPI, React, Docling, and Techie agentic AI.
 
 ## Known limitations
 

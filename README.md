@@ -8,14 +8,14 @@
 
 ![Version](https://img.shields.io/badge/version-v1.0.0-5b43f3) ![Python](https://img.shields.io/badge/Python-FastAPI-3776AB) ![Frontend](https://img.shields.io/badge/React-TypeScript-61DAFB) ![License](https://img.shields.io/badge/license-source--available-4c1)
 
-Dataset Forge is a local, single-page document-to-dataset application. It transforms one PDF, DOCX, or TXT document into a packaged AI dataset using Docling extraction, RunPod Serverless, vLLM, and `openai/gpt-oss-20b`. V1 is **PoC release ready**—it is not a hosted SaaS or production-certified service.
+Dataset Forge is a local, single-page document-to-dataset application. It transforms one PDF, DOCX, or TXT document into a packaged AI dataset using Docling extraction and **Techie custom agentic agents**. V1 is **PoC release ready**—it is not a hosted SaaS or production-certified service.
 
 ## What Dataset Forge V1 does
 
 1. Upload one PDF, DOCX, or TXT document.
 2. Extract and normalize it: Docling for PDF/DOCX, direct UTF-8/CP1252 extraction for TXT.
 3. Analyze the document structure and accept a natural-language dataset request.
-4. Plan bounded generation batches and generate structured records through RunPod Serverless, vLLM, and `openai/gpt-oss-20b`.
+4. Plan bounded generation batches and generate structured records through Techie custom agentic agents.
 5. Author the canonical dataset as structured JSON, then validate schema, source references, evidence, grounding, duplicates, and quality.
 6. Run one bounded, advisory AI quality review; at most one model-authored revision is allowed globally.
 7. Export JSON or a deterministic CSV derived from the accepted canonical JSON, then download a ZIP package.
@@ -34,8 +34,7 @@ Dataset Forge is a local, single-page document-to-dataset application. It transf
 Document
   -> Docling / TXT extractor
   -> Canonical extraction + generation planner
-  -> RunPod Serverless
-  -> vLLM Chat Completions + gpt-oss-20b
+  -> Techie custom agentic agents
   -> Canonical Dataset JSON
   -> Schema + evidence + grounding validation
   -> Bounded AI quality review
@@ -48,12 +47,12 @@ Document
 | --- | --- |
 | Frontend | React, TypeScript, Vite, Tailwind CSS, Lucide |
 | Backend | Python, FastAPI, Pydantic, Docling |
-| AI | RunPod Serverless, vLLM Chat Completions, `openai/gpt-oss-20b` |
+| AI | Techie custom agentic agents |
 | Testing | pytest, Vitest, Playwright acceptance coverage |
 
 ## Run locally
 
-Prerequisites: Python 3.11 (the existing project setup), Node.js with npm, and your own RunPod Serverless endpoint backed by a compatible vLLM worker. The provider credential stays on the backend.
+Prerequisites: Python 3.11 (the existing project setup), Node.js with npm, and your own Techie-compatible agent backend. Provider credentials stay on the backend.
 
 Clone the repository, then set up the backend:
 
@@ -73,9 +72,9 @@ FRONTEND_ORIGIN=http://localhost:5173
 MAX_UPLOAD_SIZE=26214400
 OUTPUT_DIRECTORY=app/outputs
 TEMP_UPLOAD_DIRECTORY=app/uploads
-RUNPOD_ENDPOINT_ID=YOUR_RUNPOD_ENDPOINT_ID
-RUNPOD_API_KEY=YOUR_RUNPOD_API_KEY_HERE
-RUNPOD_MODEL=openai/gpt-oss-20b
+RUNPOD_ENDPOINT_ID=YOUR_TECHIE_ENDPOINT_ID
+RUNPOD_API_KEY=YOUR_TECHIE_API_KEY_HERE
+RUNPOD_MODEL=YOUR_CONFIGURED_TECHIE_MODEL_IDENTIFIER
 RUNPOD_MAX_MODEL_LEN=YOUR_CONFIGURED_MAX_MODEL_LEN
 QUALITY_VALIDATOR_MODE=same_model
 PUBLIC_RESEARCH_ENABLED=false
@@ -128,7 +127,7 @@ Large documents are partitioned into bounded batches. Provider-visible, batch-lo
 
 ## Security, privacy, and limitations
 
-Your RunPod key remains backend-only, and `.env` is ignored. When bounded extracted context is enough, original binaries are not sent wholesale. No chain-of-thought is persisted and public research is disabled by default. Every clone must use its own RunPod credentials.
+Your Techie backend credentials remain backend-only, and `.env` is ignored. When bounded extracted context is enough, original binaries are not sent wholesale. No chain-of-thought is persisted and public research is disabled by default. Every clone must use its own Techie credentials.
 
 V1 accepts one source document per generation and has no authentication, account history, durable job database, distributed queue, or high-availability deployment. Jobs are process-local, one provider/model is configured, and scanned-only PDF OCR support is limited. This is a PoC release-ready application, not a production-certified service.
 

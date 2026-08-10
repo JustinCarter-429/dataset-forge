@@ -24,5 +24,5 @@ class ZipDatasetPackager:
             archive.writestr("generation_manifest.json", json.dumps(manifest_payload, indent=2))
             archive.writestr("manifest.json", json.dumps(manifest_payload, indent=2))
             archive.writestr("metadata.json", json.dumps(metadata, indent=2))
-            archive.writestr("README.txt", "Dataset Forge Phase 5 package. Generation uses the configured RunPod gpt-oss-20b provider; schema, source references, evidence, and grounding remain authoritative application checks. AI quality review is advisory and bounded, and at most one controlled revision is permitted. See validation-report.json and quality-review.json for details.\n")
+            archive.writestr("README.txt", "Dataset Forge package. Generation uses Techie custom agentic agents; schema, source references, evidence, and grounding remain authoritative application checks. AI quality review is advisory and bounded, and at most one controlled revision is permitted. See validation-report.json and quality-review.json for details.\n")
         return destination

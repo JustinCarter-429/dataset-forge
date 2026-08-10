@@ -4,7 +4,7 @@ import type { GenerationJob } from '../api/types'
 const stages = [
   { key: 'extracting', title: 'Document extracted', copy: 'Text and tables extracted successfully' },
   { key: 'analyzing', title: 'Content analyzed', copy: 'Structure and key themes identified' },
-  { key: 'generating', title: 'Generating training examples', copy: 'Creating dataset records with gpt-oss-20b' },
+  { key: 'generating', title: 'Generating training examples', copy: 'Creating dataset records with Techie custom agentic agents' },
   { key: 'validating', title: 'Validating dataset', copy: 'Checking generated records and schema' },
   { key: 'packaging', title: 'Preparing ZIP download', copy: 'Packaging validated outputs' },
 ]
