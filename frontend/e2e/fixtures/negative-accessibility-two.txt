@@ -1,0 +1,1 @@
+What do these documents say about negative testing and accessibility testing? Negative testing checks missing values. Accessibility testing verifies keyboard operation and readable status feedback for every user-facing workflow.

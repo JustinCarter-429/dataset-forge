@@ -1,0 +1,1 @@
+What do these documents say about negative testing and accessibility testing? Negative testing checks invalid inputs and rejected operations. Accessibility testing verifies keyboard operation, visible focus, labels, and readable status feedback.

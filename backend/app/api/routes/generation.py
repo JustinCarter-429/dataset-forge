@@ -14,6 +14,7 @@ from ...services.generation import RunPodDatasetGenerator
 from ...providers.config import provider_config_from_env
 from ...providers.runpod import RunPodProvider
 from ...providers.contracts import ProviderError
+from ...providers.deterministic import DeterministicDatasetProvider, enabled as deterministic_enabled
 from ...services.quality_review import QualityReviewService, QualityRevisionService
 from ...utils.files import validate_filename
 
@@ -99,7 +100,7 @@ def _run_job(job_id: str, request: GenerationRequest):
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "ready"}))
         stage("generating", 35, "waiting_for_ai_worker")
         config = provider_config_from_env()
-        provider = _provider_factory(config)
+        provider = DeterministicDatasetProvider(config) if deterministic_enabled() else _provider_factory(config)
         _active_providers[job_id] = provider
         provider.cancel_check = lambda: job_store.is_cancelled(job_id)
         provider.on_job_created = lambda external_id: job_store.update_job(job_id, provider={"name": "runpod_serverless", "model": config.model, "state": "queued", "externalJobId": external_id})
@@ -114,7 +115,7 @@ def _run_job(job_id: str, request: GenerationRequest):
                 match = re.search(r"batch (\d+) of (\d+)", detail)
                 if match: batch = {"completed": int(match.group(1)) - 1, "total": int(match.group(2))}
             job_store.update_job(job_id, status="generating", stage="generating", progress={"percent": percent, "currentStage": detail}, batch=batch, provider={"name": "runpod_serverless", "model": config.model, "state": "running"})
-        review_enabled = isinstance(provider, RunPodProvider) and settings.quality_validator_mode != "disabled"
+        review_enabled = (isinstance(provider, RunPodProvider) or deterministic_enabled()) and settings.quality_validator_mode != "disabled"
         reviewer = QualityReviewService(provider, model=config.model, max_model_len=config.max_model_len) if review_enabled else None
         reviser = QualityRevisionService(provider, model=config.model) if review_enabled else None
         def agentic_state(state: str, percent: int, current_stage: str):

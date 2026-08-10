@@ -1,0 +1,3 @@
+:root { --muted: #475467; --secondary: #475467; }
+.github-disabled, .step-wrap, .helper, .status-item span, .metric-card span, .metric-card small, .grounding-note { color: #475467; }
+.status-chip.success { color: #067647; }

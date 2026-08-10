@@ -12,7 +12,7 @@ Dataset Forge is a local, single-page document-to-dataset application. It transf
 
 ## What Dataset Forge V1 does
 
-1. Upload one PDF, DOCX, or TXT document.
+1. Upload up to three PDF, DOCX, or TXT source documents.
 2. Extract and normalize it: Docling for PDF/DOCX, direct UTF-8/CP1252 extraction for TXT.
 3. Analyze the document structure and accept a natural-language dataset request.
 4. Plan bounded generation batches and generate structured records through Techie custom agentic agents.
@@ -110,7 +110,7 @@ Open `http://127.0.0.1:5173`. FastAPI documentation is available at `http://127.
 
 ## Use the app
 
-Upload a document, describe the dataset you want, select JSON or CSV, and generate. Follow extraction, generation, validation, and review progress in the UI; inspect the resulting metrics; then download the ZIP.
+Upload up to three documents, describe the dataset you want, select JSON or CSV, and generate. The UI keeps the maximum-document state visible and rejects a fourth source without removing the existing three. Follow extraction, generation, validation, and review progress in the UI; inspect the resulting metrics; then download the ZIP.
 
 ## Output package
 
@@ -146,9 +146,10 @@ cd ..\frontend
 npm test
 npm run typecheck
 npm run build
+npm run test:e2e
 ```
 
-The deterministic suite uses mocked provider transport and does not make real RunPod calls by default. Final release verification: backend **65 passed** (4 Docling deprecation warnings); frontend **3 passed**, typecheck and production build passed. Details are recorded in the [publication record](docs/engineering/V1-GITHUB-PUBLICATION.md).
+The deterministic suite uses mocked provider transport and does not make real RunPod or LM Studio calls by default. Browser acceptance uses the explicit test-only `APP_ENVIRONMENT=test` and `CARTER_TEST_PROVIDER=deterministic` configuration with real frontend/FastAPI contracts. Carter closure verification: backend **83 passed** (4 third-party/deprecation/cache warnings); frontend **6 passed**, typecheck/build passed, and Playwright **5 passed / 0 failed / 0 skipped** with zero serious or critical axe violations. Details are recorded in the [Carter runtime POC document](docs/engineering/CARTER-1.0-POC-AGENT-RUNTIME.md).
 
 ## Engineering history
 

@@ -181,3 +181,11 @@ Started the post-V1 Carter 1.0 feature branch. The POC adds an explicit Cloud/Lo
 Closure verification: the backend suite was run in the repository virtual environment with its temporary base directory inside the workspace; the Carter coverage increased from 2 to 15 tests and validates provider isolation at the service boundary, bounded tool execution, hostile identifier rejection, and timeout/error propagation. Frontend verification is `6 passed`; typecheck and production build pass. The full backend suite is deterministic and makes zero inference calls.
 
 Live browser/Cloud verification: opened `http://127.0.0.1:5173`, uploaded two temporary TXT documents through the actual UI, selected JSON, and ran one Cloud multi-document generation. The completed job contains 4 final records, 4/4 grounded records, 5/5 verified evidence items, zero quality warnings, zero revision attempts, and package-ready status. ZIP inspection verified `dataset.json`, `metadata.json`, `validation-report.json`, `quality-review.json`, `manifest.json`, `generation_manifest.json`, and `README.txt`. LM Studio at `http://127.0.0.1:1234` was unavailable, so its real acceptance is setup-required.
+
+## Carter 1.0 final software acceptance closure
+
+Date: 2026-08-10
+
+Added the visible disabled three-document maximum state and accessible 4th-document rejection path; explicit deterministic provider mode gated by test environment variables; minimal Playwright and axe infrastructure; FTS punctuation handling; API error-object rendering; muted-text contrast; and targeted backend validation for the four-document request and test-mode safety.
+
+Final verification: backend **83 passed, 0 failed, 4 warnings**; frontend **6 passed, 0 failed**; typecheck passed; production build passed; Playwright **5 passed, 0 failed, 0 skipped**. Accessibility was **0 serious / 0 critical** across initial, multi-document, completed-warning, and failure states. Keyboard acceptance passed. Responsive acceptance passed at 1440x900, 1280x720, 768x1024, and 390x844. Security scan found zero tracked/staged secrets or sensitive runtime artifacts. The preserved real Cloud acceptance remains 2 documents, 4 records, 4/4 grounded, 5/5 evidence, quality review passed, 0 revisions; LM Studio real acceptance remains setup-required.

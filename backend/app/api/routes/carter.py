@@ -8,6 +8,7 @@ from ...providers.config import provider_config_from_env
 from ...providers.runpod import RunPodProvider
 from ...providers.contracts import ProviderError
 from ...services.carter import CarterAskService, KnowledgeStore, LMStudioCarterProvider, RunPodCarterProvider
+from ...providers.deterministic import DeterministicCarterProvider, enabled as deterministic_enabled, scenario as deterministic_scenario
 from ...services.extraction import ExtractionError, ExtractionService
 from ...services.job_store import job_store
 
@@ -30,6 +31,8 @@ def _local() -> LMStudioCarterProvider:
 
 @router.get("/runtimes")
 def runtimes():
+    if deterministic_enabled():
+        return {"assistant":"Carter 1.0", "carterVersion":"1.0", "cloud":{"configured":True,"available":deterministic_scenario() not in {"cloud_unavailable"}}, "local":{"configured":True,"available":deterministic_scenario() not in {"local_unavailable"},"model":"deterministic-carter"}}
     local = _local().available()
     try:
         provider_config_from_env().validate(); cloud = {"configured": True, "available": True}
@@ -53,10 +56,19 @@ def ingest(request: IngestRequest):
 @router.get("/documents")
 def documents(): return {"documents": _store().documents(), "limit": 3}
 
+@router.post("/test-reset")
+def test_reset():
+    if not deterministic_enabled(): raise HTTPException(404, "Not found.")
+    _store().reset()
+    return {"ok": True}
+
 @router.post("/ask")
 def ask(request: AskRequest):
     try:
-        if request.runtime == "local": provider = _local()
+        if deterministic_enabled():
+            provider = DeterministicCarterProvider(request.runtime)
+            if not provider.available()["available"]: raise ProviderError("LM_STUDIO_UNAVAILABLE", "Carter 1.0 local runtime is unavailable.")
+        elif request.runtime == "local": provider = _local()
         else: provider = RunPodCarterProvider(RunPodProvider(provider_config_from_env()))
         return CarterAskService(_store(), provider).ask(request.question, request.document_ids)
     except ProviderError as exc: raise HTTPException(503, {"code":exc.code, "message":exc.message}) from exc

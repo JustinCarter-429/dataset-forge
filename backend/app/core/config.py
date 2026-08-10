@@ -19,6 +19,7 @@ class Settings:
     lm_studio_model: str = os.getenv("LM_STUDIO_MODEL", "openai/gpt-oss-20b")
     lm_studio_timeout_seconds: float = float(os.getenv("LM_STUDIO_TIMEOUT_SECONDS", "45"))
     carter_knowledge_database: Path = Path(os.getenv("CARTER_KNOWLEDGE_DATABASE", "runtime/carter-knowledge.sqlite3"))
+    app_test_mode: bool = os.getenv("APP_ENVIRONMENT", "development") == "test" and os.getenv("CARTER_TEST_PROVIDER", "") == "deterministic"
 
 
 @lru_cache

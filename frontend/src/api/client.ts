@@ -11,7 +11,7 @@ export async function generateDataset(file: File, prompt: string, format: Output
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, init)
-  if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.detail || 'The backend could not complete the request.') }
+  if (!response.ok) { const data = await response.json().catch(() => null); const detail = data?.detail; throw new Error(typeof detail === 'string' ? detail : detail?.message || 'The backend could not complete the request.') }
   return response.json()
 }
 
