@@ -31,12 +31,12 @@ The following values are completed only after GitHub publication:
 
 | Item | Value |
 | --- | --- |
-| Initial commit | Pending local Git initialization |
-| Public repository | Pending GitHub CLI authentication and repository creation |
+| Initial commit | `191fe63ca89d70c59e4ba3b18c0094b8c330b5dd` |
+| Public repository | Pending: GitHub CLI is not installed in the local environment |
 | Visibility | Public (requested) |
 | Default branch | `main` |
 | Release tag | `v1.0.0` |
-| GitHub release | Pending repository publication |
+| GitHub release | Pending repository publication; no tag is created before the public tree is verified |
 
 ## Known limitations
 
