@@ -37,11 +37,13 @@ class CarterDatasetGenerationService:
         self.knowledge_path, self.on_phase = knowledge_path, on_phase or (lambda _phase: None)
         self.cancelled = cancelled or (lambda: False)
         self.calls: dict[str, int] = {name: 0 for name in ("planner", "generator", "tool_continuation", "review", "revision")}
+        self.invocation_ledger: list[dict[str, str]] = []
 
     def _infer(self, request: Any, phase: str):
         if self.cancelled():
             raise CarterPromptPackageError("Generation cancelled.")
         self.calls[phase] += 1
+        self.invocation_ledger.append({"phase": phase, "runtime": self.provider.runtime})
         response = self.provider.infer(TransportRequest(messages=list(request.messages), tools=list(request.tools),
             response_schema=request.response_schema, tool_choice="auto"))
         return response

@@ -1,6 +1,7 @@
 import json
 import inspect
 from dataclasses import dataclass
+import pytest
 
 from app.carter.production import CarterDatasetGenerationService
 from app.carter.runtime import CarterPromptPackage
@@ -34,9 +35,12 @@ class ScriptedProvider:
     replies: list[CarterInferenceResponse]
     runtime: str = "runpod"
     calls: int = 0
+    requests: list = None
+    def __post_init__(self): self.requests = []
     def available(self): return {"configured": True, "available": True, "model": "scripted"}
     def infer(self, _request):
         self.calls += 1
+        self.requests.append(_request)
         return self.replies.pop(0)
 
 
@@ -63,6 +67,25 @@ def test_tool_continuation_and_revision_are_bounded(tmp_path):
 def test_invalid_bounded_revision_fails_closed(tmp_path):
     provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review(True)), []), CarterInferenceResponse(json.dumps({"status":"generated","records":[],"insufficiency":None}), [])])
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "bad.sqlite3")
-    import pytest
     with pytest.raises(CarterPromptPackageError):
         service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+
+
+@pytest.mark.parametrize("runtime", ["runpod", "local_lm_studio"])
+def test_runtime_is_pinned_for_tool_continuation_review_and_revision(tmp_path, runtime):
+    tool = {"id":"call-1","function":{"name":"get_source_units","arguments":json.dumps({"source_refs":["source_1"]})}}
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse("", [tool]), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review(True)), []), CarterInferenceResponse(json.dumps(_candidate("revised")), [])], runtime=runtime)
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / f"{runtime}.sqlite3")
+    run = service.generate(runtime=runtime, user_request="Use source", output_format="json", documents=[document()])
+    assert provider.runtime == runtime and run.calls == {"planner": 1, "generator": 1, "tool_continuation": 1, "review": 1, "revision": 1}
+    assert [entry["phase"] for entry in service.invocation_ledger] == ["planner", "generator", "tool_continuation", "review", "revision"]
+    assert [entry["runtime"] for entry in service.invocation_ledger] == [runtime] * 5
+
+
+@pytest.mark.parametrize("runtime", ["runpod", "local_lm_studio"])
+def test_selected_runtime_failure_has_no_fallback(tmp_path, runtime):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse("not-json", [])], runtime=runtime)
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / f"{runtime}-failure.sqlite3")
+    with pytest.raises(CarterPromptPackageError):
+        service.generate(runtime=runtime, user_request="Use source", output_format="json", documents=[document()])
+    assert provider.calls == 2 and [entry["runtime"] for entry in service.invocation_ledger] == [runtime, runtime]

@@ -44,3 +44,10 @@ unavailability isolation, generation failure and validation failure handling,
 advisory review completion, download readiness, keyboard access, and responsive
 layout.  The deterministic adapter provides only test scenarios; it does not
 alter the immutable Carter contracts or the live provider adapters.
+
+Part 2B.4 adds a per-run safe invocation ledger to the production orchestrator.
+It records only the Carter phase and selected provider runtime; no prompt,
+source, credential, tool-argument, or reasoning data is retained.  Deterministic
+coverage confirms planner, generation, tool continuation, review, and revision
+remain on the selected RunPod or LM Studio adapter, and malformed selected-runtime
+generation does not trigger a cross-runtime retry.
