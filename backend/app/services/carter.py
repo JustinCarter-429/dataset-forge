@@ -29,7 +29,7 @@ CARTER_SYSTEM_PROMPT = """You are Carter 1.0. Answer questions about local docum
 class CarterInferenceRequest:
     messages: list[dict[str, Any]]
     tools: list[dict[str, Any]]
-    max_tokens: int = 700
+    max_tokens: int = 4096
 
 
 @dataclass(frozen=True)
@@ -45,9 +45,10 @@ class CarterProvider(Protocol):
 
 
 class LMStudioCarterProvider:
-    runtime = "local"
-    def __init__(self, base_url: str, model: str, timeout: float, enabled: bool):
-        self.base_url, self.model, self.timeout, self.enabled = base_url.rstrip("/"), model, timeout, enabled
+    runtime = "local_lm_studio"
+    def __init__(self, base_url: str, model: str, timeout: float, enabled: bool, max_tokens: int = 4096):
+        self.base_url, self.model, self.timeout, self.enabled, self.max_tokens = base_url.rstrip("/"), model, timeout, enabled, max_tokens
+        self.invocations = 0
 
     def available(self) -> dict[str, Any]:
         if not self.enabled:
@@ -66,8 +67,9 @@ class LMStudioCarterProvider:
             raise ProviderError("LM_STUDIO_UNAVAILABLE", "Carter 1.0 local runtime is unavailable.")
         if not state["available"]:
             raise ProviderError("LM_STUDIO_MODEL_NOT_LOADED", "Local Carter 1.0 model not available.")
-        payload = {"model": self.model, "messages": request.messages, "tools": request.tools, "tool_choice": "auto", "max_tokens": request.max_tokens, "temperature": 0.1, "stream": False}
+        payload = {"model": self.model, "messages": request.messages, "tools": request.tools, "tool_choice": "auto", "max_tokens": min(request.max_tokens, self.max_tokens), "temperature": 0.1, "stream": False}
         try:
+            self.invocations += 1
             response = httpx.post(f"{self.base_url}/v1/chat/completions", json=payload, timeout=self.timeout)
             response.raise_for_status(); message = response.json()["choices"][0]["message"]
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
@@ -77,17 +79,17 @@ class LMStudioCarterProvider:
 
 class RunPodCarterProvider:
     """Adapter deliberately reusing the V1 native RunPod transport."""
-    runtime = "cloud"
-    def __init__(self, provider: RunPodProvider): self.provider = provider
+    runtime = "runpod"
+    def __init__(self, provider: RunPodProvider): self.provider = provider; self.invocations = 0
     def available(self) -> dict[str, Any]: return {"configured": True, "available": True, "model": self.provider.config.model}
     def infer(self, request: CarterInferenceRequest) -> CarterInferenceResponse:
-        schema = {"type":"object", "properties":{"answer":{"type":"string"}}, "required":["answer"], "additionalProperties":False}
-        job = self.provider.generate(messages=request.messages, schema=schema, max_tokens=request.max_tokens)
+        self.invocations += 1
+        job = self.provider.chat(messages=request.messages, tools=request.tools, max_tokens=min(request.max_tokens, max(1024, self.provider.config.max_model_len // 4)))
         output = job.output[0] if isinstance(job.output, list) and job.output else job.output
         try:
-            content = output["choices"][0]["message"]["content"] if isinstance(output, dict) else ""
-            parsed = json.loads(content) if isinstance(content, str) else content
-            return CarterInferenceResponse(str(parsed.get("answer", "")), [])
+            message = output["choices"][0]["message"] if isinstance(output, dict) else {}
+            if not isinstance(message, dict): raise TypeError("missing message")
+            return CarterInferenceResponse(str(message.get("content") or ""), list(message.get("tool_calls") or []))
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise ProviderError("CARTER_PROVIDER_INVALID_RESPONSE", "Carter cloud runtime returned an invalid response.") from exc
 
@@ -144,7 +146,7 @@ class KnowledgeStore:
 TOOL_SCHEMAS = [{"type":"function","function":{"name":"list_documents","description":"List available local knowledge documents.","parameters":{"type":"object","properties":{},"additionalProperties":False}}}, {"type":"function","function":{"name":"search_local_knowledge","description":"Search local document evidence.","parameters":{"type":"object","properties":{"query":{"type":"string"},"documentIds":{"type":"array","items":{"type":"string"}},"limit":{"type":"integer","minimum":1,"maximum":10}},"required":["query"],"additionalProperties":False}}}, {"type":"function","function":{"name":"get_source_units","description":"Get exact document evidence by source references.","parameters":{"type":"object","properties":{"sourceRefs":{"type":"array","items":{"type":"string"},"maxItems":10}},"required":["sourceRefs"],"additionalProperties":False}}}]
 
 class CarterAskService:
-    def __init__(self, store: KnowledgeStore, provider: CarterProvider): self.store, self.provider = store, provider
+    def __init__(self, store: KnowledgeStore, provider: CarterProvider, runtime: str | None = None): self.store, self.provider, self.runtime = store, provider, runtime or provider.runtime
 
     def _tool_result(self, name: str, raw_arguments: Any) -> list[dict[str, Any]]:
         """Execute the intentionally small tool surface using identifiers only.
@@ -198,12 +200,12 @@ class CarterAskService:
         document_ids = document_ids or []
         self._validate_document_ids(document_ids)
         results = self.store.search(question, document_ids, 5)
-        if not results and not (getattr(self.provider, "allow_empty_retrieval", False) and "TEST_ASK_FAILURE" in question): return {"answer":"I could not find relevant information in the selected local documents.", "sources":[], "assistant":"Carter 1.0", "runtime":self.provider.runtime}
+        if not results and not (getattr(self.provider, "allow_empty_retrieval", False) and "TEST_ASK_FAILURE" in question): return {"answer":"I could not find relevant information in the selected local documents.", "sources":[], "assistant":"Carter 1.0", "runtime":self.runtime, "logicalModel":"Carter 1.0", "technicalModel":"openai/gpt-oss-20b", "inferenceCount":0, "toolRounds":0}
         messages = [{"role":"system","content":CARTER_SYSTEM_PROMPT}, {"role":"user","content":question}, {"role":"system","content":"Retrieved evidence (cite only these sourceRef values): " + json.dumps(results)}]
         for tool_round in range(MAX_TOOL_ROUNDS + 1):
             response = self.provider.infer(CarterInferenceRequest(messages, TOOL_SCHEMAS))
             if not response.tool_calls:
-                return {"answer": response.content or "I found relevant source evidence.", "sources":[{k:v for k,v in item.items() if k != "text"} for item in results], "assistant":"Carter 1.0", "runtime":self.provider.runtime, "toolRounds":tool_round}
+                return {"answer": response.content or "I found relevant source evidence.", "sources":[{k:v for k,v in item.items() if k != "text"} for item in results], "assistant":"Carter 1.0", "runtime":self.runtime, "logicalModel":"Carter 1.0", "technicalModel":getattr(self.provider, "model", getattr(getattr(self.provider, "provider", None), "config", None).model if getattr(getattr(self.provider, "provider", None), "config", None) else "openai/gpt-oss-20b"), "inferenceCount":getattr(self.provider, "invocations", 0), "toolRounds":tool_round}
             if tool_round >= MAX_TOOL_ROUNDS:
                 raise ProviderError("CARTER_TOOL_ROUND_LIMIT", "Carter requested more than three tool rounds.")
             messages.append({"role":"assistant", "content": response.content or "", "tool_calls": response.tool_calls})

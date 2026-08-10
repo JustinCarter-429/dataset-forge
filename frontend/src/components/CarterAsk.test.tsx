@@ -13,25 +13,25 @@ const docs = [
 ]
 
 beforeEach(() => {
-  api.getCarterRuntimes.mockResolvedValue({ assistant: 'Carter 1.0', carterVersion: '1.0', cloud: { configured: true, available: true }, local: { configured: true, available: false } })
-  api.ingestCarterDocuments.mockResolvedValue({ documents: [] })
-  api.askCarter.mockResolvedValue({ answer: 'Grounded answer', runtime: 'cloud', toolRounds: 1, assistant: 'Carter 1.0', sources: [{ documentId: 'a', documentName: 'functional.txt', sourceRef: 'unit-a' }, { documentId: 'b', documentName: 'accessibility.txt', sourceRef: 'unit-b', page: 2 }] })
+  api.getCarterRuntimes.mockResolvedValue({ assistant: 'Carter 1.0', carterVersion: '1.0', runtimes: { runpod: { configured: true, available: true, label: 'RunPod' }, local_lm_studio: { configured: true, available: false, label: 'Local / LM Studio' } } })
+  api.ingestCarterDocuments.mockResolvedValue({ documents: [{ documentId: 'a', name: 'functional.txt' }, { documentId: 'b', name: 'accessibility.txt' }] })
+  api.askCarter.mockResolvedValue({ answer: 'Grounded answer', runtime: 'runpod', logicalModel: 'Carter 1.0', technicalModel: 'openai/gpt-oss-20b', inferenceCount: 1, toolRounds: 1, assistant: 'Carter 1.0', sources: [{ documentId: 'a', documentName: 'functional.txt', sourceRef: 'unit-a' }, { documentId: 'b', documentName: 'accessibility.txt', sourceRef: 'unit-b', page: 2 }] })
 })
 
-test('shows Carter branding, cloud readiness, local unavailable, and prevents silent fallback', async () => {
+test('shows Carter branding, RunPod readiness, local unavailable, and prevents silent fallback', async () => {
   render(<CarterAsk documents={docs} />)
-  expect(await screen.findByText('Ready')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Local' }))
-  expect(screen.getByText('Local unavailable')).toBeInTheDocument()
+  expect(await screen.findByRole('status')).toHaveTextContent('RunPod')
+  fireEvent.change(screen.getByLabelText('Carter runtime'), { target: { value: 'local_lm_studio' } })
+  expect(screen.getByText(/Local \/ LM Studio .* Unavailable/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Ask Carter' })).toBeDisabled()
 })
 
 test('submits an answer and renders citations from multiple documents', async () => {
   render(<CarterAsk documents={docs} />)
-  await screen.findByText('Ready')
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('RunPod'))
   fireEvent.change(screen.getByLabelText('Ask Carter'), { target: { value: 'What is covered?' } })
   fireEvent.click(screen.getByRole('button', { name: 'Ask Carter' }))
-  await waitFor(() => expect(api.askCarter).toHaveBeenCalledWith('What is covered?', 'cloud', ['a', 'b']))
+  await waitFor(() => expect(api.askCarter).toHaveBeenCalledWith('What is covered?', 'runpod', ['a', 'b']))
   expect(screen.getByText('Grounded answer')).toBeInTheDocument()
   expect(screen.getByText('functional.txt')).toBeInTheDocument()
   expect(screen.getByText(/accessibility.txt/)).toBeInTheDocument()
@@ -40,7 +40,7 @@ test('submits an answer and renders citations from multiple documents', async ()
 test('shows an Ask failure and clears loading state', async () => {
   api.askCarter.mockRejectedValue(new Error('Carter service unavailable'))
   render(<CarterAsk documents={docs.slice(0, 1)} />)
-  await screen.findByText('Ready')
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('RunPod'))
   fireEvent.change(screen.getByLabelText('Ask Carter'), { target: { value: 'Question' } })
   fireEvent.click(screen.getByRole('button', { name: 'Ask Carter' }))
   expect(screen.getByRole('button', { name: /Asking Carter/ })).toBeDisabled()

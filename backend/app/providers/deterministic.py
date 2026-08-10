@@ -20,7 +20,7 @@ def scenario() -> str:
 
 
 class DeterministicCarterProvider:
-    runtime = "cloud"
+    runtime = "runpod"
     allow_empty_retrieval = True
 
     def __init__(self, runtime: str):
@@ -28,7 +28,7 @@ class DeterministicCarterProvider:
         self.calls = 0
 
     def available(self) -> dict[str, Any]:
-        if self.runtime == "local" and scenario() == "local_unavailable":
+        if self.runtime == "local_lm_studio" and scenario() == "local_unavailable":
             return {"configured": True, "available": False, "model": "deterministic-carter"}
         return {"configured": True, "available": True, "model": "deterministic-carter"}
 

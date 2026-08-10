@@ -17,7 +17,10 @@ class Settings:
     lm_studio_enabled: bool = os.getenv("LM_STUDIO_ENABLED", "false").lower() == "true"
     lm_studio_base_url: str = os.getenv("LM_STUDIO_BASE_URL", "http://127.0.0.1:1234")
     lm_studio_model: str = os.getenv("LM_STUDIO_MODEL", "openai/gpt-oss-20b")
-    lm_studio_timeout_seconds: float = float(os.getenv("LM_STUDIO_TIMEOUT_SECONDS", "45"))
+    # gpt-oss-20b can cold-start slowly locally; this remains bounded and is
+    # owned by the transport rather than an arbitrary UI polling deadline.
+    lm_studio_timeout_seconds: float = float(os.getenv("LM_STUDIO_TIMEOUT_SECONDS", "180"))
+    carter_max_tokens: int = int(os.getenv("CARTER_MAX_TOKENS", "4096"))
     carter_knowledge_database: Path = Path(os.getenv("CARTER_KNOWLEDGE_DATABASE", "runtime/carter-knowledge.sqlite3"))
     app_test_mode: bool = os.getenv("APP_ENVIRONMENT", "development") == "test" and os.getenv("CARTER_TEST_PROVIDER", "") == "deterministic"
 

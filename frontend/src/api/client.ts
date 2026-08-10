@@ -1,4 +1,4 @@
-import type { CarterAnswer, CarterRuntimeStatus, GenerationJob, GenerationResult, OutputFormat, UploadedFile } from './types'
+import type { CarterAnswer, CarterRuntime, CarterRuntimeStatus, GenerationJob, GenerationResult, OutputFormat, UploadedFile } from './types'
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
 
@@ -31,4 +31,4 @@ export function downloadUrl(jobId: string) { return `${baseUrl}/download/${encod
 export function generationDownloadUrl(id: string) { return `${baseUrl}/generations/${encodeURIComponent(id)}/download` }
 export function getCarterRuntimes() { return request<CarterRuntimeStatus>('/carter/runtimes') }
 export function ingestCarterDocuments(fileIds: string[]) { return request<{ documents: { documentId: string; name: string }[] }>('/carter/ingest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileIds }) }) }
-export function askCarter(question: string, runtime: 'cloud' | 'local', documentIds: string[]) { return request<CarterAnswer>('/carter/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, runtime, documentIds }) }) }
+export function askCarter(question: string, runtime: CarterRuntime, documentIds: string[]) { return request<CarterAnswer>('/carter/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, runtime, documentIds }) }) }

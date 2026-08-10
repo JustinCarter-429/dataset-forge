@@ -10,22 +10,25 @@ def build_runpod_openai_chat_job(
     *,
     model: str,
     messages: list[dict[str, str]],
-    schema: dict[str, Any],
+    schema: dict[str, Any] | None,
     max_tokens: int,
     temperature: float = 0.2,
+    tools: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the worker-vLLM OpenAI passthrough inside a native RunPod job."""
+    openai_input: dict[str, Any] = {
+        "model": model, "messages": messages, "max_tokens": max_tokens,
+        "temperature": temperature, "stream": False,
+    }
+    if schema is not None:
+        openai_input["structured_outputs"] = {"json": schema}
+    if tools:
+        openai_input["tools"] = tools
+        openai_input["tool_choice"] = "auto"
     return {
         "input": {
             "openai_route": "/v1/chat/completions",
-            "openai_input": {
-                "model": model,
-                "messages": messages,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "stream": False,
-                "structured_outputs": {"json": schema},
-            },
+            "openai_input": openai_input,
         }
     }
 
@@ -101,9 +104,12 @@ class RunPodProvider(DatasetGenerationProvider):
             raise ProviderError("RUNPOD_INVALID_RESPONSE", "RunPod returned invalid JSON.") from exc
 
     def generate(self, *, messages: list[dict[str, str]], schema: dict[str, Any], max_tokens: int) -> ProviderJob:
+        return self.chat(messages=messages, schema=schema, max_tokens=max_tokens)
+
+    def chat(self, *, messages: list[dict[str, Any]], max_tokens: int, schema: dict[str, Any] | None = None, tools: list[dict[str, Any]] | None = None) -> ProviderJob:
         started = time.monotonic()
-        schema_digest = hashlib.sha256(json.dumps(schema, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-        payload = build_runpod_openai_chat_job(model=self.config.model, messages=messages, schema=schema, max_tokens=max_tokens)
+        schema_digest = hashlib.sha256(json.dumps(schema, sort_keys=True, separators=(",", ":")).encode()).hexdigest() if schema else None
+        payload = build_runpod_openai_chat_job(model=self.config.model, messages=messages, schema=schema, max_tokens=max_tokens, tools=tools)
         # A /run submission is intentionally single-shot. Retrying an unknown
         # POST outcome could create a duplicate paid inference job.
         self.metrics["providerSubmitAttempts"] += 1
@@ -153,9 +159,10 @@ class RunPodProvider(DatasetGenerationProvider):
                         "max_token_field_name": "max_tokens",
                         "max_tokens": max_tokens,
                         "temperature": 0.2,
-                        "structured_output_field": "structured_outputs",
-                        "structured_output_mode": "json",
-                        "schema_sha256": schema_digest,
+                        "structured_output_field": "structured_outputs" if schema else None,
+                        "structured_output_mode": "json" if schema else None,
+                        "schema_sha256": schema_digest if schema else None,
+                        "tool_count": len(tools or []),
                     },
                     "output": _safe_output_snapshot(output),
                 }

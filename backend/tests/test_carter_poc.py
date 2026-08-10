@@ -5,6 +5,9 @@ import pytest
 from app.domain.extraction_models import CanonicalExtractedDocument, ExtractionElement, ExtractionElementType, ExtractionStatistics, ExtractionValidation
 from app.providers.contracts import ProviderError
 from app.services.carter import CarterAskService, CarterInferenceResponse, KnowledgeStore, MAX_DOCUMENTS, MAX_TOOL_ROUNDS
+from app.providers.runpod import build_runpod_openai_chat_job
+from app.api.routes.carter import AskRequest
+from pydantic import ValidationError
 
 
 def document(identifier: str, text: str = "Regression testing checks existing behavior after change."):
@@ -93,3 +96,27 @@ def test_carter_rejects_unknown_document_duplicate_ids_and_provider_failure(tmp_
     with pytest.raises(ValueError, match="Duplicate"): subject.ask("functional", ["doc-a", "doc-a"])
     subject = service(tmp_path, [ProviderError("TIMEOUT", "provider timeout")])
     with pytest.raises(ProviderError, match="provider timeout"): subject.ask("functional")
+
+
+@pytest.mark.parametrize("runtime", ["local_lm_studio", "runpod"])
+def test_explicit_runtime_contract_accepts_only_supported_values(runtime):
+    assert AskRequest(question="question", runtime=runtime).runtime == runtime
+
+
+def test_explicit_runtime_contract_rejects_unknown_value():
+    with pytest.raises(ValidationError):
+        AskRequest(question="question", runtime="banana-provider")
+
+
+def test_runpod_tool_transport_preserves_canonical_tools_without_structured_answer_wrapper():
+    tools = [{"type": "function", "function": {"name": "search_local_knowledge", "parameters": {"type": "object"}}}]
+    payload = build_runpod_openai_chat_job(model="openai/gpt-oss-20b", messages=[{"role": "user", "content": "find evidence"}], schema=None, tools=tools, max_tokens=4096)
+    request = payload["input"]["openai_input"]
+    assert request["tools"] == tools and request["tool_choice"] == "auto"
+    assert "structured_outputs" not in request
+
+
+def test_tool_continuation_keeps_runtime_pinned(tmp_path):
+    subject = service(tmp_path, [call("list_documents", {}), CarterInferenceResponse("Grounded answer", [])])
+    result = CarterAskService(subject.store, subject.provider, "runpod").ask("functional testing")
+    assert result["runtime"] == "runpod" and subject.provider.calls == 2

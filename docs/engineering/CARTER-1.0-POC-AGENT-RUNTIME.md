@@ -49,3 +49,15 @@ The real UI flow loaded one safe TXT source (`phase6_multibatch.txt`), selected 
 The final LM Studio completion request itself timed out at the running LM Studio server, so no completed real model inference, answer, tool round, or citation was produced. Final retry result: LM Studio completed inference **0**, RunPod inference **0**, tool loop **not proven**, answer **fail**, citations **fail**, selected documents **1**. Direct LM Studio completion probing with the same served model also timed out; Local did not fall back to RunPod.
 
 Security checks passed: the LM Studio payload contains only the local model, messages, registered tools, and inference parameters; no RunPod API key is forwarded; no model weights or knowledge database are tracked; and hidden reasoning is not persisted. The real Local acceptance therefore remains **BLOCKED BY LM STUDIO INFERENCE TIMEOUT**, despite the application-side retrieval and document-ID defects being fixed.
+
+## Dual-runtime contract hardening
+
+Date: 2026-08-10
+
+Carter now exposes only the explicit runtime identifiers `local_lm_studio` (label: **Local / LM Studio**) and `runpod` (label: **RunPod**). The selected value is validated at the API boundary, captured in the frontend submit closure, passed into the Carter invocation, and returned as safe run provenance with logical model **Carter 1.0** and technical model `openai/gpt-oss-20b`. There is no mutable selected-provider global and no fallback branch: a RunPod failure remains a RunPod failure; a Local / LM Studio failure remains local.
+
+Both routes use the same Carter prompt, SQLite local-knowledge retrieval, tool schemas, tool executor, continuation loop, citation representation, and response contract. The RunPod native `/run` + `/status` adapter now sends canonical OpenAI tool definitions through its existing passthrough transport and returns the provider tool-call shape to the shared loop. It does not force a final-answer JSON schema before tools can be called. LM Studio remains on its OpenAI-compatible chat-completions route.
+
+`CARTER_MAX_TOKENS` defaults to 4096. LM Studio receives the smaller of that setting and the request setting, with a bounded 180-second default transport timeout to permit `gpt-oss-20b` cold starts. RunPod receives the smaller of the Carter request setting and one quarter of configured `RUNPOD_MAX_MODEL_LEN` (minimum 1024). These are application safety bounds, not a claim of provider context-window verification; provider-reported live limits remain unverified until live acceptance is run. No 800-token Carter cap remains.
+
+Automated contract coverage verifies both valid runtime identifiers, rejection of an invalid identifier, RunPod tool transport without a structured-answer wrapper, and that a tool continuation retains the selected runtime. Historical live evidence above is preserved unchanged. Live RunPod and LM Studio acceptance has not been claimed by this code-only hardening entry.

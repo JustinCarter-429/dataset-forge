@@ -16,7 +16,7 @@ router = APIRouter(prefix="/carter", tags=["carter"])
 
 class AskRequest(BaseModel):
     question: str = Field(max_length=4000)
-    runtime: Literal["cloud", "local"]
+    runtime: Literal["local_lm_studio", "runpod"]
     document_ids: list[str] = Field(default_factory=list, alias="documentIds", max_length=3)
     model_config = {"populate_by_name": True}
 
@@ -27,18 +27,18 @@ class IngestRequest(BaseModel):
 def _store() -> KnowledgeStore: return KnowledgeStore(get_settings().carter_knowledge_database)
 
 def _local() -> LMStudioCarterProvider:
-    settings = get_settings(); return LMStudioCarterProvider(settings.lm_studio_base_url, settings.lm_studio_model, settings.lm_studio_timeout_seconds, settings.lm_studio_enabled)
+    settings = get_settings(); return LMStudioCarterProvider(settings.lm_studio_base_url, settings.lm_studio_model, settings.lm_studio_timeout_seconds, settings.lm_studio_enabled, settings.carter_max_tokens)
 
 @router.get("/runtimes")
 def runtimes():
     if deterministic_enabled():
-        return {"assistant":"Carter 1.0", "carterVersion":"1.0", "cloud":{"configured":True,"available":deterministic_scenario() not in {"cloud_unavailable"}}, "local":{"configured":True,"available":deterministic_scenario() not in {"local_unavailable"},"model":"deterministic-carter"}}
+        return {"assistant":"Carter 1.0", "carterVersion":"1.0", "runtimes":{"runpod":{"configured":True,"available":deterministic_scenario() not in {"runpod_unavailable"},"label":"RunPod","model":"openai/gpt-oss-20b"}, "local_lm_studio":{"configured":True,"available":deterministic_scenario() not in {"local_unavailable"},"label":"Local / LM Studio","model":"openai/gpt-oss-20b"}}}
     local = _local().available()
     try:
         provider_config_from_env().validate(); cloud = {"configured": True, "available": True}
     except ProviderError:
         cloud = {"configured": False, "available": False}
-    return {"assistant":"Carter 1.0", "carterVersion":"1.0", "cloud":cloud, "local":local}
+    return {"assistant":"Carter 1.0", "carterVersion":"1.0", "runtimes":{"runpod":{**cloud,"label":"RunPod","model":"openai/gpt-oss-20b"}, "local_lm_studio":{**local,"label":"Local / LM Studio"}}}
 
 @router.post("/ingest")
 def ingest(request: IngestRequest):
@@ -68,8 +68,8 @@ def ask(request: AskRequest):
         if deterministic_enabled():
             provider = DeterministicCarterProvider(request.runtime)
             if not provider.available()["available"]: raise ProviderError("LM_STUDIO_UNAVAILABLE", "Carter 1.0 local runtime is unavailable.")
-        elif request.runtime == "local": provider = _local()
+        elif request.runtime == "local_lm_studio": provider = _local()
         else: provider = RunPodCarterProvider(RunPodProvider(provider_config_from_env()))
-        return CarterAskService(_store(), provider).ask(request.question, request.document_ids)
+        return CarterAskService(_store(), provider, request.runtime).ask(request.question, request.document_ids)
     except ProviderError as exc: raise HTTPException(503, {"code":exc.code, "message":exc.message}) from exc
     except ValueError as exc: raise HTTPException(422, str(exc)) from exc
