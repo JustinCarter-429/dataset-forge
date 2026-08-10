@@ -29,3 +29,11 @@ The deterministic browser provider is enabled only when both `APP_ENVIRONMENT=te
 Playwright acceptance: **5 passed, 0 failed, 0 skipped**. Covered 3-document upload and 4th rejection, Ask success with two citations, no-result, provider failure, Local unavailable with no Cloud fallback, generation failure, grounding/validation failure, quality-warning completion with download enabled, keyboard focus, and responsive 1440x900, 1280x720, 768x1024, and 390x844 layouts. Axe reported **0 serious and 0 critical violations** on initial, three-document, completed-warning, and failure states. Backend full regression: **83 passed, 0 failed, 4 warnings**; frontend: **6 passed, 0 failed**; typecheck and production build passed.
 
 The preserved real Cloud acceptance remains separate and valid: 2 documents, 4 final records, 4/4 grounded, 5/5 verified evidence items, 0 invalid source refs, 0 cross-document refs, 0 unresolved aliases, quality review passed, and 0 revisions. LM Studio real acceptance is **SETUP REQUIRED** only; no paid provider call was made during this closure.
+
+## Final real LM Studio acceptance attempt
+
+Date: 2026-08-10
+
+The configured/default LM Studio URL `http://127.0.0.1:1234` was unreachable, and `backend/.env` contained no `LM_STUDIO_ENABLED`, `LM_STUDIO_BASE_URL`, or `LM_STUDIO_MODEL` override. The live Carter runtime endpoint consequently reported Local as `configured: false, available: false`; no model-discovery response or served model ID was available.
+
+No Ask Carter request was sent, so real LM Studio inference count is **0**, RunPod inference count is **0**, and no source documents were uploaded for this blocked acceptance. No code or architecture was changed. Security checks found no tracked model weights, environment files, knowledge databases, or reasoning artifacts; the local app and frontend remain running on ports 8000 and 5173.

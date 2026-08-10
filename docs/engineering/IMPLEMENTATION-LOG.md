@@ -189,3 +189,9 @@ Date: 2026-08-10
 Added the visible disabled three-document maximum state and accessible 4th-document rejection path; explicit deterministic provider mode gated by test environment variables; minimal Playwright and axe infrastructure; FTS punctuation handling; API error-object rendering; muted-text contrast; and targeted backend validation for the four-document request and test-mode safety.
 
 Final verification: backend **83 passed, 0 failed, 4 warnings**; frontend **6 passed, 0 failed**; typecheck passed; production build passed; Playwright **5 passed, 0 failed, 0 skipped**. Accessibility was **0 serious / 0 critical** across initial, multi-document, completed-warning, and failure states. Keyboard acceptance passed. Responsive acceptance passed at 1440x900, 1280x720, 768x1024, and 390x844. Security scan found zero tracked/staged secrets or sensitive runtime artifacts. The preserved real Cloud acceptance remains 2 documents, 4 records, 4/4 grounded, 5/5 evidence, quality review passed, 0 revisions; LM Studio real acceptance remains setup-required.
+
+## Final real LM Studio acceptance attempt
+
+Date: 2026-08-10
+
+`http://127.0.0.1:1234/v1/models` was unreachable. No `LM_STUDIO_*` overrides were configured in `backend/.env`, so the backend reported Local as unavailable. The real Local Ask was not attempted: LM Studio inference count 0, RunPod inference count 0, tool loop not exercised, and no citations could be evaluated. No code changes were required. Security checks found no tracked model weights, knowledge DB, environment file, or persisted reasoning artifact.
