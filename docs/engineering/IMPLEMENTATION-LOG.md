@@ -195,3 +195,11 @@ Final verification: backend **83 passed, 0 failed, 4 warnings**; frontend **6 pa
 Date: 2026-08-10
 
 `http://127.0.0.1:1234/v1/models` was unreachable. No `LM_STUDIO_*` overrides were configured in `backend/.env`, so the backend reported Local as unavailable. The real Local Ask was not attempted: LM Studio inference count 0, RunPod inference count 0, tool loop not exercised, and no citations could be evaluated. No code changes were required. Security checks found no tracked model weights, knowledge DB, environment file, or persisted reasoning artifact.
+
+## Final real LM Studio acceptance retry
+
+Date: 2026-08-10
+
+After LM Studio was started, `GET http://127.0.0.1:1234/v1/models` passed and the actual served Carter model ID `openai/gpt-oss-20b` was selected. The backend and frontend were verified, one safe TXT source was loaded through the UI, and the required Ask Carter question was submitted with Carter 1.0 / Local. The retry uncovered two concrete application defects and fixed them: Carter retrieval now removes common natural-language stop words before bounded FTS matching, and the frontend now sends canonical document IDs returned by `/api/carter/ingest` to `/api/carter/ask`.
+
+The final real completion request timed out at LM Studio, and a direct completion request using the same served model also timed out. Consequently the completed real LM Studio inference count is **0**, RunPod inference count is **0**, tool loop is **not proven**, answer is **fail**, citations are **fail**, and selected documents count is **1**. Local mode made no silent cloud fallback. Security checks passed: no RunPod key was sent to LM Studio, no model weights or knowledge database are tracked, and no hidden reasoning was persisted. Local acceptance remains blocked by the LM Studio inference timeout; no full dataset generation was run.

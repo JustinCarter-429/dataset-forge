@@ -17,6 +17,11 @@ from ..providers.runpod import RunPodProvider
 MAX_DOCUMENTS = 3
 MAX_RESULTS = 10
 MAX_TOOL_ROUNDS = 3
+SEARCH_STOPWORDS = {
+    "a", "about", "an", "and", "are", "document", "documents", "do", "does", "for", "from",
+    "how", "is", "of", "on", "say", "the", "these", "this", "to",
+    "what", "which", "with",
+}
 CARTER_SYSTEM_PROMPT = """You are Carter 1.0. Answer questions about local documents only from tool results. Use source references returned by tools; never invent references or reveal hidden reasoning. Be concise."""
 
 
@@ -118,7 +123,7 @@ class KnowledgeStore:
         with self._connect() as db: return [{"documentId": r[0], "name": r[1], "fileType": r[2]} for r in db.execute("SELECT id,name,file_type FROM documents ORDER BY name")]
     def search(self, query: str, document_ids: list[str] | None = None, limit: int = 5) -> list[dict[str, Any]]:
         if not query.strip(): raise ValueError("Search query is required.")
-        terms = re.findall(r"[A-Za-z0-9_]{2,}", query)
+        terms = [term for term in re.findall(r"[A-Za-z0-9_]{2,}", query.lower()) if term not in SEARCH_STOPWORDS]
         if not terms: return []
         fts_query = " AND ".join(f'"{term}"' for term in terms[:12])
         limit = max(1, min(limit, MAX_RESULTS)); ids = document_ids or []

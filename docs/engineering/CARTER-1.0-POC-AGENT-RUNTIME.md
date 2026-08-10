@@ -37,3 +37,15 @@ Date: 2026-08-10
 The configured/default LM Studio URL `http://127.0.0.1:1234` was unreachable, and `backend/.env` contained no `LM_STUDIO_ENABLED`, `LM_STUDIO_BASE_URL`, or `LM_STUDIO_MODEL` override. The live Carter runtime endpoint consequently reported Local as `configured: false, available: false`; no model-discovery response or served model ID was available.
 
 No Ask Carter request was sent, so real LM Studio inference count is **0**, RunPod inference count is **0**, and no source documents were uploaded for this blocked acceptance. No code or architecture was changed. Security checks found no tracked model weights, environment files, knowledge databases, or reasoning artifacts; the local app and frontend remain running on ports 8000 and 5173.
+
+## Final real LM Studio acceptance retry
+
+Date: 2026-08-10
+
+LM Studio was reachable at `http://127.0.0.1:1234`. Model discovery returned `openai-gpt-oss-20b-abliterated-uncensored-neo-imatrix`, `openai/gpt-oss-20b`, and `text-embedding-nomic-embed-text-v1.5`; the configured Carter base model used for this retry was the actual served ID `openai/gpt-oss-20b`. The backend was started with Local enabled against that URL and reported Local configured and available.
+
+The real UI flow loaded one safe TXT source (`phase6_multibatch.txt`), selected Carter 1.0 / Local, and submitted the required regression-testing question through Dataset Forge. The retry exposed and corrected two concrete integration defects: natural-language retrieval included stop words in an FTS `AND` query, and the frontend passed upload file IDs instead of the canonical document IDs returned by ingestion. The targeted Carter suite remained green at 15 passed.
+
+The final LM Studio completion request itself timed out at the running LM Studio server, so no completed real model inference, answer, tool round, or citation was produced. Final retry result: LM Studio completed inference **0**, RunPod inference **0**, tool loop **not proven**, answer **fail**, citations **fail**, selected documents **1**. Direct LM Studio completion probing with the same served model also timed out; Local did not fall back to RunPod.
+
+Security checks passed: the LM Studio payload contains only the local model, messages, registered tools, and inference parameters; no RunPod API key is forwarded; no model weights or knowledge database are tracked; and hidden reasoning is not persisted. The real Local acceptance therefore remains **BLOCKED BY LM STUDIO INFERENCE TIMEOUT**, despite the application-side retrieval and document-ID defects being fixed.
