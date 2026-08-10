@@ -182,6 +182,14 @@ Closure verification: the backend suite was run in the repository virtual enviro
 
 Live browser/Cloud verification: opened `http://127.0.0.1:5173`, uploaded two temporary TXT documents through the actual UI, selected JSON, and ran one Cloud multi-document generation. The completed job contains 4 final records, 4/4 grounded records, 5/5 verified evidence items, zero quality warnings, zero revision attempts, and package-ready status. ZIP inspection verified `dataset.json`, `metadata.json`, `validation-report.json`, `quality-review.json`, `manifest.json`, `generation_manifest.json`, and `README.txt`. LM Studio at `http://127.0.0.1:1234` was unavailable, so its real acceptance is setup-required.
 
+## Carter 1.0 Prompt Package Wiring — Part 1
+
+Date: 2026-08-10
+
+Materialized the frozen 14-file Carter 1.0 package in `backend/app/carter/contracts/1.0/` and added a fail-closed, manifest-driven runtime foundation. The loader computes raw-byte SHA-256 fingerprints and a deterministic package fingerprint, registers Draft 2020-12 local schema resources, rejects external/unresolved references, resolves the four declared operations, and supplies provider-neutral rendered requests. It also supplies DatasetSpec validation, dynamic generation schema compilation, canonical three-tool validation/binding adapters, logical agent-action normalization, deterministic planner injection, quality-review validation, and one-revision authorization.
+
+The initially supplied package was briefly invalid because `get_source_units.tool.json` duplicated the search tool; the user corrected it before implementation continued. No frozen contract bytes were edited by Dataset Forge. No RunPod or LM Studio calls occurred. The workspace-generated `backend/.pytest-part1-baseline/` directory could not be removed under environment policy, so only that exact recurring path was added to `.gitignore`.
+
 ## Carter 1.0 final software acceptance closure
 
 Date: 2026-08-10

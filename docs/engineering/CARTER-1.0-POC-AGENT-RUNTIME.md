@@ -79,3 +79,7 @@ Date: 2026-08-10
 The RunPod adapter now records a sanitized per-call protocol summary: route, model identifier, role count, token setting, tool count/names supplied by the request, tool-choice mode, structured-output presence/schema digest, response top-level and message field names, finish reason, content presence, reasoning-field presence, and normalized tool-call ID/name/argument-type metadata. It deliberately excludes authorization, source text, argument values, assistant content, and reasoning content. This is the diagnostic evidence point for the real endpoint; it does not alter Carter business logic.
 
 The live endpoint still has not produced an accepted canonical continuation payload. The `CARTER_STRUCTURED_OUTPUT_INVALID` error is retained as a failure rather than falling back to prose. Protocol instrumentation is covered by a regression test that proves raw reasoning text is not retained.
+
+## Prompt package foundation (Part 1)
+
+The Carter runtime now has one frozen, versioned package source at `backend/app/carter/contracts/1.0/`. `app.carter.runtime` loads its manifest fail-closed, registers its local Draft 2020-12 schemas and tool-container references, derives operation bindings, fingerprints raw contract bytes, and renders provider-neutral requests. Cloud and Local consume identical logical root/task contracts, schemas, tools, grounding rules, and limits; adapters remain transport-only. The legacy live flow remains active until Part 2.

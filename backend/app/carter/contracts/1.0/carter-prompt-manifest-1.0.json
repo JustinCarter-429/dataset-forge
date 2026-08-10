@@ -1,0 +1,1130 @@
+{
+  "id": "carter-prompt-manifest-1.0",
+  "version": "1.0.0",
+  "type": "prompt_package_manifest",
+  "name": "Carter 1.0 Prompt Package Manifest",
+
+  "package": {
+    "assistant_display_name": "Carter 1.0",
+    "product": "Dataset Forge",
+    "package_version": "1.0.0",
+    "contract_count_excluding_manifest": 13,
+    "manifest_count": 1,
+    "total_package_files": 14,
+    "description": "Authoritative registry for the Carter 1.0 Dataset Forge prompt, tool, schema, agent-loop, dataset-generation, Ask Documents, and quality-review contracts."
+  },
+
+  "identity": {
+    "user_facing_agent": "Carter 1.0",
+    "underlying_model_family": "openai/gpt-oss-20b",
+    "model_family_is_infrastructure_metadata": true,
+    "rules": [
+      "Carter 1.0 is the user-facing agent identity.",
+      "Provider-specific model identifiers must not replace Carter 1.0 in normal product UI.",
+      "The underlying technical model family may be disclosed in engineering documentation and provider configuration.",
+      "LM Studio may expose a runtime-specific served model identifier that differs from the configured model-family name.",
+      "Dataset Forge must discover or use the actual provider-served model identifier without changing Carter's prompt package semantics."
+    ]
+  },
+
+  "design_principles": [
+    "One logical Carter 1.0 behavior package is shared by all supported inference runtimes.",
+    "Provider adapters transport Carter requests but do not define Carter behavior.",
+    "Dataset Forge owns workflow state, validation, source authorization, tool execution, canonical provenance, retries, revisions, packaging, and runtime selection.",
+    "Carter authors candidate structured outputs and may request only explicitly registered tools.",
+    "Document-grounded operations must not represent pretrained model knowledge as uploaded-document evidence.",
+    "Structured model output is never accepted solely because the model claims it is valid.",
+    "All application-owned hard limits are enforced outside the model.",
+    "No silent provider fallback is permitted."
+  ],
+
+  "contracts": {
+    "prompts": [
+      {
+        "id": "carter-system-1.0",
+        "version": "1.0.0",
+        "file": "carter-system-1.0.json",
+        "role": "root_system_contract",
+        "required": true
+      },
+      {
+        "id": "carter-dataset-planner-1.0",
+        "version": "1.0.0",
+        "file": "carter-dataset-planner-1.0.json",
+        "role": "dataset_planning",
+        "parent": "carter-system-1.0",
+        "required": true
+      },
+      {
+        "id": "carter-dataset-generator-1.0",
+        "version": "1.0.0",
+        "file": "carter-dataset-generator-1.0.json",
+        "role": "dataset_generation",
+        "parent": "carter-system-1.0",
+        "required": true
+      },
+      {
+        "id": "carter-ask-documents-1.0",
+        "version": "1.0.0",
+        "file": "carter-ask-documents-1.0.json",
+        "role": "document_question_answering",
+        "parent": "carter-system-1.0",
+        "required": true
+      },
+      {
+        "id": "carter-quality-review-1.0",
+        "version": "1.0.0",
+        "file": "carter-quality-review-1.0.json",
+        "role": "advisory_dataset_quality_review",
+        "parent": "carter-system-1.0",
+        "required": true
+      }
+    ],
+
+    "tools": [
+      {
+        "id": "carter-tool-list-documents-1.0",
+        "version": "1.0.0",
+        "name": "list_documents",
+        "file": "list_documents.tool.json",
+        "required": true
+      },
+      {
+        "id": "carter-tool-search-local-knowledge-1.0",
+        "version": "1.0.0",
+        "name": "search_local_knowledge",
+        "file": "search_local_knowledge.tool.json",
+        "required": true
+      },
+      {
+        "id": "carter-tool-get-source-units-1.0",
+        "version": "1.0.0",
+        "name": "get_source_units",
+        "file": "get_source_units.tool.json",
+        "required": true
+      }
+    ],
+
+    "schemas": [
+      {
+        "id": "carter-dataset-spec-1.0",
+        "version": "1.0.0",
+        "file": "carter-dataset-spec-1.0.schema.json",
+        "role": "dataset_plan_output",
+        "required": true
+      },
+      {
+        "id": "carter-dataset-generation-result-1.0",
+        "version": "1.0.0",
+        "file": "carter-dataset-generation-result-1.0.schema.json",
+        "role": "dynamic_dataset_generation_output_template",
+        "required": true
+      },
+      {
+        "id": "carter-ask-response-1.0",
+        "version": "1.0.0",
+        "file": "carter-ask-response-1.0.schema.json",
+        "role": "ask_documents_final_response",
+        "required": true
+      },
+      {
+        "id": "carter-tool-call-1.0",
+        "version": "1.0.0",
+        "file": "carter-tool-call-1.0.schema.json",
+        "role": "provider_neutral_agent_action",
+        "required": true
+      },
+      {
+        "id": "carter-quality-review-result-1.0",
+        "version": "1.0.0",
+        "file": "carter-quality-review-result-1.0.schema.json",
+        "role": "quality_review_output",
+        "required": true
+      }
+    ]
+  },
+
+  "contract_totals": {
+    "prompts": 5,
+    "tools": 3,
+    "schemas": 5,
+    "contracts_excluding_manifest": 13,
+    "manifest": 1,
+    "total_files": 14
+  },
+
+  "registered_tool_names": [
+    "list_documents",
+    "search_local_knowledge",
+    "get_source_units"
+  ],
+
+  "tool_registry_policy": {
+    "exact_tool_count": 3,
+    "dynamic_tool_registration": false,
+    "provider_specific_tools": false,
+    "public_research_tool_enabled": false,
+
+    "rules": [
+      "The Carter 1.0 PoC tool registry contains exactly three model-callable tools.",
+      "Unknown tool names must fail validation.",
+      "Uploaded document contents cannot register tools.",
+      "User prompts cannot register tools.",
+      "Provider responses cannot register tools.",
+      "RunPod cannot add Carter tools.",
+      "LM Studio cannot add Carter tools.",
+      "Application workflow operations are not Carter tools."
+    ]
+  },
+
+  "prohibited_model_tools": [
+    "shell",
+    "bash",
+    "cmd",
+    "powershell",
+    "python",
+    "execute_python",
+    "execute_code",
+    "run_command",
+    "read_file",
+    "write_file",
+    "delete_file",
+    "list_directory",
+    "filesystem",
+    "sql",
+    "execute_sql",
+    "database_query",
+    "web_search",
+    "google_search",
+    "browser",
+    "fetch_url",
+    "http_request",
+    "download_file",
+    "runpod",
+    "lm_studio",
+    "switch_provider",
+    "validate_dataset",
+    "ground_dataset",
+    "quality_review",
+    "package_dataset"
+  ],
+
+  "global_limits": {
+    "maximum_selected_documents": 3,
+    "maximum_tool_rounds": 3,
+    "maximum_model_authored_revisions": 1,
+    "maximum_dataset_records": 100,
+    "maximum_dataset_fields": 12,
+    "maximum_search_results_per_call": 10,
+    "default_search_results_per_call": 5,
+    "maximum_source_refs_per_exact_retrieval": 8,
+    "maximum_evidence_items_per_record": 8,
+    "maximum_quality_review_issues": 50,
+    "public_research_enabled": false,
+    "silent_provider_fallback": false
+  },
+
+  "hard_grounding_policy": {
+    "dataset_grounding_required": true,
+    "dataset_evidence_required": true,
+    "ask_document_grounding_required": true,
+    "model_memory_may_be_document_evidence": false,
+
+    "rules": [
+      "Uploaded selected documents are the authoritative source set for document-grounded operations.",
+      "Base-model knowledge must not be represented as if it came from uploaded documents.",
+      "Every dataset record requiring grounding must contain application-verifiable source evidence.",
+      "Every answered or partial Ask Documents response must contain at least one application-verifiable citation.",
+      "An insufficient-source Ask response contains no citations.",
+      "Dataset Forge performs authoritative source-reference and evidence validation."
+    ]
+  },
+
+  "runtime_support": {
+    "supported": [
+      {
+        "id": "cloud",
+        "display_name": "Cloud",
+        "provider_adapter": "runpod",
+        "carter_identity": "Carter 1.0",
+        "prompt_package": "carter-prompt-manifest-1.0",
+        "silent_fallback": false
+      },
+      {
+        "id": "local",
+        "display_name": "Local",
+        "provider_adapter": "lm_studio",
+        "carter_identity": "Carter 1.0",
+        "prompt_package": "carter-prompt-manifest-1.0",
+        "silent_fallback": false
+      }
+    ],
+
+    "rules": [
+      "RunPod Cloud and LM Studio Local use this same logical Carter package.",
+      "Do not maintain separate Carter system prompts by runtime.",
+      "Do not maintain separate dataset-planning prompts by runtime.",
+      "Do not maintain separate dataset-generation prompts by runtime.",
+      "Do not maintain separate Ask Documents prompts by runtime.",
+      "Do not maintain separate quality-review prompts by runtime.",
+      "Do not maintain provider-specific Carter tool registries.",
+      "Provider-specific transport code is permitted only inside provider adapters.",
+      "Provider failure must not silently switch runtime."
+    ]
+  },
+
+  "provider_equivalence": {
+    "required": true,
+
+    "equivalent_components": [
+      "system behavior",
+      "planner behavior",
+      "generator behavior",
+      "Ask Documents behavior",
+      "quality-review behavior",
+      "dataset specification schema",
+      "dataset-generation logical schema",
+      "Ask response schema",
+      "quality-review result schema",
+      "tool registry",
+      "tool argument contracts",
+      "tool result contracts",
+      "tool-round limit",
+      "revision limit",
+      "document-scope rules",
+      "grounding rules",
+      "evidence rules",
+      "prompt-injection rules",
+      "security boundaries"
+    ],
+
+    "allowed_provider_differences": [
+      "HTTP endpoint",
+      "authentication mechanism",
+      "provider request envelope",
+      "provider response envelope",
+      "provider job lifecycle",
+      "polling behavior",
+      "timeout handling",
+      "provider-served model identifier",
+      "native tool-call serialization",
+      "structured-output request syntax"
+    ],
+
+    "prohibited_provider_differences": [
+      "different Carter system instructions",
+      "different dataset semantics",
+      "different tool permissions",
+      "different document limits",
+      "different grounding requirements",
+      "different evidence requirements",
+      "different revision limits",
+      "different source authorization rules",
+      "different user-facing Carter identity"
+    ]
+  },
+
+  "schema_dialect": {
+    "canonical": "https://json-schema.org/draft/2020-12/schema",
+
+    "application_validation": {
+      "canonical_schema_required": true,
+      "provider_output_must_be_revalidated": true
+    },
+
+    "provider_projection_policy": {
+      "allowed": true,
+      "purpose": "Permit a provider adapter to translate the canonical Dataset Forge schema into a provider-supported structured-output representation without changing the logical Carter contract.",
+
+      "rules": [
+        "Dataset Forge canonical schemas remain authoritative.",
+        "Provider-side schema projection must preserve field names.",
+        "Provider-side schema projection must preserve required fields.",
+        "Provider-side schema projection must preserve primitive field types.",
+        "Provider-side schema projection must preserve enum values.",
+        "Provider-side schema projection must preserve additional-properties restrictions whenever supported.",
+        "Provider-side schema projection must preserve required evidence structure.",
+        "Provider-side schema projection must not add model-authored application fields.",
+        "If a provider cannot enforce a canonical JSON Schema constraint, Dataset Forge must still enforce that canonical constraint after inference.",
+        "Provider limitations must never cause malformed output to be accepted."
+      ]
+    }
+  },
+
+  "operation_bindings": {
+    "dataset_planning": {
+      "enabled": true,
+      "system_prompt": "carter-system-1.0",
+      "task_prompt": "carter-dataset-planner-1.0",
+      "output_schema": "carter-dataset-spec-1.0",
+      "agent_action_schema": null,
+      "tools": [],
+      "agent_loop_enabled": false,
+      "structured_output_required": true,
+
+      "application_inputs": [
+        "user_request",
+        "requested_output_format",
+        "application_limits",
+        "selected_document_metadata"
+      ],
+
+      "rules": [
+        "Planner normally requires no document retrieval.",
+        "Planner must not generate final records.",
+        "Planner output must pass canonical DatasetSpec structural validation.",
+        "Dataset Forge must also perform semantic DatasetSpec validation before generation.",
+        "status=clarification_required must stop generation until resolved.",
+        "status=rejected must stop generation."
+      ]
+    },
+
+    "dataset_generation": {
+      "enabled": true,
+      "system_prompt": "carter-system-1.0",
+      "task_prompt": "carter-dataset-generator-1.0",
+      "output_schema_template": "carter-dataset-generation-result-1.0",
+      "agent_action_schema": "carter-tool-call-1.0",
+      "tools": [
+        "list_documents",
+        "search_local_knowledge",
+        "get_source_units"
+      ],
+      "tool_access": "application_enabled_when_needed",
+      "agent_loop_enabled": "conditional",
+      "maximum_tool_rounds": 3,
+      "structured_output_required": true,
+
+      "application_inputs": [
+        "approved_dataset_spec",
+        "generation_batch",
+        "source_units",
+        "allowed_source_refs",
+        "hard_limits",
+        "compiled_generation_schema"
+      ],
+
+      "rules": [
+        "Dataset Forge dynamically compiles the exact record schema from the approved DatasetSpec.",
+        "The same logical compiled schema is used for Cloud and Local.",
+        "Generation should use application-provided source context when sufficient.",
+        "Retrieval tools may be exposed only when the application explicitly enables retrieval for the generation operation.",
+        "Carter must not reinterpret the approved DatasetSpec.",
+        "Carter must return the exact application-assigned batch count when status=generated.",
+        "Carter may return insufficient_source rather than fabricate or materially duplicate records.",
+        "Dataset Forge performs full post-generation validation."
+      ]
+    },
+
+    "ask_documents": {
+      "enabled": true,
+      "system_prompt": "carter-system-1.0",
+      "task_prompt": "carter-ask-documents-1.0",
+      "output_schema": "carter-ask-response-1.0",
+      "agent_action_schema": "carter-tool-call-1.0",
+      "tools": [
+        "list_documents",
+        "search_local_knowledge",
+        "get_source_units"
+      ],
+      "agent_loop_enabled": true,
+      "maximum_tool_rounds": 3,
+      "structured_output_required": true,
+
+      "application_inputs": [
+        "question",
+        "selected_documents",
+        "preloaded_source_units",
+        "runtime_context",
+        "tool_policy",
+        "answer_schema"
+      ],
+
+      "rules": [
+        "Use only currently selected documents.",
+        "Retrieve document evidence when existing context is insufficient.",
+        "Do not substitute pretrained knowledge for missing document evidence.",
+        "Final answered and partial responses require citations.",
+        "Final insufficient_source responses require zero citations.",
+        "Dataset Forge validates citations before rendering."
+      ]
+    },
+
+    "quality_review": {
+      "enabled": true,
+      "system_prompt": "carter-system-1.0",
+      "task_prompt": "carter-quality-review-1.0",
+      "output_schema": "carter-quality-review-result-1.0",
+      "agent_action_schema": null,
+      "tools": [],
+      "agent_loop_enabled": false,
+      "structured_output_required": true,
+
+      "application_inputs": [
+        "approved_dataset_spec",
+        "candidate_records",
+        "deterministic_validation_summary",
+        "review_limits"
+      ],
+
+      "precondition": {
+        "mandatory_deterministic_validation_completed": true,
+        "mandatory_validation_failure_behavior": "do_not_invoke_quality_review"
+      },
+
+      "rules": [
+        "Quality review is advisory.",
+        "Do not invoke quality review to rescue deterministically invalid output.",
+        "Quality review cannot override schema validation.",
+        "Quality review cannot override grounding validation.",
+        "Quality review cannot override evidence validation.",
+        "Quality review cannot authorize revisions.",
+        "Dataset Forge owns the revision decision."
+      ]
+    }
+  },
+
+  "derived_operations": {
+    "bounded_revision": {
+      "standalone_prompt_file": false,
+      "enabled": true,
+      "maximum_invocations_per_generation": 1,
+
+      "uses": {
+        "system_prompt": "carter-system-1.0",
+        "generation_prompt": "carter-dataset-generator-1.0",
+        "generation_result_schema": "carter-dataset-generation-result-1.0"
+      },
+
+      "required_application_context": [
+        "approved_dataset_spec",
+        "original_candidate_records",
+        "validated_quality_review_result",
+        "application_authorized_revision",
+        "source_context",
+        "allowed_source_refs",
+        "exact_target_record_count"
+      ],
+
+      "application_instruction": "Revise the candidate dataset only to address the validated advisory quality issues supplied by Dataset Forge. Preserve the approved DatasetSpec, record target, source-grounding requirements, allowed source references, evidence requirements, and all Carter system constraints. Do not introduce unrelated changes. Return the complete revised candidate dataset using the active compiled generation-result schema.",
+
+      "rules": [
+        "Dataset Forge must explicitly authorize the revision.",
+        "Carter cannot initiate revision itself.",
+        "Only one model-authored revision is permitted.",
+        "Revision returns the complete candidate dataset, not only patches.",
+        "The complete revised result must pass the full deterministic validation pipeline again.",
+        "A second model-authored revision is prohibited in Carter 1.0 PoC."
+      ]
+    }
+  },
+
+  "workflow": {
+    "dataset_creation": [
+      "1. Accept up to three approved PDF, DOCX, or TXT source documents.",
+      "2. Extract canonical document content using Dataset Forge's existing extraction pipeline.",
+      "3. Index source units into the local Carter knowledge store.",
+      "4. Invoke Carter Dataset Planner.",
+      "5. Validate planner response against carter-dataset-spec-1.0.",
+      "6. Perform application-owned DatasetSpec semantic validation.",
+      "7. Stop for clarification if required.",
+      "8. Create the application-owned generation plan and generation batches.",
+      "9. Compile the exact generation-result JSON Schema from the approved DatasetSpec.",
+      "10. Provide bounded source context and authorized source references.",
+      "11. Invoke Carter Dataset Generator.",
+      "12. Execute the bounded Carter tool loop only if retrieval is application-enabled and Carter requests it.",
+      "13. Validate model output against the exact compiled schema.",
+      "14. Verify exact record count.",
+      "15. Resolve provider-visible source aliases through their origin-batch mapping.",
+      "16. Verify source-reference authorization.",
+      "17. Verify evidence quotes against the exact quoteable source projection.",
+      "18. Perform deterministic grounding validation.",
+      "19. Perform deterministic duplicate and quality-summary analysis.",
+      "20. Invoke Carter advisory quality review only after mandatory deterministic validation succeeds.",
+      "21. Evaluate the review recommendation using application-owned revision policy.",
+      "22. If authorized and revision budget remains, perform exactly one bounded revision.",
+      "23. Re-run the complete deterministic validation pipeline on revised output.",
+      "24. Produce the final canonical JSON dataset.",
+      "25. Convert validated canonical JSON to CSV only when CSV export was requested.",
+      "26. Generate validation and quality-review artifacts.",
+      "27. Package final application-owned artifacts into the downloadable ZIP."
+    ],
+
+    "ask_documents": [
+      "1. Accept the user's one-question Ask Carter request.",
+      "2. Bind the request to the currently selected document IDs.",
+      "3. Load carter-system-1.0 and carter-ask-documents-1.0.",
+      "4. Bind carter-tool-call-1.0 to carter-ask-response-1.0.",
+      "5. Supply the three registered tools.",
+      "6. Invoke the explicitly selected runtime.",
+      "7. Normalize provider-native tool calling into the Carter logical action contract when necessary.",
+      "8. Validate every tool request.",
+      "9. Execute authorized tools locally in Dataset Forge.",
+      "10. Return bounded validated tool results to Carter.",
+      "11. Permit no more than three tool rounds.",
+      "12. Require Carter final_response after sufficient evidence or tool-budget exhaustion.",
+      "13. Validate final response against carter-ask-response-1.0.",
+      "14. Verify every source reference.",
+      "15. Verify every evidence quote.",
+      "16. Resolve safe application-owned citation display metadata.",
+      "17. Render the answer and citations.",
+      "18. Never silently switch runtime."
+    ]
+  },
+
+  "agent_loop": {
+    "logical_contract": "carter-tool-call-1.0",
+    "maximum_tool_rounds": 3,
+    "maximum_tools_per_turn": 1,
+    "parallel_tool_calls": false,
+    "application_owned_round_counter": true,
+
+    "allowed_actions": [
+      "tool_call",
+      "final_response"
+    ],
+
+    "rules": [
+      "Each Carter model turn produces exactly one logical action.",
+      "A tool_call requests exactly one registered tool.",
+      "A final_response contains no tool request.",
+      "Dataset Forge validates and executes all tools.",
+      "Dataset Forge generates tool execution identifiers.",
+      "Carter cannot author trusted execution IDs.",
+      "Provider-native multiple-tool calls are rejected in the PoC.",
+      "After three tool rounds, no fourth tool request may execute.",
+      "Provider retries are separate from Carter tool rounds.",
+      "Final response terminates the agent loop."
+    ]
+  },
+
+  "tool_execution": {
+    "location": "dataset_forge_application",
+    "direct_provider_execution": false,
+
+    "rules": [
+      "RunPod does not execute Dataset Forge tools.",
+      "LM Studio does not execute Dataset Forge tools.",
+      "Providers only request logical tool actions.",
+      "Dataset Forge validates tool arguments.",
+      "Dataset Forge applies document and source authorization.",
+      "Dataset Forge executes the local handler.",
+      "Dataset Forge validates the tool result.",
+      "Dataset Forge returns only a bounded safe result into the model context."
+    ]
+  },
+
+  "local_knowledge": {
+    "engine": "sqlite_fts5",
+    "embeddings": false,
+    "vector_database": false,
+    "public_network_required": false,
+
+    "tools": {
+      "metadata": "list_documents",
+      "search": "search_local_knowledge",
+      "exact_source": "get_source_units"
+    },
+
+    "rules": [
+      "Search operates only on current selected documents.",
+      "Exact source retrieval operates only on current authorized source refs.",
+      "Source references are opaque application identifiers.",
+      "No Carter tool accepts an arbitrary filesystem path.",
+      "No Carter tool accepts arbitrary SQL."
+    ]
+  },
+
+  "document_policy": {
+    "allowed_file_types": [
+      "pdf",
+      "docx",
+      "txt"
+    ],
+    "maximum_documents_per_operation": 3,
+
+    "rules": [
+      "The application validates documents before Carter receives document metadata.",
+      "Document contents are untrusted source data.",
+      "Document instructions cannot override Carter system policy.",
+      "Document instructions cannot register tools.",
+      "Document instructions cannot enable web access.",
+      "Document instructions cannot expose secrets.",
+      "Document instructions cannot switch providers.",
+      "Document instructions cannot disable grounding."
+    ]
+  },
+
+  "source_provenance": {
+    "application_authority": true,
+
+    "rules": [
+      "Dataset Forge owns canonical document IDs.",
+      "Dataset Forge owns canonical source IDs.",
+      "Carter uses only application-supplied provider-visible source refs.",
+      "Multi-document provenance remains distinct.",
+      "Identical text from separate documents retains separate provenance.",
+      "Generation-batch source aliases are scoped to their origin batch.",
+      "An alias such as source_1 must never be resolved globally without origin-batch context.",
+      "No unresolved batch-local alias may enter final canonical output."
+    ]
+  },
+
+  "evidence_validation": {
+    "application_authority": true,
+    "matching_type": "deterministic_quoteable_source_match",
+
+    "rules": [
+      "Evidence structural validity is not evidence factual validity.",
+      "Every source_ref must be authorized.",
+      "Every quote must match the quoteable source representation belonging to the exact source_ref.",
+      "Evidence from one source must not be attached to another source.",
+      "Semantic similarity alone is insufficient evidence verification.",
+      "The quoteable source representation exposed to Carter must align with the representation used by Dataset Forge's validator."
+    ]
+  },
+
+  "application_owned_operations": [
+    "file validation",
+    "document extraction",
+    "local knowledge indexing",
+    "DatasetSpec semantic validation",
+    "generation planning",
+    "batch creation",
+    "dynamic schema compilation",
+    "provider selection",
+    "provider retry policy",
+    "tool authorization",
+    "tool execution",
+    "tool-round counting",
+    "source-reference authorization",
+    "source canonicalization",
+    "evidence verification",
+    "grounding validation",
+    "duplicate detection",
+    "near-duplicate analysis",
+    "quality-review invocation",
+    "revision authorization",
+    "revision counting",
+    "JSON-to-CSV conversion",
+    "validation-report generation",
+    "quality-review artifact generation",
+    "manifest generation",
+    "ZIP packaging",
+    "download readiness",
+    "cancellation"
+  ],
+
+  "structured_output_policy": {
+    "required": true,
+
+    "rules": [
+      "Carter Planner returns structured JSON.",
+      "Carter Generator returns structured JSON.",
+      "Ask Carter returns structured JSON internally even though the UI renders normal prose.",
+      "Quality Review returns structured JSON.",
+      "Tool actions use the provider-neutral Carter action contract or a normalized provider-native equivalent.",
+      "Free-form model prose is not accepted where a structured contract is required.",
+      "Dataset Forge always performs canonical application-side validation."
+    ]
+  },
+
+  "csv_policy": {
+    "model_authored_csv": false,
+    "canonical_model_authored_format": "json",
+
+    "rules": [
+      "Carter never independently authors CSV.",
+      "Dataset Forge converts validated canonical JSON to CSV.",
+      "JSON and CSV exports originate from the same accepted canonical records.",
+      "CSV conversion must not trigger another model generation."
+    ]
+  },
+
+  "quality_review_policy": {
+    "advisory_only": true,
+    "tools_enabled": false,
+    "maximum_issues": 50,
+
+    "rules": [
+      "Mandatory deterministic validation runs before model quality review.",
+      "Deterministically invalid candidate output must not be passed to quality review as if review could repair validation.",
+      "Quality Review may identify semantic or editorial problems.",
+      "Quality Review cannot self-approve final package state.",
+      "Quality Review recommendation does not automatically trigger revision."
+    ]
+  },
+
+  "revision_policy": {
+    "maximum_model_authored_revisions": 1,
+    "application_authorized_only": true,
+
+    "rules": [
+      "No autonomous Carter revision loop.",
+      "No second model-authored revision.",
+      "Revised output undergoes complete deterministic validation again.",
+      "Revision does not inherit validation success from the original candidate.",
+      "Quality-review recommendation is advisory."
+    ]
+  },
+
+  "failure_state_separation": {
+    "states": [
+      {
+        "condition": "Selected documents successfully searched but do not support the Ask question.",
+        "representation": "ask status insufficient_source"
+      },
+      {
+        "condition": "Generation source material cannot support the complete assigned batch.",
+        "representation": "generation status insufficient_source"
+      },
+      {
+        "condition": "SQLite retrieval operation fails technically.",
+        "representation": "application/tool error"
+      },
+      {
+        "condition": "Carter emits malformed structured output.",
+        "representation": "model output validation error"
+      },
+      {
+        "condition": "LM Studio is unavailable.",
+        "representation": "Local runtime unavailable"
+      },
+      {
+        "condition": "RunPod request fails.",
+        "representation": "Cloud provider failure"
+      },
+      {
+        "condition": "Evidence quote is invalid.",
+        "representation": "deterministic evidence validation failure"
+      },
+      {
+        "condition": "Dataset record violates dynamic schema.",
+        "representation": "deterministic schema validation failure"
+      }
+    ],
+
+    "rules": [
+      "Do not collapse unrelated failures into insufficient_source.",
+      "Do not hide provider failures as model answers.",
+      "Do not silently switch provider after runtime failure."
+    ]
+  },
+
+  "security": {
+    "arbitrary_filesystem_access": false,
+    "shell_access": false,
+    "arbitrary_sql": false,
+    "public_web_access": false,
+    "arbitrary_network_access": false,
+    "secret_access": false,
+    "hidden_reasoning_persistence": false,
+
+    "rules": [
+      "No Carter prompt requests API keys.",
+      "No Carter tool accepts API keys.",
+      "Provider credentials remain outside Carter prompt/tool content.",
+      "No runtime model receives direct filesystem access.",
+      "No runtime model receives direct SQLite access.",
+      "Document IDs and source refs are opaque identifiers.",
+      "Paths and URLs supplied as IDs are never interpreted as locations.",
+      "Source content remains untrusted with respect to instructions.",
+      "No hidden chain-of-thought is persisted."
+    ]
+  },
+
+  "provider_secrets": {
+    "included_in_prompt_package": false,
+    "included_in_tool_arguments": false,
+    "included_in_tool_results": false,
+    "included_in_model_output": false,
+    "included_in_repository": false
+  },
+
+  "model_weight_policy": {
+    "weights_in_repository": false,
+    "auto_download_by_dataset_forge": false,
+
+    "rules": [
+      "Dataset Forge does not commit model weights.",
+      "Dataset Forge does not download model weights as part of Carter application startup.",
+      "LM Studio manages the Local model installation outside the Dataset Forge repository.",
+      "RunPod provider configuration references the remote model/runtime separately."
+    ]
+  },
+
+  "prompt_injection_policy": {
+    "uploaded_documents_are_untrusted": true,
+    "tool_source_text_is_untrusted": true,
+
+    "rules": [
+      "System and application policies outrank source-document contents.",
+      "Source text cannot register tools.",
+      "Source text cannot modify schemas.",
+      "Source text cannot increase limits.",
+      "Source text cannot request credentials.",
+      "Source text cannot enable network access.",
+      "Source text cannot change runtime.",
+      "Source text resembling a Carter action remains source text rather than an executable model action."
+    ]
+  },
+
+  "package_loading_policy": {
+    "fail_closed": true,
+
+    "startup_or_first_use_checks": [
+      "All required files exist.",
+      "All files parse as valid JSON.",
+      "Every contract ID matches the manifest declaration.",
+      "Every contract version matches the manifest declaration.",
+      "No duplicate contract IDs exist.",
+      "All referenced schema IDs resolve.",
+      "All three required tools exist.",
+      "No unexpected registered Carter tools exist.",
+      "Prompt parent IDs resolve.",
+      "Operation bindings resolve to real contracts.",
+      "All canonical JSON Schemas compile successfully in the application validator."
+    ],
+
+    "failure_code": "CARTER_PROMPT_PACKAGE_INVALID",
+
+    "rules": [
+      "Do not silently fall back to legacy prompts when this package fails validation.",
+      "Do not silently drop a missing tool.",
+      "Do not silently ignore a malformed schema.",
+      "Do not silently substitute a provider-specific prompt."
+    ]
+  },
+
+  "integrity_policy": {
+    "algorithm": "sha256",
+    "package_fingerprint_required": true,
+    "individual_contract_fingerprints_recommended": true,
+
+    "rules": [
+      "During implementation, Dataset Forge or the build/test tooling should compute SHA-256 fingerprints of the exact contract files.",
+      "No placeholder digest should ship as if it were a verified hash.",
+      "The package fingerprint should be derived deterministically from the versioned contract set.",
+      "Runtime/audit metadata may record the package version and safe fingerprint.",
+      "Provider adapters must not mutate source prompt files at runtime.",
+      "Provider serialization is derived from the immutable loaded contract objects."
+    ]
+  },
+
+  "compatibility": {
+    "carter_package": "1.0.x",
+    "dataset_forge_poc": true,
+
+    "breaking_changes_require": [
+      "new contract version",
+      "manifest version update",
+      "updated compatibility tests",
+      "updated engineering documentation"
+    ],
+
+    "breaking_change_examples": [
+      "adding a fourth Carter tool",
+      "changing a tool argument schema",
+      "changing DatasetSpec field-type semantics",
+      "changing maximum Carter tool rounds",
+      "allowing provider fallback",
+      "disabling mandatory grounding",
+      "changing the Ask response statuses",
+      "changing the maximum model-authored revision count",
+      "adding public research"
+    ]
+  },
+
+  "observability_policy": {
+    "safe_runtime_metadata": [
+      "Carter package version",
+      "manifest ID",
+      "package fingerprint",
+      "runtime",
+      "provider adapter",
+      "provider-served model ID",
+      "operation mode",
+      "model turn count",
+      "tool round count",
+      "tool names used",
+      "latency",
+      "bounded token usage when available",
+      "success or safe error code"
+    ],
+
+    "must_not_log": [
+      "API keys",
+      "authorization headers",
+      "passwords",
+      "private keys",
+      "hidden chain-of-thought",
+      "model scratchpads",
+      "full source documents under normal telemetry",
+      "filesystem paths containing private runtime layout"
+    ]
+  },
+
+  "acceptance_requirements": {
+    "package_validation": [
+      "all 14 package files parse",
+      "all declared IDs and versions match",
+      "all schema references resolve",
+      "all schemas compile",
+      "exactly three Carter tools registered",
+      "no provider-specific prompt fork exists"
+    ],
+
+    "planner": [
+      "question_answer request",
+      "instruction_response request",
+      "classification request",
+      "scenario_expected_result request",
+      "custom request",
+      "default record count",
+      "record-limit clarification",
+      "missing classification-label clarification",
+      "reserved field rejection",
+      "enum validation"
+    ],
+
+    "dynamic_generation_schema": [
+      "question-answer schema compilation",
+      "instruction-response schema compilation",
+      "classification schema compilation",
+      "scenario schema compilation",
+      "custom schema compilation",
+      "required field compilation",
+      "optional field compilation",
+      "enum compilation",
+      "boolean compilation",
+      "numeric compilation",
+      "array-string compilation",
+      "exact batch minItems/maxItems compilation",
+      "additionalProperties false",
+      "mandatory evidence"
+    ],
+
+    "tools": [
+      "list_documents bounded scope",
+      "search_local_knowledge selected-document scope",
+      "get_source_units authorized-source scope",
+      "arbitrary path rejection",
+      "arbitrary SQL rejection",
+      "unselected-document rejection",
+      "source enumeration rejection",
+      "no direct provider database access"
+    ],
+
+    "agent_loop": [
+      "zero-tool final response",
+      "one-tool final response",
+      "two-tool final response",
+      "three-tool final response",
+      "fourth tool call rejected",
+      "unknown fourth tool rejected",
+      "parallel native tool calls rejected",
+      "final response terminates loop"
+    ],
+
+    "ask_documents": [
+      "grounded answer",
+      "multi-document citations",
+      "partial answer",
+      "insufficient source",
+      "invalid citation rejection",
+      "invalid evidence rejection",
+      "unselected citation rejection",
+      "provider failure remains separate"
+    ],
+
+    "generation": [
+      "complete grounded batch",
+      "insufficient source",
+      "exact record target",
+      "source alias authorization",
+      "origin-batch canonicalization",
+      "evidence verification",
+      "multi-document provenance",
+      "no unresolved aliases"
+    ],
+
+    "quality_review": [
+      "clean accept",
+      "info-level accept",
+      "warning-level accept",
+      "major issue revise recommendation",
+      "unknown review record ref rejected",
+      "unknown affected field rejected",
+      "no tool access",
+      "no self-validation"
+    ],
+
+    "revision": [
+      "maximum one revision",
+      "application authorization required",
+      "complete revised dataset returned",
+      "full deterministic validation rerun",
+      "second revision prohibited"
+    ],
+
+    "provider_equivalence": [
+      "same manifest loaded for RunPod",
+      "same manifest loaded for LM Studio",
+      "same system prompt",
+      "same task prompts",
+      "same tool registry",
+      "same logical schemas",
+      "same limits",
+      "same grounding requirements",
+      "same revision policy",
+      "same Carter 1.0 user-facing identity"
+    ],
+
+    "runtime_isolation": [
+      "Local mode makes zero RunPod inference calls",
+      "Cloud mode makes zero LM Studio inference calls",
+      "Local failure does not trigger Cloud fallback",
+      "Cloud failure does not trigger Local fallback"
+    ],
+
+    "security": [
+      "no secret values in package files",
+      "no model weights in repository",
+      "no local knowledge database tracked",
+      "no shell tool",
+      "no arbitrary filesystem tool",
+      "no arbitrary network tool",
+      "no public research tool",
+      "no prompt-injection authority from source documents"
+    ]
+  },
+
+  "documentation_requirements": {
+    "required": [
+      "Carter 1.0 prompt-package architecture",
+      "contract inventory",
+      "operation bindings",
+      "RunPod and LM Studio equivalence",
+      "tool-loop semantics",
+      "source-grounding semantics",
+      "dynamic schema compilation",
+      "quality-review and one-revision policy",
+      "provider failure isolation",
+      "security boundaries",
+      "known external prerequisites"
+    ]
+  },
+
+  "change_control": {
+    "rules": [
+      "Do not mutate Carter 1.0 contracts silently.",
+      "Material behavioral changes require a new semantic contract version.",
+      "Adding a tool requires a new package version.",
+      "Changing hard security boundaries requires a new package version.",
+      "Provider adapters must consume the manifest rather than duplicating prompt strings in provider code.",
+      "Tests should fail when runtime code references an undeclared Carter prompt, tool, or schema."
+    ]
+  },
+
+  "final_contract": "carter-prompt-manifest-1.0 is the authoritative registry for the Carter 1.0 Dataset Forge PoC prompt package. Carter 1.0 uses five versioned prompts, exactly three model-callable tools, five canonical schemas, one bounded provider-neutral agent protocol, mandatory document grounding and evidence, a maximum of three tool rounds, and at most one application-authorized model revision. RunPod Cloud and LM Studio Local consume the same logical Carter package. Provider adapters may differ only in transport. Dataset Forge remains authoritative for validation, tool execution, source provenance, runtime selection, revision authorization, security, export conversion, and packaging."
+}

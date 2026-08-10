@@ -1,0 +1,680 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "carter-dataset-generation-result-1.0.schema.json",
+  "title": "Carter 1.0 Dataset Generation Result",
+  "description": "Authoritative template contract for Carter 1.0 candidate dataset-generation responses. Dataset Forge compiles the application-approved DatasetSpec into the dynamic record portion before inference and validates Carter's response against that exact compiled schema after inference.",
+
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "status",
+    "records",
+    "insufficiency"
+  ],
+
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "generated",
+        "insufficient_source"
+      ],
+      "description": "Whether Carter produced the complete candidate batch or determined that the exact requested batch cannot be generated without unsupported source content."
+    },
+
+    "records": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 100,
+      "description": "Candidate dataset records. Dataset Forge replaces the record-template contract with an exact schema compiled from the approved DatasetSpec before sending it to Carter.",
+      "items": {
+        "$ref": "#/$defs/dynamic_record_template"
+      }
+    },
+
+    "insufficiency": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/insufficiency"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+
+  "$defs": {
+    "dynamic_record_template": {
+      "type": "object",
+      "description": "TEMPLATE ONLY. Dataset Forge must compile this definition into an exact record schema for the current approved DatasetSpec. The compiled schema contains the approved semantic fields plus the application-required evidence field.",
+      "additionalProperties": false,
+
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/evidence_array"
+        }
+      },
+
+      "required": [
+        "evidence"
+      ],
+
+      "x-dataset-forge-dynamic-record": {
+        "compile_from": "approved_dataset_spec.fields",
+        "preserve_evidence_property": true,
+        "additional_properties": false,
+        "description": "Before model inference, Dataset Forge inserts one JSON Schema property for every approved semantic field and marks each DatasetSpec field with required=true as required. Carter never receives this uncompiled placeholder as the authoritative final output schema."
+      }
+    },
+
+    "evidence_array": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "description": "Exact source evidence supporting the semantic content of the generated record.",
+      "items": {
+        "$ref": "#/$defs/evidence_item"
+      }
+    },
+
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "source_ref",
+        "quote"
+      ],
+
+      "properties": {
+        "source_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "An exact provider-visible source reference supplied by Dataset Forge for the current generation batch."
+        },
+
+        "quote": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "description": "A concise exact quotation from the quoteable source representation associated with source_ref."
+        }
+      }
+    },
+
+    "insufficiency": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "reason_code",
+        "message"
+      ],
+
+      "properties": {
+        "reason_code": {
+          "type": "string",
+          "enum": [
+            "SOURCE_COVERAGE_INSUFFICIENT",
+            "REQUIRED_FIELD_UNSUPPORTED",
+            "ENUM_VALUE_UNSUPPORTED",
+            "DIVERSITY_UNACHIEVABLE_WITHOUT_DUPLICATION",
+            "EXACT_TARGET_UNACHIEVABLE"
+          ]
+        },
+
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "A concise explanation of why Carter cannot safely produce the complete requested batch from the supplied source material."
+        }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "generated"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+
+      "then": {
+        "properties": {
+          "records": {
+            "minItems": 1
+          },
+
+          "insufficiency": {
+            "type": "null"
+          }
+        }
+      }
+    },
+
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "insufficient_source"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+
+      "then": {
+        "properties": {
+          "records": {
+            "maxItems": 0
+          },
+
+          "insufficiency": {
+            "$ref": "#/$defs/insufficiency"
+          }
+        }
+      }
+    }
+  ],
+
+  "x-dataset-forge-runtime-compilation": {
+    "required": true,
+
+    "source_contract": "carter-dataset-spec-1.0",
+
+    "target_definition": "#/$defs/dynamic_record_template",
+
+    "rules": [
+      "Never send the uncompiled dynamic_record_template to Carter as the final structured-output contract.",
+      "Compile one exact record schema from the application-approved DatasetSpec.",
+      "Insert exactly one semantic JSON property for each DatasetSpec field.",
+      "Do not add semantic fields that are absent from DatasetSpec.",
+      "Do not remove DatasetSpec fields.",
+      "Do not rename DatasetSpec fields.",
+      "Translate DatasetSpec field types into JSON Schema types using the field-type mapping in this contract.",
+      "Translate supported DatasetSpec field constraints into equivalent JSON Schema constraints.",
+      "Append the application-owned evidence property after semantic-field compilation.",
+      "Require evidence whenever DatasetSpec.evidence_required is true.",
+      "Use additionalProperties=false on every generated record.",
+      "Use the same compiled schema for RunPod and LM Studio.",
+      "Validate Carter output against exactly the schema that was supplied for that generation call."
+    ]
+  },
+
+  "x-dataset-forge-field-type-mapping": {
+    "string": {
+      "json_schema": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+
+    "integer": {
+      "json_schema": {
+        "type": "integer"
+      }
+    },
+
+    "number": {
+      "json_schema": {
+        "type": "number"
+      }
+    },
+
+    "boolean": {
+      "json_schema": {
+        "type": "boolean"
+      }
+    },
+
+    "enum": {
+      "json_schema": {
+        "description": "Dataset Forge sets enum to the exact DatasetSpec.enum_values collection."
+      }
+    },
+
+    "array_string": {
+      "json_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+
+  "x-dataset-forge-field-constraint-mapping": {
+    "string": {
+      "min_length": "minLength",
+      "max_length": "maxLength"
+    },
+
+    "integer": {
+      "minimum": "minimum",
+      "maximum": "maximum"
+    },
+
+    "number": {
+      "minimum": "minimum",
+      "maximum": "maximum"
+    },
+
+    "array_string": {
+      "min_items": "minItems",
+      "max_items": "maxItems"
+    },
+
+    "rules": [
+      "Apply only constraints defined and approved in DatasetSpec.",
+      "Do not invent constraints during compilation.",
+      "Reject internally inconsistent constraints such as min_length greater than max_length.",
+      "Reject minimum greater than maximum.",
+      "Reject min_items greater than max_items."
+    ]
+  },
+
+  "x-dataset-forge-required-field-compilation": {
+    "rules": [
+      "Every DatasetSpec field with required=true must appear in the compiled record required array.",
+      "Every DatasetSpec field with required=false remains optional.",
+      "evidence must appear in the compiled required array when evidence_required=true.",
+      "No application provenance field other than the explicitly defined temporary evidence field is model-authored."
+    ]
+  },
+
+  "x-dataset-forge-enum-compilation": {
+    "rules": [
+      "For a DatasetSpec field whose type is enum, set the compiled property's enum array to exactly DatasetSpec.enum_values.",
+      "Preserve JSON primitive types of enum values.",
+      "Do not add aliases or synonyms.",
+      "Do not normalize capitalization after DatasetSpec approval.",
+      "Do not convert numeric or boolean enum values into strings.",
+      "An enum must contain at least two distinct values."
+    ]
+  },
+
+  "x-dataset-forge-record-count-validation": {
+    "schema_limit": 100,
+
+    "application_authority": true,
+
+    "rules": [
+      "The static schema maximum of 100 is only the Carter 1.0 PoC global ceiling.",
+      "Before inference, Dataset Forge knows generation_batch.target_record_count.",
+      "When status is generated, Dataset Forge must additionally require records.length to equal generation_batch.target_record_count exactly.",
+      "Carter cannot authorize a smaller successful batch.",
+      "Carter cannot authorize a larger successful batch.",
+      "A response containing fewer records than the exact batch target must not be accepted as generated.",
+      "A response containing more records than the exact batch target must not be accepted.",
+      "When the exact target cannot be safely produced, Carter should use insufficient_source rather than duplicating or fabricating records."
+    ]
+  },
+
+  "x-dataset-forge-evidence-validation": {
+    "application_owned": true,
+
+    "rules": [
+      "JSON Schema validation confirms only the structure of source_ref and quote.",
+      "After structural validation, Dataset Forge must verify every source_ref against the current generation batch's allowed source-reference registry.",
+      "Dataset Forge must resolve provider-visible source aliases through origin-batch context before global assembly.",
+      "Dataset Forge must verify each quote against the quoteable source representation belonging to that exact source reference.",
+      "Evidence verification must not trust Carter's assertion that the quote is valid.",
+      "A structurally valid evidence object with an invented source_ref is invalid.",
+      "A structurally valid evidence object whose quote belongs to another source_ref is invalid.",
+      "No unresolved batch-local source alias may enter the canonical final dataset."
+    ]
+  },
+
+  "x-dataset-forge-grounding-validation": {
+    "application_owned": true,
+
+    "rules": [
+      "Passing this JSON Schema does not mean a record is grounded.",
+      "Dataset Forge performs deterministic grounding after source-reference resolution and evidence verification.",
+      "Carter must not emit grounding_status, grounding_score, schema_valid, validation_status, package_ready, or similar self-certification fields.",
+      "The final accepted dataset consists only of records that pass application-owned validation."
+    ]
+  },
+
+  "x-dataset-forge-deduplication": {
+    "application_owned": true,
+
+    "rules": [
+      "Carter should avoid duplicates during generation.",
+      "Dataset Forge performs authoritative exact-duplicate detection after generation.",
+      "Dataset Forge may perform deterministic near-duplicate analysis according to the existing quality pipeline.",
+      "Carter must not output duplicate_status or similarity_score fields.",
+      "Multi-batch duplicate analysis occurs after batch assembly."
+    ]
+  },
+
+  "x-dataset-forge-batch-policy": {
+    "rules": [
+      "The result contains only records for the current generation batch.",
+      "Do not include a model-authored batch_id.",
+      "Do not include a model-authored global record ID.",
+      "Do not include a model-authored canonical source ID.",
+      "Dataset Forge associates the provider response with the application-owned batch externally.",
+      "Dataset Forge performs origin-batch source-reference canonicalization before combining batches.",
+      "Source aliases valid in one batch are not implicitly valid in another."
+    ]
+  },
+
+  "x-dataset-forge-fail-closed-generation": {
+    "enabled": true,
+
+    "rules": [
+      "Carter 1.0 PoC does not accept model-declared partial-success batches.",
+      "Either Carter generates the complete assigned batch or returns insufficient_source.",
+      "When status is insufficient_source, records must be empty.",
+      "Dataset Forge may retry according to its bounded provider policy, but Carter cannot initiate retries itself.",
+      "Insufficiency is not equivalent to provider failure.",
+      "Insufficiency means the model concluded the requested grounded records cannot safely be produced from the supplied source material under the active DatasetSpec."
+    ]
+  },
+
+  "x-dataset-forge-insufficiency-semantics": {
+    "SOURCE_COVERAGE_INSUFFICIENT": "The supplied source material does not contain enough relevant information to produce the assigned batch safely.",
+
+    "REQUIRED_FIELD_UNSUPPORTED": "One or more required DatasetSpec fields cannot be populated without unsupported content.",
+
+    "ENUM_VALUE_UNSUPPORTED": "The requested source-grounded content cannot safely support the required enum semantics.",
+
+    "DIVERSITY_UNACHIEVABLE_WITHOUT_DUPLICATION": "Producing the complete target would require materially duplicating records.",
+
+    "EXACT_TARGET_UNACHIEVABLE": "The complete batch target cannot be produced while satisfying the approved DatasetSpec and grounding contract."
+  },
+
+  "x-dataset-forge-prohibited-model-fields": [
+    "id",
+    "record_id",
+    "canonical_record_id",
+    "document_id",
+    "canonical_document_id",
+    "canonical_source_id",
+    "source_refs",
+    "validation",
+    "validation_status",
+    "schema_valid",
+    "grounding",
+    "grounding_status",
+    "grounding_score",
+    "quality_score",
+    "quality_review_status",
+    "provider",
+    "provider_id",
+    "provider_job_id",
+    "provider_operation_id",
+    "generation_id",
+    "artifact_id",
+    "artifact_digest",
+    "package_ready",
+    "security_status",
+    "revision_count",
+    "created_at",
+    "updated_at"
+  ],
+
+  "x-dataset-forge-provider-equivalence": {
+    "rules": [
+      "Compile the runtime schema once from the approved DatasetSpec.",
+      "The logical compiled schema must be identical for RunPod and LM Studio.",
+      "If provider transports require different serialization wrappers, those wrappers must not change the schema semantics.",
+      "Do not maintain separate RunPod and LM Studio DatasetSpec compilers.",
+      "Do not relax schema requirements for Local mode.",
+      "Do not relax schema requirements for Cloud mode."
+    ]
+  },
+
+  "x-dataset-forge-compilation-example-question-answer": {
+    "dataset_spec_fields": [
+      {
+        "name": "question",
+        "type": "string",
+        "required": true,
+        "description": "A software-testing question."
+      },
+      {
+        "name": "answer",
+        "type": "string",
+        "required": true,
+        "description": "The ideal source-grounded answer."
+      },
+      {
+        "name": "difficulty",
+        "type": "enum",
+        "required": true,
+        "description": "Difficulty of the question.",
+        "enum_values": [
+          "easy",
+          "medium",
+          "hard"
+        ]
+      }
+    ],
+
+    "compiled_record_schema": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "question",
+        "answer",
+        "difficulty",
+        "evidence"
+      ],
+
+      "properties": {
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "answer": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "difficulty": {
+          "enum": [
+            "easy",
+            "medium",
+            "hard"
+          ]
+        },
+
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_ref",
+              "quote"
+            ],
+            "properties": {
+              "source_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "quote": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "x-dataset-forge-compilation-example-custom": {
+    "dataset_spec_fields": [
+      {
+        "name": "customer_message",
+        "type": "string",
+        "required": true,
+        "description": "A customer message."
+      },
+      {
+        "name": "intent",
+        "type": "string",
+        "required": true,
+        "description": "The customer's intent."
+      },
+      {
+        "name": "urgency",
+        "type": "enum",
+        "required": true,
+        "description": "Urgency classification.",
+        "enum_values": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "ideal_response",
+        "type": "string",
+        "required": true,
+        "description": "The ideal source-grounded response."
+      },
+      {
+        "name": "escalation_required",
+        "type": "boolean",
+        "required": true,
+        "description": "Whether the message requires escalation."
+      }
+    ],
+
+    "compiled_record_schema": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "customer_message",
+        "intent",
+        "urgency",
+        "ideal_response",
+        "escalation_required",
+        "evidence"
+      ],
+
+      "properties": {
+        "customer_message": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "intent": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "urgency": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+
+        "ideal_response": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "escalation_required": {
+          "type": "boolean"
+        },
+
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_ref",
+              "quote"
+            ],
+            "properties": {
+              "source_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "quote": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "examples": [
+    {
+      "status": "generated",
+
+      "records": [
+        {
+          "question": "What is the purpose of regression testing?",
+          "answer": "Regression testing verifies that existing behavior remains correct after a change.",
+          "difficulty": "easy",
+          "evidence": [
+            {
+              "source_ref": "source_1",
+              "quote": "Regression testing verifies that existing behavior remains correct after a change."
+            }
+          ]
+        },
+
+        {
+          "question": "What type of testing focuses on invalid inputs and expected failures?",
+          "answer": "Negative testing.",
+          "difficulty": "easy",
+          "evidence": [
+            {
+              "source_ref": "source_2",
+              "quote": "Negative testing checks invalid inputs and expected failure behavior."
+            }
+          ]
+        }
+      ],
+
+      "insufficiency": null
+    },
+
+    {
+      "status": "insufficient_source",
+
+      "records": [],
+
+      "insufficiency": {
+        "reason_code": "SOURCE_COVERAGE_INSUFFICIENT",
+        "message": "The supplied source material does not contain enough distinct supported concepts to produce the complete assigned batch without inventing or materially duplicating records."
+      }
+    }
+  ]
+}

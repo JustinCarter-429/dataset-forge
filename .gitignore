@@ -18,6 +18,9 @@ venv/
 backend/.pytest-tmp*/
 backend/.pytest-audit*/
 backend/.pytest-carter*/
+backend/.pytest-part1-baseline/
+backend/.pytest-part1-focused/
+backend/.pytest-part1-final/
 backend/.release-pytest-tmp/
 .mypy_cache/
 .ruff_cache/

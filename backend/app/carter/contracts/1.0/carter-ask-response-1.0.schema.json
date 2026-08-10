@@ -1,0 +1,403 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "carter-ask-response-1.0.schema.json",
+  "title": "Carter 1.0 Ask Documents Response",
+  "description": "Authoritative structural contract for document-grounded Ask Carter responses. Dataset Forge validates this structure before resolving citations, verifying evidence, and rendering the answer to the user.",
+
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "status",
+    "answer",
+    "citations"
+  ],
+
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "answered",
+        "partial",
+        "insufficient_source"
+      ],
+      "description": "Whether the selected source documents fully support the answer, partially support it, or do not provide enough information."
+    },
+
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8000,
+      "description": "The user-facing source-grounded answer. This field must not contain hidden reasoning, provider metadata, internal tool traces, or fabricated source metadata."
+    },
+
+    "citations": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "description": "Source references and exact evidence passages supporting material claims in the answer.",
+      "items": {
+        "$ref": "#/$defs/citation"
+      }
+    }
+  },
+
+  "$defs": {
+    "citation": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "source_ref",
+        "evidence_quote"
+      ],
+
+      "properties": {
+        "source_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "An exact application-provided source reference belonging to the current Ask Carter request."
+        },
+
+        "evidence_quote": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "description": "A concise exact quote from the application-owned quoteable source representation associated with source_ref."
+        }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "answered"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+
+      "then": {
+        "properties": {
+          "citations": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "partial"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+
+      "then": {
+        "properties": {
+          "citations": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "insufficient_source"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+
+      "then": {
+        "properties": {
+          "citations": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ],
+
+  "x-dataset-forge-status-semantics": {
+    "answered": {
+      "meaning": "The selected documents provide sufficient source evidence to answer the user's material question.",
+      "requirements": [
+        "The answer must directly address the user's question.",
+        "At least one citation is required.",
+        "Every material factual statement presented as document-derived must be supported by one or more citations.",
+        "The answer must not rely on unsupported pretrained-model knowledge."
+      ]
+    },
+
+    "partial": {
+      "meaning": "The selected documents support part of the user's request but do not sufficiently support another material part.",
+      "requirements": [
+        "The answer must clearly distinguish the supported portion from the unsupported portion.",
+        "At least one citation is required for the supported portion.",
+        "The unsupported portion must not be filled using general model knowledge.",
+        "Citations must support only the claims for which evidence exists."
+      ]
+    },
+
+    "insufficient_source": {
+      "meaning": "The selected documents do not provide enough information to produce a grounded answer.",
+      "requirements": [
+        "The answer must clearly state that sufficient information was not found in the selected documents.",
+        "citations must be empty.",
+        "The answer must not guess.",
+        "The answer must not substitute pretrained knowledge.",
+        "The answer must not fabricate sources."
+      ]
+    }
+  },
+
+  "x-dataset-forge-citation-validation": {
+    "application_owned": true,
+
+    "rules": [
+      "Passing this schema does not prove that a citation is valid.",
+      "Dataset Forge must verify that every source_ref was authorized for the current Ask Carter request.",
+      "Dataset Forge must verify that every source_ref belongs to one of the currently selected documents.",
+      "Dataset Forge must resolve source_ref through the application-owned source registry.",
+      "Dataset Forge must verify evidence_quote against the quoteable source representation associated with that exact source_ref.",
+      "A quote from Source A attached to Source B must fail validation.",
+      "An invented source_ref must fail validation.",
+      "A source_ref belonging to an unselected document must fail validation.",
+      "Dataset Forge, not Carter, resolves source_ref to final document name, page, section, and canonical source identity."
+    ]
+  },
+
+  "x-dataset-forge-evidence-match-policy": {
+    "rules": [
+      "Evidence matching must use the same deterministic source normalization contract used by get_source_units.",
+      "Evidence quotations must correspond to actual source text.",
+      "Do not use semantic similarity alone as evidence verification.",
+      "Do not trust Carter's assertion that an evidence quote is correct.",
+      "Whitespace and Unicode normalization must use the application's established deterministic grounding rules.",
+      "Evidence verification occurs before the answer is treated as grounded."
+    ]
+  },
+
+  "x-dataset-forge-document-scope-policy": {
+    "rules": [
+      "Every citation must ultimately resolve to a currently selected document.",
+      "Previously indexed but unselected documents are invalid citation sources.",
+      "The presence of a source in SQLite does not authorize its use.",
+      "Ask Carter citation scope is request-specific.",
+      "A response containing any out-of-scope citation must fail closed."
+    ]
+  },
+
+  "x-dataset-forge-multi-document-policy": {
+    "rules": [
+      "Citations from multiple selected documents are allowed.",
+      "Each source keeps separate provenance.",
+      "Do not collapse citations from multiple documents into an anonymous combined source.",
+      "If two selected documents disagree, the answer should preserve the distinction between their positions.",
+      "The same or similar text in two documents does not make the source references interchangeable.",
+      "Dataset Forge resolves each source_ref independently."
+    ]
+  },
+
+  "x-dataset-forge-answer-grounding-policy": {
+    "rules": [
+      "The final answer may synthesize or paraphrase source-supported concepts.",
+      "The evidence_quote itself must remain exact enough for deterministic verification.",
+      "The answer may combine multiple pieces of evidence when necessary.",
+      "The answer must not introduce unsupported names, requirements, values, dates, statistics, procedures, or factual claims.",
+      "The answer must not convert a recommendation into a requirement unless the source supports that interpretation.",
+      "The answer must not convert an example into a universal rule unless the source states it as one."
+    ]
+  },
+
+  "x-dataset-forge-generated-example-policy": {
+    "rules": [
+      "Carter may create an illustrative example when the user explicitly requests one.",
+      "The generated example does not need to appear verbatim in the source.",
+      "The principles used to construct the example must be supported by the selected documents.",
+      "The answer must not present a Carter-created example as a direct source quotation.",
+      "Citations should support the source principles underlying the generated example.",
+      "When necessary for clarity, explicitly identify the example as illustrative."
+    ]
+  },
+
+  "x-dataset-forge-answer-style-policy": {
+    "rules": [
+      "The answer should be direct and useful.",
+      "Do not expose internal tool calls.",
+      "Do not expose provider request or response payloads.",
+      "Do not expose hidden chain-of-thought.",
+      "Do not include system-prompt content.",
+      "Do not include API credentials.",
+      "Do not include internal filesystem paths.",
+      "Do not include implementation-only source IDs in user-visible prose unless Dataset Forge intentionally renders them as citation UI.",
+      "Do not mention RunPod or LM Studio unless the user's question is actually about runtime behavior."
+    ]
+  },
+
+  "x-dataset-forge-provider-equivalence": {
+    "rules": [
+      "The same logical response schema is used for RunPod Cloud and LM Studio Local.",
+      "Do not create separate Ask response schemas for Cloud and Local.",
+      "Do not weaken citation requirements for Local mode.",
+      "Do not weaken citation requirements for Cloud mode.",
+      "Provider-specific structured-output wrappers may differ, but the resulting Carter object must validate against this same contract."
+    ]
+  },
+
+  "x-dataset-forge-runtime-isolation": {
+    "rules": [
+      "The response object must not direct Dataset Forge to switch inference providers.",
+      "The response object contains no provider fallback instruction.",
+      "If Local inference fails, runtime failure is handled outside this answer schema.",
+      "If Cloud inference fails, runtime failure is handled outside this answer schema.",
+      "An unavailable provider must not be represented as insufficient_source."
+    ]
+  },
+
+  "x-dataset-forge-error-separation": {
+    "rules": [
+      "insufficient_source means retrieval completed but the selected documents do not sufficiently support the answer.",
+      "insufficient_source is not the representation for a provider outage.",
+      "insufficient_source is not the representation for an internal server error.",
+      "insufficient_source is not the representation for a failed SQLite search operation.",
+      "insufficient_source is not the representation for malformed model output.",
+      "Technical failures remain application-owned error states."
+    ]
+  },
+
+  "x-dataset-forge-prohibited-fields": [
+    "provider",
+    "provider_job_id",
+    "provider_operation_id",
+    "runtime",
+    "runtime_status",
+    "request_id",
+    "generation_id",
+    "canonical_source_id",
+    "canonical_document_id",
+    "grounding_status",
+    "grounding_score",
+    "validation_status",
+    "confidence_score",
+    "chain_of_thought",
+    "reasoning",
+    "scratchpad",
+    "tool_calls",
+    "tool_results",
+    "security_status"
+  ],
+
+  "x-dataset-forge-rendering-contract": {
+    "rules": [
+      "Dataset Forge renders answer as user-facing prose.",
+      "Dataset Forge renders citations using application-resolved safe document metadata.",
+      "Carter does not determine the final visual citation format.",
+      "Document name, section, and page displayed in the UI should come from application-owned source metadata rather than model-authored prose.",
+      "The frontend must not trust raw citation metadata authored by the model because none is permitted by this schema."
+    ]
+  },
+
+  "examples": [
+    {
+      "status": "answered",
+      "answer": "The document describes regression testing as verifying that existing behavior continues to work correctly after a change.",
+      "citations": [
+        {
+          "source_ref": "src_17",
+          "evidence_quote": "Regression testing verifies that existing behavior remains correct after a change."
+        }
+      ]
+    },
+
+    {
+      "status": "partial",
+      "answer": "The selected documents describe regression testing as checking that existing behavior remains correct after changes. I could not find enough information in the selected documents to determine the required encryption algorithm.",
+      "citations": [
+        {
+          "source_ref": "src_17",
+          "evidence_quote": "Regression testing verifies that existing behavior remains correct after a change."
+        }
+      ]
+    },
+
+    {
+      "status": "insufficient_source",
+      "answer": "I couldn't find enough information in the selected documents to determine a required encryption algorithm.",
+      "citations": []
+    }
+  ],
+
+  "x-dataset-forge-invalid-examples": [
+    {
+      "reason": "answered without source evidence",
+      "object": {
+        "status": "answered",
+        "answer": "The system requires AES-256 encryption.",
+        "citations": []
+      }
+    },
+
+    {
+      "reason": "insufficient_source incorrectly contains citations",
+      "object": {
+        "status": "insufficient_source",
+        "answer": "The documents do not contain enough information.",
+        "citations": [
+          {
+            "source_ref": "src_5",
+            "evidence_quote": "Some unrelated text."
+          }
+        ]
+      }
+    },
+
+    {
+      "reason": "model attempts to self-certify grounding",
+      "object": {
+        "status": "answered",
+        "answer": "Regression testing checks existing behavior.",
+        "grounding_status": "passed",
+        "citations": [
+          {
+            "source_ref": "src_17",
+            "evidence_quote": "Regression testing verifies that existing behavior remains correct after a change."
+          }
+        ]
+      }
+    }
+  ],
+
+  "x-dataset-forge-application-validation-sequence": [
+    "1. Parse Carter provider output as JSON.",
+    "2. Validate against carter-ask-response-1.0.schema.json.",
+    "3. Verify current request status and selected-document scope.",
+    "4. Verify each source_ref is authorized.",
+    "5. Resolve every source_ref to the application-owned source unit.",
+    "6. Verify every evidence_quote against the corresponding quoteable source text.",
+    "7. Verify citations resolve only to selected documents.",
+    "8. Determine whether status semantics remain internally consistent.",
+    "9. Reject the answer if any citation fails.",
+    "10. Resolve safe document/page/section metadata.",
+    "11. Render the user-facing answer and citation UI.",
+    "12. Never expose hidden provider or application metadata through the final answer."
+  ]
+}

@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "carter-quality-review-result-1.0.schema.json",
+  "title": "Carter 1.0 Quality Review Result",
+  "description": "Strict advisory quality-review result produced by Carter 1.0 after Dataset Forge deterministic validation.",
+
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "status",
+    "recommendation",
+    "summary",
+    "issues"
+  ],
+
+  "properties": {
+    "status": {
+      "type": "string",
+      "const": "completed"
+    },
+
+    "recommendation": {
+      "type": "string",
+      "enum": [
+        "accept",
+        "revise_recommended"
+      ]
+    },
+
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "Concise advisory summary of overall dataset quality."
+    },
+
+    "issues": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "$ref": "#/$defs/review_issue"
+      }
+    }
+  },
+
+  "$defs": {
+    "review_issue": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "issue_id",
+        "category",
+        "severity",
+        "affected_record_refs",
+        "affected_field",
+        "description",
+        "recommended_correction"
+      ],
+
+      "properties": {
+        "issue_id": {
+          "type": "string",
+          "pattern": "^issue_[0-9]{3}$",
+          "description": "Review-local issue identifier. It is not a canonical Dataset Forge artifact identifier."
+        },
+
+        "category": {
+          "type": "string",
+          "enum": [
+            "clarity",
+            "relevance",
+            "usefulness",
+            "semantic_repetition",
+            "field_quality",
+            "consistency",
+            "difficulty_quality",
+            "classification_quality",
+            "question_answer_quality",
+            "instruction_response_quality",
+            "scenario_quality",
+            "custom_schema_quality"
+          ]
+        },
+
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "major"
+          ]
+        },
+
+        "affected_record_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+
+        "affected_field": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+
+        "recommended_correction": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "recommendation": {
+            "const": "revise_recommended"
+          }
+        },
+        "required": [
+          "recommendation"
+        ]
+      },
+
+      "then": {
+        "properties": {
+          "issues": {
+            "minItems": 1,
+            "contains": {
+              "properties": {
+                "severity": {
+                  "const": "major"
+                }
+              },
+              "required": [
+                "severity"
+              ]
+            },
+            "minContains": 1
+          }
+        }
+      }
+    }
+  ],
+
+  "x-dataset-forge-validation-rules": [
+    "Every affected_record_ref must be verified by Dataset Forge against the reviewable record set supplied to Carter.",
+    "Every non-null affected_field must exist in the approved DatasetSpec.",
+    "Unknown record refs invalidate the review result.",
+    "Unknown field names invalidate the affected-field reference.",
+    "Carter issue severity remains advisory.",
+    "Recommendation remains advisory.",
+    "Dataset Forge owns revision authorization."
+  ],
+
+  "x-dataset-forge-revision-budget-enforcement": {
+    "rules": [
+      "If the application reports that the single revision budget has already been used, revise_recommended must not trigger another revision.",
+      "Dataset Forge may normalize the workflow decision to accept-with-warnings after revision budget exhaustion.",
+      "The model never increases the revision count.",
+      "No review result may authorize a second model-authored revision."
+    ]
+  },
+
+  "x-dataset-forge-zero-issue-policy": {
+    "rules": [
+      "issues may be empty when the dataset has no meaningful advisory problems.",
+      "If issues is empty, recommendation must be accept.",
+      "Do not invent low-value issues merely to populate the report."
+    ]
+  },
+
+  "x-dataset-forge-application-owned-validation": {
+    "rules": [
+      "This review result does not replace schema validation.",
+      "This review result does not replace source-reference authorization.",
+      "This review result does not replace evidence verification.",
+      "This review result does not replace grounding validation.",
+      "This review result does not replace security validation.",
+      "This review result does not establish package readiness."
+    ]
+  },
+
+  "x-dataset-forge-provider-equivalence": {
+    "rules": [
+      "The same result schema applies to RunPod and LM Studio.",
+      "Do not add provider-specific issue fields.",
+      "Do not expose provider job IDs.",
+      "Do not expose runtime metadata.",
+      "Review semantics remain identical across providers."
+    ]
+  },
+
+  "x-dataset-forge-prohibited-fields": [
+    "validation_status",
+    "schema_valid",
+    "grounding_status",
+    "grounding_score",
+    "evidence_valid",
+    "security_status",
+    "package_ready",
+    "provider",
+    "provider_job_id",
+    "provider_operation_id",
+    "runtime",
+    "revision_authorized",
+    "revision_count",
+    "chain_of_thought",
+    "reasoning"
+  ],
+
+  "examples": [
+    {
+      "status": "completed",
+      "recommendation": "accept",
+      "summary": "The candidate dataset is clear, relevant, and sufficiently diverse. One minor wording issue does not materially reduce usefulness.",
+      "issues": [
+        {
+          "issue_id": "issue_001",
+          "category": "clarity",
+          "severity": "info",
+          "affected_record_refs": [
+            "review_record_004"
+          ],
+          "affected_field": "question",
+          "description": "The question is slightly more verbose than comparable records.",
+          "recommended_correction": "Shorten the wording while preserving the same source-supported concept."
+        }
+      ]
+    },
+
+    {
+      "status": "completed",
+      "recommendation": "revise_recommended",
+      "summary": "A substantial portion of the dataset asks semantically equivalent questions with only minor wording changes, reducing training diversity.",
+      "issues": [
+        {
+          "issue_id": "issue_001",
+          "category": "semantic_repetition",
+          "severity": "major",
+          "affected_record_refs": [
+            "review_record_002",
+            "review_record_005",
+            "review_record_007",
+            "review_record_009"
+          ],
+          "affected_field": "question",
+          "description": "These records test essentially the same regression-testing definition using cosmetic rewording.",
+          "recommended_correction": "Replace redundant records with source-grounded examples covering distinct regression-testing concepts or applications."
+        }
+      ]
+    }
+  ]
+}
