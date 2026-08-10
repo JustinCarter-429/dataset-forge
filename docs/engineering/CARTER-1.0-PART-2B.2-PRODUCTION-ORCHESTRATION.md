@@ -37,3 +37,10 @@ asynchronous job, polling, format-selection, ZIP/download, and error lifecycle
 behavior.  It does not require a Carter dataset to be projected into six legacy
 fields.  The reconciled checks validate DatasetSpec-driven JSON and CSV fields,
 evidence serialization, and absence of fabricated `instruction` fields.
+
+The deterministic browser acceptance runs through the production UI and API:
+five Playwright checks cover upload limits, document Ask behavior, runtime
+unavailability isolation, generation failure and validation failure handling,
+advisory review completion, download readiness, keyboard access, and responsive
+layout.  The deterministic adapter provides only test scenarios; it does not
+alter the immutable Carter contracts or the live provider adapters.

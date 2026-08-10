@@ -44,10 +44,16 @@ class DeterministicCarterProvider:
             spec = {"status":"ready","dataset_type":"custom","dataset_name":"deterministic-custom","dataset_description":"Deterministic Carter custom dataset.","requested_record_count":1,"effective_record_count":1,"fields":[{"name":"customer_intent","type":"string","required":True,"description":"Intent."},{"name":"confidence_label","type":"enum","required":True,"description":"Confidence.","enum_values":["high","low"]},{"name":"reasoning_style","type":"array_string","required":False,"description":"Style."}],"source_policy":"selected_documents_only","grounding_required":True,"evidence_required":True,"generation_requirements":["source_grounded","avoid_exact_duplicates"],"user_constraints":[],"clarification":{"required":False,"reason_code":None,"question":None,"reason":None}}
             return CarterInferenceResponse(json.dumps(spec), [])
         if "recommendation" in properties:
+            if "TEST_QUALITY_WARNING" in text:
+                return CarterInferenceResponse(json.dumps({"status":"completed","recommendation":"accept","summary":"Deterministic advisory warning accepted after validation.","issues":[{"issue_id":"issue_001","category":"custom_schema_quality","severity":"warning","affected_record_refs":["review_record_001"],"affected_field":"customer_intent","description":"A warning-only deterministic finding.","recommended_correction":"Consider variation."}]}), [])
             return CarterInferenceResponse(json.dumps({"status":"completed","recommendation":"accept","summary":"Deterministic review accepted the validated candidate.","issues":[]}), [])
         if "records" in properties:
+            if "TEST_GENERATION_FAILURE" in text:
+                raise ProviderError("CARTER_TEST_GENERATION_FAILED", "Deterministic generation failed safely.")
             refs = re.findall(r'"allowed_source_refs"\s*:\s*\[\s*"([^"]+)"', text)
             ref = refs[0] if refs else "source_1"
+            if "TEST_VALIDATION_FAILURE" in text:
+                ref = "unknown-source"
             record = {"customer_intent":"support request","confidence_label":"high","reasoning_style":["concise"],"evidence":[{"source_ref":ref,"quote":"Deterministic evidence."}]}
             return CarterInferenceResponse(json.dumps({"status":"generated","records":[record],"insufficiency":None}), [])
         question = " ".join(str(message.get("content", "")) for message in request.messages)
@@ -55,9 +61,10 @@ class DeterministicCarterProvider:
             raise ProviderError("CARTER_TEST_FAILURE", "Carter could not complete the request safely.")
         if self.calls == 1 and request.tool_choice == "required":
             return CarterInferenceResponse("", [{"id": "deterministic-search", "function": {"name": "search_local_knowledge", "arguments": json.dumps({"query": "testing"})}}])
-        refs = re.findall(r'"sourceRef"\s*:\s*"([^"]+)"', question)
-        citation = refs[0] if refs else "missing"
-        return CarterInferenceResponse(json.dumps({"answer": "The selected documents describe negative testing for invalid inputs and accessibility testing for keyboard operation, visible focus, labels, and readable status feedback.", "citations": [{"sourceRef": citation}]}), [])
+        refs = list(dict.fromkeys(re.findall(r'"sourceRef"\s*:\s*"([^"]+)"', question)))
+        citations = [{"sourceRef": reference} for reference in refs] or [{"sourceRef": "missing"}]
+        answer = "I could not find relevant information in the selected documents." if "unsupported astronomy" in question else "The selected documents describe negative testing for invalid inputs and accessibility testing for keyboard operation, visible focus, labels, and readable status feedback."
+        return CarterInferenceResponse(json.dumps({"answer": answer, "citations": citations}), [])
 
 
 class DeterministicDatasetProvider:

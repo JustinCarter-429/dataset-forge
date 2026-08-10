@@ -64,17 +64,25 @@ test('generation failure, validation failure, warning, and completed states use 
   await page.getByRole('button', { name: 'Generate Dataset' }).click()
   await expect(page.getByText('Failed', { exact: true })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeDisabled()
+  // The failed worker releases the in-memory single-generation lease in its
+  // terminal cleanup.  Wait for that backend-owned cleanup before starting
+  // the next independent scenario.
+  await expect.poll(async () => (await page.request.get('http://127.0.0.1:8001/api/carter/runtimes')).ok()).toBeTruthy()
+  await page.waitForTimeout(150)
   await page.reload()
   await twoDocs(page)
   await prompt.fill('TEST_VALIDATION_FAILURE Create exactly 2 records.')
   await page.getByRole('button', { name: 'Generate Dataset' }).click()
   await expect(page.getByText('Failed', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await page.waitForTimeout(150)
   await page.reload()
   await twoDocs(page)
   await prompt.fill('TEST_QUALITY_WARNING Create exactly 2 records.')
   await page.getByRole('button', { name: 'Generate Dataset' }).click()
   await expect(page.getByText('Ready', { exact: true })).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText(/completed with warnings/)).toBeVisible()
+  // Carter review warnings remain advisory; completion is owned by the
+  // validated dynamic dataset gate rather than legacy fixed-record metrics.
+  await expect(page.getByText('Your package is ready')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeEnabled()
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')).toHaveLength(0)

@@ -83,7 +83,7 @@ class CarterDatasetGenerationService:
 
         self.on_phase("generating")
         generator = self.package.resolve_operation("dataset_generation", compiled)
-        request = self.package.render(generator, {"dataset_spec": specification, "selected_document_ids": sorted(document_ids),
+        request = self.package.render(generator, {"dataset_spec": specification, "user_request": user_request, "selected_document_ids": sorted(document_ids),
             "allowed_source_refs": sorted(allowed_refs)}, runtime=logical_runtime)
         registry = CarterToolRegistry(self.package, build_knowledge_tool_handlers(store, document_ids, allowed_refs))
         state = CarterAgentTurnState(self.package, compiled)
@@ -111,7 +111,7 @@ class CarterDatasetGenerationService:
         self.on_phase("reviewing")
         review_op = self.package.resolve_operation("quality_review")
         refs = {f"review_record_{index:03d}" for index, _ in enumerate(candidate.records, 1)}
-        review_request = self.package.render(review_op, {"dataset_spec": specification,
+        review_request = self.package.render(review_op, {"dataset_spec": specification, "user_request": user_request,
             "records": [{"record_ref": ref, "record": record} for ref, record in zip(sorted(refs), candidate.records)]}, runtime=logical_runtime)
         review = self._json(self._infer(review_request, "review").content, "Quality review returned malformed JSON.")
         validate_quality_review(self.package, review, refs, {field["name"] for field in specification["fields"]})
