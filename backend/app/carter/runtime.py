@@ -144,6 +144,8 @@ class CarterPromptPackage:
 
     def render(self, operation: CarterOperation, application_inputs: dict[str, Any], *, runtime: str) -> CarterInferenceRequest:
         if runtime not in {"cloud", "local"}: raise ValueError("runtime must be cloud or local")
+        if operation.name == "dataset_generation" and operation.output_schema["$defs"]["dynamic_record_template"].get("x-dataset-forge-dynamic-record"):
+            raise CarterPromptPackageError("An uncompiled generation template cannot reach a provider.")
         context = {"application_inputs": application_inputs, "operation": operation.name, "package_version": self.package_version}
         messages = ( {"role": "system", "content": _canonical(operation.system_prompt).decode()}, {"role": "system", "content": _canonical(operation.task_prompt).decode()}, {"role": "user", "content": _canonical(context).decode()} )
         tools = tuple({"type": "function", "function": {"name": tool["name"], "description": tool["description"], "parameters": tool["input_schema"]}} for tool in operation.tools)
@@ -214,6 +216,21 @@ def normalize_agent_action(package: CarterPromptPackage, native_calls: list[dict
     package.validate(schema, action)
     if action["action"] == "final_response": package.validate(final_schema, action["final_response"])
     return action
+
+
+@dataclass
+class CarterAgentTurnState:
+    """Application-owned, provider-neutral one-tool-per-turn budget."""
+    package: CarterPromptPackage
+    final_schema: dict[str, Any]
+    rounds_used: int = 0
+
+    def normalize(self, native_calls: list[dict[str, Any]], content: Any) -> dict[str, Any]:
+        action = normalize_agent_action(self.package, native_calls, content, self.final_schema)
+        if action["action"] == "tool_call":
+            if self.rounds_used >= 3: raise CarterPromptPackageError("Carter tool-round limit exceeded.")
+            self.rounds_used += 1
+        return action
 
 
 def validate_quality_review(package: CarterPromptPackage, review: dict[str, Any], record_refs: set[str], fields: set[str]) -> None:

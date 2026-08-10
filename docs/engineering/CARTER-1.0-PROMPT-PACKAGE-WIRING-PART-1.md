@@ -26,4 +26,6 @@ The deterministic planner foundation uses the manifest planning operation, accep
 
 Focused tests cover inventory/fingerprints, package corruption and remote refs, operation resolution, Cloud/Local equivalence, dynamic compilation, action normalization, tool validation, planner validation, quality review, and revision limits. Source text remains application input rather than executable contract state; no source text can register tools, change a runtime, change schemas, or increase limits.
 
+Completion audit additions: generation template schemas are explicitly rejected at the request boundary until compiled from a ready DatasetSpec; application-owned `CarterAgentTurnState` rejects a fourth tool request after three normalized one-tool turns; planner fixtures cover all five supported dataset types and reject reserved fields and malformed enums; and the existing KnowledgeStore adapters reject path-like opaque identifiers outside the selected document/source scope.
+
 Part 2 remains responsible for live provider activation, real bounded loops, live Ask/quality integration, and browser acceptance. No provider calls, secrets, model weights, knowledge databases, or hidden reasoning are introduced by this foundation.
