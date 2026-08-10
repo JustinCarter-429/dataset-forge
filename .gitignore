@@ -23,6 +23,8 @@ backend/.pytest-part1-focused/
 backend/.pytest-part1-final/
 backend/.pytest-part1-completion/
 backend/.pytest-part1-completion-final/
+backend/.pytest-carter-dynamic/
+backend/.pytest-carter-dynamic-final/
 backend/.release-pytest-tmp/
 .mypy_cache/
 .ruff_cache/

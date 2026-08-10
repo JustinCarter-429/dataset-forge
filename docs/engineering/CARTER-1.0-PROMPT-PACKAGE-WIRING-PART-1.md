@@ -28,4 +28,8 @@ Focused tests cover inventory/fingerprints, package corruption and remote refs, 
 
 Completion audit additions: generation template schemas are explicitly rejected at the request boundary until compiled from a ready DatasetSpec; application-owned `CarterAgentTurnState` rejects a fourth tool request after three normalized one-tool turns; planner fixtures cover all five supported dataset types and reject reserved fields and malformed enums; and the existing KnowledgeStore adapters reject path-like opaque identifiers outside the selected document/source scope.
 
+## Dynamic canonical record domain (Part 2B.1)
+
+New Carter-backed datasets use `CarterCanonicalDataset`: records remain exactly the DatasetSpec-defined dynamic JSON fields plus the required Carter `evidence` field. The historical fixed `DatasetRecord` (`instruction`, `context`, `expected_output`, `category`, `difficulty`, `source_refs`) remains legacy-only and has no universal projection from the dynamic domain. JSON exports preserve the dynamic record JSON. CSV headers follow DatasetSpec field order plus `evidence`; arrays and evidence are compact deterministic JSON cells, with no recursive flattening or dynamic-field loss.
+
 Part 2 remains responsible for live provider activation, real bounded loops, live Ask/quality integration, and browser acceptance. No provider calls, secrets, model weights, knowledge databases, or hidden reasoning are introduced by this foundation.
