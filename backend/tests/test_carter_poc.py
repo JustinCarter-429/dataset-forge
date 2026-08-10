@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import pytest
 
@@ -32,10 +33,10 @@ def test_knowledge_store_caps_documents(tmp_path: Path):
 
 class ScriptedProvider:
     runtime = "local"
-    def __init__(self, responses): self.responses, self.calls = list(responses), 0
+    def __init__(self, responses): self.responses, self.calls, self.requests = list(responses), 0, []
     def available(self): return {"configured": True, "available": True}
     def infer(self, request):
-        self.calls += 1
+        self.calls += 1; self.requests.append(request)
         response = self.responses.pop(0)
         if isinstance(response, Exception): raise response
         return response
@@ -53,9 +54,9 @@ def call(name, arguments, call_id="call-1"):
 
 
 def test_carter_final_answer_without_tool(tmp_path):
-    subject = service(tmp_path, [CarterInferenceResponse("Grounded answer", [])])
+    subject = service(tmp_path, [call("search_local_knowledge", {"query": "functional", "documentIds": ["doc-a"]}), CarterInferenceResponse(json.dumps({"answer": "Grounded answer", "citations": [{"sourceRef": "ref-doc-a"}]}), [])])
     result = subject.ask("functional testing", ["doc-a"])
-    assert result["answer"] == "Grounded answer" and result["toolRounds"] == 0
+    assert result["answer"] == "Grounded answer" and result["toolRounds"] == 1 and result["retrievalResults"] == 1
 
 
 def test_carter_one_two_and_three_tool_rounds_execute_handlers(tmp_path):
@@ -63,7 +64,7 @@ def test_carter_one_two_and_three_tool_rounds_execute_handlers(tmp_path):
         call("list_documents", {}),
         call("search_local_knowledge", {"query": "accessibility", "documentIds": ["doc-b"]}, "call-2"),
         call("get_source_units", {"sourceRefs": ["ref-doc-b"]}, "call-3"),
-        CarterInferenceResponse("Keyboard operation is covered.", []),
+        CarterInferenceResponse(json.dumps({"answer": "Keyboard operation is covered.", "citations": [{"sourceRef": "ref-doc-b"}]}), []),
     ])
     result = subject.ask("accessibility", ["doc-a", "doc-b"])
     assert result["toolRounds"] == 3 and subject.provider.calls == 4
@@ -117,6 +118,21 @@ def test_runpod_tool_transport_preserves_canonical_tools_without_structured_answ
 
 
 def test_tool_continuation_keeps_runtime_pinned(tmp_path):
-    subject = service(tmp_path, [call("list_documents", {}), CarterInferenceResponse("Grounded answer", [])])
+    subject = service(tmp_path, [call("search_local_knowledge", {"query": "functional"}), CarterInferenceResponse(json.dumps({"answer": "Grounded answer", "citations": [{"sourceRef": "ref-doc-a"}]}), [])])
     result = CarterAskService(subject.store, subject.provider, "runpod").ask("functional testing")
     assert result["runtime"] == "runpod" and subject.provider.calls == 2
+
+
+@pytest.mark.parametrize("runtime", ["runpod", "local_lm_studio"])
+def test_tool_loop_pins_the_selected_runtime_for_initial_and_continuation(tmp_path, runtime):
+    subject = service(tmp_path, [call("search_local_knowledge", {"query": "functional"}), CarterInferenceResponse(json.dumps({"answer": "Grounded answer", "citations": [{"sourceRef": "ref-doc-a"}]}), [])])
+    result = CarterAskService(subject.store, subject.provider, runtime).ask("functional testing", ["doc-a"])
+    assert result["runtime"] == runtime and subject.provider.calls == 2
+    assert [request.tool_choice for request in subject.provider.requests] == ["required", "auto"]
+
+
+def test_carter_rejects_unstructured_or_ungrounded_final_response(tmp_path):
+    subject = service(tmp_path, [call("search_local_knowledge", {"query": "functional"}), CarterInferenceResponse("A prose answer", [])])
+    with pytest.raises(ProviderError, match="invalid structured"): subject.ask("functional testing", ["doc-a"])
+    subject = service(tmp_path, [call("search_local_knowledge", {"query": "functional"}), CarterInferenceResponse(json.dumps({"answer": "Wrong citation", "citations": [{"sourceRef": "not-real"}]}), [])])
+    with pytest.raises(ProviderError, match="citations not grounded"): subject.ask("functional testing", ["doc-a"])

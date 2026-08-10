@@ -14,6 +14,7 @@ def build_runpod_openai_chat_job(
     max_tokens: int,
     temperature: float = 0.2,
     tools: list[dict[str, Any]] | None = None,
+    tool_choice: str = "auto",
 ) -> dict[str, Any]:
     """Build the worker-vLLM OpenAI passthrough inside a native RunPod job."""
     openai_input: dict[str, Any] = {
@@ -24,7 +25,7 @@ def build_runpod_openai_chat_job(
         openai_input["structured_outputs"] = {"json": schema}
     if tools:
         openai_input["tools"] = tools
-        openai_input["tool_choice"] = "auto"
+        openai_input["tool_choice"] = tool_choice
     return {
         "input": {
             "openai_route": "/v1/chat/completions",
@@ -106,10 +107,10 @@ class RunPodProvider(DatasetGenerationProvider):
     def generate(self, *, messages: list[dict[str, str]], schema: dict[str, Any], max_tokens: int) -> ProviderJob:
         return self.chat(messages=messages, schema=schema, max_tokens=max_tokens)
 
-    def chat(self, *, messages: list[dict[str, Any]], max_tokens: int, schema: dict[str, Any] | None = None, tools: list[dict[str, Any]] | None = None) -> ProviderJob:
+    def chat(self, *, messages: list[dict[str, Any]], max_tokens: int, schema: dict[str, Any] | None = None, tools: list[dict[str, Any]] | None = None, tool_choice: str = "auto") -> ProviderJob:
         started = time.monotonic()
         schema_digest = hashlib.sha256(json.dumps(schema, sort_keys=True, separators=(",", ":")).encode()).hexdigest() if schema else None
-        payload = build_runpod_openai_chat_job(model=self.config.model, messages=messages, schema=schema, max_tokens=max_tokens, tools=tools)
+        payload = build_runpod_openai_chat_job(model=self.config.model, messages=messages, schema=schema, max_tokens=max_tokens, tools=tools, tool_choice=tool_choice)
         # A /run submission is intentionally single-shot. Retrying an unknown
         # POST outcome could create a duplicate paid inference job.
         self.metrics["providerSubmitAttempts"] += 1
@@ -163,6 +164,7 @@ class RunPodProvider(DatasetGenerationProvider):
                         "structured_output_mode": "json" if schema else None,
                         "schema_sha256": schema_digest if schema else None,
                         "tool_count": len(tools or []),
+                        "tool_choice": tool_choice if tools else None,
                     },
                     "output": _safe_output_snapshot(output),
                 }

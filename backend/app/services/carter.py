@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
+from pydantic import BaseModel, Field, ValidationError
 
 from ..domain.extraction_models import CanonicalExtractedDocument
 from ..providers.contracts import ProviderError
@@ -22,7 +23,7 @@ SEARCH_STOPWORDS = {
     "how", "is", "of", "on", "say", "the", "these", "this", "to",
     "what", "which", "with",
 }
-CARTER_SYSTEM_PROMPT = """You are Carter 1.0. Answer questions about local documents only from tool results. Use source references returned by tools; never invent references or reveal hidden reasoning. Be concise."""
+CARTER_SYSTEM_PROMPT = """You are Carter 1.0. For questions grounded in selected local documents, retrieve evidence with the registered local knowledge tools before answering. Do not answer from memory, do not invent references, and do not reveal hidden reasoning. After evidence is available, return only JSON shaped exactly as {\"answer\": string, \"citations\": [{\"sourceRef\": string}]}; every citation must be a sourceRef returned by a tool."""
 
 
 @dataclass(frozen=True)
@@ -30,12 +31,25 @@ class CarterInferenceRequest:
     messages: list[dict[str, Any]]
     tools: list[dict[str, Any]]
     max_tokens: int = 4096
+    tool_choice: str = "auto"
+    response_schema: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
 class CarterInferenceResponse:
     content: str
     tool_calls: list[dict[str, Any]]
+
+
+class CarterCitation(BaseModel):
+    source_ref: str = Field(alias="sourceRef", min_length=1, max_length=200)
+    model_config = {"populate_by_name": True, "extra": "forbid"}
+
+
+class CarterFinalResponse(BaseModel):
+    answer: str = Field(min_length=1, max_length=12000)
+    citations: list[CarterCitation] = Field(min_length=1, max_length=10)
+    model_config = {"extra": "forbid"}
 
 
 class CarterProvider(Protocol):
@@ -67,7 +81,7 @@ class LMStudioCarterProvider:
             raise ProviderError("LM_STUDIO_UNAVAILABLE", "Carter 1.0 local runtime is unavailable.")
         if not state["available"]:
             raise ProviderError("LM_STUDIO_MODEL_NOT_LOADED", "Local Carter 1.0 model not available.")
-        payload = {"model": self.model, "messages": request.messages, "tools": request.tools, "tool_choice": "auto", "max_tokens": min(request.max_tokens, self.max_tokens), "temperature": 0.1, "stream": False}
+        payload = {"model": self.model, "messages": request.messages, "tools": request.tools, "tool_choice": request.tool_choice, "max_tokens": min(request.max_tokens, self.max_tokens), "temperature": 0.1, "stream": False}
         try:
             self.invocations += 1
             response = httpx.post(f"{self.base_url}/v1/chat/completions", json=payload, timeout=self.timeout)
@@ -84,7 +98,7 @@ class RunPodCarterProvider:
     def available(self) -> dict[str, Any]: return {"configured": True, "available": True, "model": self.provider.config.model}
     def infer(self, request: CarterInferenceRequest) -> CarterInferenceResponse:
         self.invocations += 1
-        job = self.provider.chat(messages=request.messages, tools=request.tools, max_tokens=min(request.max_tokens, max(1024, self.provider.config.max_model_len // 4)))
+        job = self.provider.chat(messages=request.messages, tools=request.tools, tool_choice=request.tool_choice, schema=request.response_schema, max_tokens=min(request.max_tokens, max(1024, self.provider.config.max_model_len // 4)))
         output = job.output[0] if isinstance(job.output, list) and job.output else job.output
         try:
             message = output["choices"][0]["message"] if isinstance(output, dict) else {}
@@ -146,7 +160,7 @@ class KnowledgeStore:
 TOOL_SCHEMAS = [{"type":"function","function":{"name":"list_documents","description":"List available local knowledge documents.","parameters":{"type":"object","properties":{},"additionalProperties":False}}}, {"type":"function","function":{"name":"search_local_knowledge","description":"Search local document evidence.","parameters":{"type":"object","properties":{"query":{"type":"string"},"documentIds":{"type":"array","items":{"type":"string"}},"limit":{"type":"integer","minimum":1,"maximum":10}},"required":["query"],"additionalProperties":False}}}, {"type":"function","function":{"name":"get_source_units","description":"Get exact document evidence by source references.","parameters":{"type":"object","properties":{"sourceRefs":{"type":"array","items":{"type":"string"},"maxItems":10}},"required":["sourceRefs"],"additionalProperties":False}}}]
 
 class CarterAskService:
-    def __init__(self, store: KnowledgeStore, provider: CarterProvider, runtime: str | None = None): self.store, self.provider, self.runtime = store, provider, runtime or provider.runtime
+    def __init__(self, store: KnowledgeStore, provider: CarterProvider, runtime: str | None = None): self.store, self.provider, self.runtime, self._allowed_document_ids = store, provider, runtime or provider.runtime, []
 
     def _tool_result(self, name: str, raw_arguments: Any) -> list[dict[str, Any]]:
         """Execute the intentionally small tool surface using identifiers only.
@@ -169,8 +183,10 @@ class CarterAskService:
             limit = raw_arguments.get("limit", 5)
             if not isinstance(query, str) or not query.strip() or (ids is not None and (not isinstance(ids, list) or not all(isinstance(value, str) for value in ids))) or not isinstance(limit, int):
                 raise ValueError("search_local_knowledge arguments are invalid.")
-            self._validate_document_ids(ids or [])
-            return self.store.search(query, ids, limit)
+            if ids: self._validate_document_ids(ids)
+            if self._allowed_document_ids and ids and set(ids) - set(self._allowed_document_ids):
+                raise ValueError("Carter tool requested a document outside the selected scope.")
+            return self.store.search(query, ids or self._allowed_document_ids, limit)
         if name == "get_source_units":
             if set(raw_arguments) != {"sourceRefs"} or not isinstance(raw_arguments.get("sourceRefs"), list) or not all(isinstance(value, str) for value in raw_arguments["sourceRefs"]):
                 raise ValueError("get_source_units arguments are invalid.")
@@ -195,22 +211,44 @@ class CarterAskService:
             except json.JSONDecodeError as exc: raise ValueError("Carter provider returned malformed tool arguments.") from exc
         return function["name"], arguments, str(call.get("id", function["name"]))
 
+    @staticmethod
+    def _final_response(content: str) -> CarterFinalResponse:
+        """Accept JSON emitted in a fenced compatibility wrapper, never prose."""
+        candidate = content.strip()
+        fenced = re.fullmatch(r"```(?:json)?\s*(\{.*\})\s*```", candidate, flags=re.DOTALL | re.IGNORECASE)
+        if fenced:
+            candidate = fenced.group(1)
+        try:
+            return CarterFinalResponse.model_validate_json(candidate)
+        except ValidationError as exc:
+            raise ProviderError("CARTER_STRUCTURED_OUTPUT_INVALID", "Carter returned an invalid structured response.") from exc
+
     def ask(self, question: str, document_ids: list[str] | None = None) -> dict[str, Any]:
         if not question.strip(): raise ValueError("A Carter question is required.")
         document_ids = document_ids or []
         self._validate_document_ids(document_ids)
-        results = self.store.search(question, document_ids, 5)
-        if not results and not (getattr(self.provider, "allow_empty_retrieval", False) and "TEST_ASK_FAILURE" in question): return {"answer":"I could not find relevant information in the selected local documents.", "sources":[], "assistant":"Carter 1.0", "runtime":self.runtime, "logicalModel":"Carter 1.0", "technicalModel":"openai/gpt-oss-20b", "inferenceCount":0, "toolRounds":0}
-        messages = [{"role":"system","content":CARTER_SYSTEM_PROMPT}, {"role":"user","content":question}, {"role":"system","content":"Retrieved evidence (cite only these sourceRef values): " + json.dumps(results)}]
+        self._allowed_document_ids = document_ids
+        selected = [item for item in self.store.documents() if item["documentId"] in document_ids]
+        messages = [{"role":"system","content":CARTER_SYSTEM_PROMPT}, {"role":"system","content":"Selected document scope: " + json.dumps(selected)}, {"role":"user","content":question}]
+        retrieved: dict[str, dict[str, Any]] = {}
+        tools_requested: list[str] = []
         for tool_round in range(MAX_TOOL_ROUNDS + 1):
-            response = self.provider.infer(CarterInferenceRequest(messages, TOOL_SCHEMAS))
+            response = self.provider.infer(CarterInferenceRequest(messages, TOOL_SCHEMAS, tool_choice="required" if tool_round == 0 and document_ids else "auto", response_schema=CarterFinalResponse.model_json_schema() if tool_round else None))
             if not response.tool_calls:
-                return {"answer": response.content or "I found relevant source evidence.", "sources":[{k:v for k,v in item.items() if k != "text"} for item in results], "assistant":"Carter 1.0", "runtime":self.runtime, "logicalModel":"Carter 1.0", "technicalModel":getattr(self.provider, "model", getattr(getattr(self.provider, "provider", None), "config", None).model if getattr(getattr(self.provider, "provider", None), "config", None) else "openai/gpt-oss-20b"), "inferenceCount":getattr(self.provider, "invocations", 0), "toolRounds":tool_round}
+                final = self._final_response(response.content)
+                citation_refs = [citation.source_ref for citation in final.citations]
+                if len(citation_refs) != len(set(citation_refs)) or any(reference not in retrieved for reference in citation_refs):
+                    raise ProviderError("CARTER_CITATION_INVALID", "Carter returned citations not grounded in retrieved evidence.")
+                sources = [{key: value for key, value in retrieved[reference].items() if key != "text"} for reference in citation_refs]
+                return {"answer": final.answer, "sources":sources, "assistant":"Carter 1.0", "runtime":self.runtime, "logicalModel":"Carter 1.0", "technicalModel":getattr(self.provider, "model", getattr(getattr(self.provider, "provider", None), "config", None).model if getattr(getattr(self.provider, "provider", None), "config", None) else "openai/gpt-oss-20b"), "inferenceCount":getattr(self.provider, "invocations", 0), "toolRounds":tool_round, "toolsRequested":tools_requested, "retrievalResults":len(retrieved)}
             if tool_round >= MAX_TOOL_ROUNDS:
                 raise ProviderError("CARTER_TOOL_ROUND_LIMIT", "Carter requested more than three tool rounds.")
             messages.append({"role":"assistant", "content": response.content or "", "tool_calls": response.tool_calls})
             for call in response.tool_calls:
                 name, arguments, call_id = self._call_parts(call)
                 result = self._tool_result(name, arguments)
+                tools_requested.append(name)
+                for item in result:
+                    if isinstance(item, dict) and isinstance(item.get("sourceRef"), str): retrieved[item["sourceRef"]] = item
                 messages.append({"role":"tool", "tool_call_id":call_id, "name":name, "content":json.dumps(result)})
         raise AssertionError("unreachable")

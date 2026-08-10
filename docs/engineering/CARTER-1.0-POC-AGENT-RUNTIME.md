@@ -61,3 +61,13 @@ Both routes use the same Carter prompt, SQLite local-knowledge retrieval, tool s
 `CARTER_MAX_TOKENS` defaults to 4096. LM Studio receives the smaller of that setting and the request setting, with a bounded 180-second default transport timeout to permit `gpt-oss-20b` cold starts. RunPod receives the smaller of the Carter request setting and one quarter of configured `RUNPOD_MAX_MODEL_LEN` (minimum 1024). These are application safety bounds, not a claim of provider context-window verification; provider-reported live limits remain unverified until live acceptance is run. No 800-token Carter cap remains.
 
 Automated contract coverage verifies both valid runtime identifiers, rejection of an invalid identifier, RunPod tool transport without a structured-answer wrapper, and that a tool continuation retains the selected runtime. Historical live evidence above is preserved unchanged. Live RunPod and LM Studio acceptance has not been claimed by this code-only hardening entry.
+
+## RunPod agent-loop closure attempt
+
+Date: 2026-08-10
+
+The missing tool call was traced to Carter preloading retrieval results into the initial prompt while the RunPod request used `tool_choice: auto`; the model had sufficient source text to answer without calling a tool. The shared loop now exposes only selected-document metadata initially, uses `tool_choice: required` for the first turn of a selected-document request, constrains tool searches to that selected document scope, and sends all continuations through the same provider instance.
+
+The continuation request uses the existing RunPod `structured_outputs` compatibility transport with the canonical Carter `{answer, citations}` schema. The application rejects unstructured prose and citations absent from actual tool-returned source references. A live selected-document RunPod attempt reached the provider but returned `CARTER_STRUCTURED_OUTPUT_INVALID`; this is not accepted as a completed tool loop. Provider-side model identity remains not verifiable beyond configuration. LM Studio remains explicitly disabled.
+
+Focused Carter tests: 26 passed. Frontend tests: 6 passed. Generated root-level `app/outputs` acceptance artifacts are ignored explicitly; no artifact is committed.

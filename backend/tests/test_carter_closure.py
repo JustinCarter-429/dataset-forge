@@ -6,7 +6,9 @@ from app.providers.deterministic import enabled
 
 
 def test_generation_request_rejects_four_documents_before_dispatch():
-    with pytest.raises(ValidationError, match="one and three"):
+    # Field-level max_length rejects before the model-level normalizer runs.
+    # This is the authoritative Pydantic contract and still prevents dispatch.
+    with pytest.raises(ValidationError, match="at most 3"):
         GenerationRequest(fileId="one", fileIds=["one", "two", "three", "four"], datasetPrompt="Create records", outputFormat="json")
 
 

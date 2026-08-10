@@ -37,6 +37,10 @@ backend/app/uploads/*
 !backend/app/uploads/.gitkeep
 backend/app/outputs/*
 !backend/app/outputs/.gitkeep
+# Relative runtime paths are resolved from the process working directory in
+# ad-hoc local acceptance runs; never track those generated outputs.
+app/uploads/
+app/outputs/
 downloads/
 generations/
 runtime/

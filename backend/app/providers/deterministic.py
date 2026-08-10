@@ -37,7 +37,11 @@ class DeterministicCarterProvider:
         question = " ".join(str(message.get("content", "")) for message in request.messages)
         if scenario() in {"ask_failure", "cloud_failure"} or "TEST_ASK_FAILURE" in question or "TEST_CLOUD_FAILURE" in question:
             raise ProviderError("CARTER_TEST_FAILURE", "Carter could not complete the request safely.")
-        return CarterInferenceResponse("The selected documents describe negative testing for invalid inputs and accessibility testing for keyboard operation, visible focus, labels, and readable status feedback.", [])
+        if self.calls == 1 and request.tool_choice == "required":
+            return CarterInferenceResponse("", [{"id": "deterministic-search", "function": {"name": "search_local_knowledge", "arguments": json.dumps({"query": "testing"})}}])
+        refs = re.findall(r'"sourceRef"\s*:\s*"([^"]+)"', question)
+        citation = refs[0] if refs else "missing"
+        return CarterInferenceResponse(json.dumps({"answer": "The selected documents describe negative testing for invalid inputs and accessibility testing for keyboard operation, visible focus, labels, and readable status feedback.", "citations": [{"sourceRef": citation}]}), [])
 
 
 class DeterministicDatasetProvider:
