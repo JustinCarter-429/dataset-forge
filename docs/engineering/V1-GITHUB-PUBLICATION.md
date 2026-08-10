@@ -32,11 +32,15 @@ The following values are completed only after GitHub publication:
 | Item | Value |
 | --- | --- |
 | Initial commit | `191fe63ca89d70c59e4ba3b18c0094b8c330b5dd` |
-| Public repository | Pending: GitHub CLI is not installed in the local environment |
+| Public repository | https://github.com/JustinCarter-429/dataset-forge |
 | Visibility | Public (requested) |
 | Default branch | `main` |
 | Release tag | `v1.0.0` |
-| GitHub release | Pending repository publication; no tag is created before the public tree is verified |
+| GitHub release | Pending final documentation commit, tag, and release creation |
+
+## GitHub publication
+
+The repository was created as **public** under `JustinCarter-429/dataset-forge`. The `main` branch was pushed successfully from the reviewed local initial history. The final publication documentation commit is pushed before tagging; the `v1.0.0` tag and release point to that final commit.
 
 ## Known limitations
 
