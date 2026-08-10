@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.routes import health, generation
+from .api.routes import health, generation, carter
 from .core.config import get_settings
 from .storage.paths import prepare_storage
 
@@ -18,3 +18,4 @@ async def security_headers(request, call_next):
     return response
 app.include_router(health.router, prefix="/api")
 app.include_router(generation.router, prefix="/api")
+app.include_router(carter.router, prefix="/api")

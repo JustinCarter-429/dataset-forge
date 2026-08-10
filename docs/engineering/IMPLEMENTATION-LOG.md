@@ -171,3 +171,13 @@ Final deterministic verification: 65 backend tests collected (Phase 6A targeted:
 Date: 2026-08-09
 
 Prepared the initial public source tree without changing application behavior: added a portfolio README and owned logo asset, a source-available community license with commercial-license guidance, third-party notices, security/contribution documents, changelog, version file, comprehensive ignores, and publication record. The real local backend `.env` was preserved unread and excluded. Historical runtime artifacts and provider job IDs were excluded or redacted from the public tree. Final deterministic verification: backend 65 passed (4 Docling deprecation warnings); frontend 3 passed, typecheck/build passed. Git was initialized on `main`; initial release-preparation commit: `191fe63ca89d70c59e4ba3b18c0094b8c330b5dd`. The public repository is https://github.com/JustinCarter-429/dataset-forge and the release is https://github.com/JustinCarter-429/dataset-forge/releases/tag/v1.0.0.
+
+## Carter 1.0 agent runtime POC
+
+Date: 2026-08-10
+
+Started the post-V1 Carter 1.0 feature branch. The POC adds an explicit Cloud/Local provider boundary, an LM Studio OpenAI-compatible local provider, an ignored SQLite FTS5 local knowledge store, three bounded application-owned document tools, Carter runtime/status and Ask endpoints, and a compact Ask Carter UI. Existing RunPod dataset generation remains unchanged. The implementation deliberately defers model downloads, embeddings, vector databases, MCP, web research, arbitrary tools, and silent provider fallback. Real Local acceptance remains contingent on an operator-loaded LM Studio model.
+
+Closure verification: the backend suite was run in the repository virtual environment with its temporary base directory inside the workspace; the Carter coverage increased from 2 to 15 tests and validates provider isolation at the service boundary, bounded tool execution, hostile identifier rejection, and timeout/error propagation. Frontend verification is `6 passed`; typecheck and production build pass. The full backend suite is deterministic and makes zero inference calls.
+
+Live browser/Cloud verification: opened `http://127.0.0.1:5173`, uploaded two temporary TXT documents through the actual UI, selected JSON, and ran one Cloud multi-document generation. The completed job contains 4 final records, 4/4 grounded records, 5/5 verified evidence items, zero quality warnings, zero revision attempts, and package-ready status. ZIP inspection verified `dataset.json`, `metadata.json`, `validation-report.json`, `quality-review.json`, `manifest.json`, `generation_manifest.json`, and `README.txt`. LM Studio at `http://127.0.0.1:1234` was unavailable, so its real acceptance is setup-required.

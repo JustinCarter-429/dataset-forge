@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from ...core.config import get_settings
 from ...domain.enums import OutputFormat, GenerationStage
 from ...domain.models import GenerationJob, GenerationRequest, GenerationResult, PipelineInput, UploadedFile, ValidationSummary, ReviewSummary
+from ...domain.extraction_models import CanonicalExtractedDocument
 from ...services.job_store import StoredFile, job_store
 from ...services.extraction import ExtractionError, ExtractionService
 from ...services.extraction_analysis import analyze_extraction
@@ -27,6 +28,24 @@ def _safe_error(code: str, message: str): return {"code": code, "message": messa
 def _provider_diagnostics(provider) -> dict[str, object]:
     metrics = getattr(provider, "metrics", {})
     return {key: int(value) for key, value in metrics.items() if key in {"providerSubmitAttempts", "providerJobsCreated", "providerJobsCompleted", "providerJobsFailed", "providerStatusPolls", "providerTransportRetries", "providerCancelCalls"}}
+
+
+def _combined_document(request: GenerationRequest) -> tuple[list[StoredFile], CanonicalExtractedDocument]:
+    stored_files = [job_store.get_file(file_id) for file_id in request.file_ids]
+    if any(item is None for item in stored_files):
+        raise HTTPException(404, "One or more uploaded source files were not found.")
+    records = [item for item in stored_files if item is not None]
+    extracted: list[CanonicalExtractedDocument] = []
+    for stored in records:
+        document = stored.extraction or ExtractionService().extract(stored.path, stored.record.id, stored.record.name, stored.record.mime_type)
+        job_store.update_file(stored.record.id, extraction=document, record=stored.record.model_copy(update={"status": "ready"}))
+        extracted.append(document)
+    if len(extracted) == 1: return records, extracted[0]
+    # Element IDs remain their original globally unique extraction IDs; only the
+    # outer document is a multi-document generation container.
+    first = extracted[0]
+    combined = first.model_copy(update={"document_id": "multi-" + uuid.uuid4().hex, "source_file_id": "multi", "source_filename": ", ".join(doc.source_filename for doc in extracted), "elements": [element for doc in extracted for element in doc.elements]})
+    return records, combined
 
 
 async def _save_upload(file: UploadFile) -> UploadedFile:
@@ -64,7 +83,7 @@ def get_file(file_id: str):
 
 
 def _run_job(job_id: str, request: GenerationRequest):
-    stored = job_store.get_file(request.file_id)
+    stored = job_store.get_file(request.file_id or "")
     if not stored: return
     settings = get_settings()
     def stage(name: str, percent: int, current_stage: str | None = None):
@@ -73,13 +92,11 @@ def _run_job(job_id: str, request: GenerationRequest):
         if job_store.is_cancelled(job_id): return
         stored.record = stored.record.model_copy(update={"status": "extracting"})
         stage("extracting", 15)
-        extractor = ExtractionService()
-        extracted = extractor.extract(stored.path, stored.record.id, stored.record.name, stored.record.mime_type)
-        job_store.update_file(request.file_id, extraction=extracted, record=stored.record.model_copy(update={"status": "analyzing"}))
+        stored_files, extracted = _combined_document(request)
         stage("analyzing", 30)
         analysis = analyze_extraction(extracted)
         job_store.update_job(job_id, extraction=extracted, analysis=analysis)
-        job_store.update_file(request.file_id, record=stored.record.model_copy(update={"status": "ready"}))
+        job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "ready"}))
         stage("generating", 35, "waiting_for_ai_worker")
         config = provider_config_from_env()
         provider = _provider_factory(config)
@@ -102,7 +119,7 @@ def _run_job(job_id: str, request: GenerationRequest):
         reviser = QualityRevisionService(provider, model=config.model) if review_enabled else None
         def agentic_state(state: str, percent: int, current_stage: str):
             job_store.update_job(job_id, status="validating", stage="validating", progress={"percent": percent, "currentStage": current_stage})
-        result = PipelineService(settings.output_directory, generator=generator, quality_review_enabled=review_enabled, quality_reviewer=reviewer, quality_reviser=reviser).run(PipelineInput(job_id=job_id, source_path=stored.path, source_filename=stored.record.name, dataset_prompt=request.dataset_prompt.strip(), output_format=request.output_format), extracted_document=extracted, file_id=stored.record.id, model=config.model, on_progress=generation_progress, on_state=agentic_state)
+        result = PipelineService(settings.output_directory, generator=generator, quality_review_enabled=review_enabled, quality_reviewer=reviewer, quality_reviser=reviser).run(PipelineInput(job_id=job_id, source_path=stored.path, source_filename=extracted.source_filename, dataset_prompt=request.dataset_prompt.strip(), output_format=request.output_format), extracted_document=extracted, file_id=stored.record.id, model=config.model, on_progress=generation_progress, on_state=agentic_state)
         if job_store.is_cancelled(job_id): return
         stage("validating", 80)
         archive = settings.output_directory / job_id / "dataset.zip"
@@ -116,33 +133,35 @@ def _run_job(job_id: str, request: GenerationRequest):
         job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": result.record_count, "finalRecordCount": result.record_count, "sizeBytes": archive.stat().st_size}, validation=validation, validation_report=report, quality_review=review, review=review_summary, package_ready=True, provider={"name": "runpod_serverless", "model": config.model, "state": "completed", **_provider_diagnostics(provider)}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "runpod_serverless_gpt_oss_20b", "groundingValidation": "phase4_deterministic_source_evidence", "qualityReview": "bounded_same_model_advisory_review"})
     except ExtractionError as exc:
         logger.warning("Extraction failed for job %s: %s", job_id, exc.code)
-        job_store.update_file(request.file_id, record=stored.record.model_copy(update={"status": "failed"}))
+        job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
         job_store.update_job(job_id, status="failed", stage="extracting", error=_safe_error(exc.code, exc.message))
     except ProviderError as exc:
         logger.warning("Provider failed for job %s: %s", job_id, exc.code)
-        job_store.update_file(request.file_id, record=stored.record.model_copy(update={"status": "failed"}))
+        job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
         review_code = exc.code.startswith("QUALITY_REVIEW") or exc.code.startswith("QUALITY_REVISION")
         if job_store.is_cancelled(job_id): return
         job_store.update_job(job_id, status="failed", stage="validating" if review_code else "generating", progress={"percent": 86 if review_code else 35, "currentStage": "reviewing" if review_code else "generating"}, provider={"name": "runpod_serverless", "state": "failed", **_provider_diagnostics(provider)}, error=_safe_error(exc.code, "Dataset quality review could not be completed safely." if review_code else exc.message))
     except ValueError as exc:
         logger.warning("Validation failed for job %s: %s", job_id, str(exc))
-        job_store.update_file(request.file_id, record=stored.record.model_copy(update={"status": "failed"}))
+        job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
         job_store.update_job(job_id, status="failed", stage="validating", progress={"percent": 80, "currentStage": "validating"}, error=_safe_error("VALIDATION_FAILED", "Some generated records could not be verified against the uploaded source."))
     except Exception:
         logger.exception("Generation failed for job %s", job_id)
-        job_store.update_file(request.file_id, record=stored.record.model_copy(update={"status": "failed"}))
+        job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
         if not job_store.is_cancelled(job_id): job_store.update_job(job_id, status="failed", stage="generating", error=_safe_error("GENERATION_FAILED", "Dataset generation failed. Your inputs have been preserved."))
     finally:
         _active_providers.pop(job_id, None)
         job_store.release_generation()
-        stored = job_store.get_file(request.file_id)
-        if stored and job_store.get_job(job_id) and job_store.get_job(job_id).status in {"completed", "failed", "cancelled"}:
-            stored.path.unlink(missing_ok=True)
+        if job_store.get_job(job_id) and job_store.get_job(job_id).status in {"completed", "failed", "cancelled"}:
+            for selected_id in request.file_ids:
+                selected = job_store.get_file(selected_id)
+                if selected:
+                    selected.path.unlink(missing_ok=True)
 
 
 @router.post("/generations", status_code=202)
 def create_generation(request: GenerationRequest, background_tasks: BackgroundTasks):
-    stored = job_store.get_file(request.file_id)
+    stored = job_store.get_file(request.file_id or "")
     if not stored: raise HTTPException(404, "Uploaded file not found.")
     if not request.dataset_prompt.strip(): raise HTTPException(422, "Please describe the dataset you want to create.")
     if not job_store.try_acquire_generation():

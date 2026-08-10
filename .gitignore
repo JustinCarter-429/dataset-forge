@@ -38,6 +38,7 @@ backend/app/outputs/*
 downloads/
 generations/
 runtime/
+backend/runtime/
 tmp/
 temp/
 *.zip

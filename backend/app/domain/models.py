@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from .enums import GenerationStage, OutputFormat
 from .extraction_models import CanonicalExtractedDocument
 
@@ -178,11 +178,21 @@ class UploadedFile(BaseModel):
 
 
 class GenerationRequest(BaseModel):
-    file_id: str = Field(alias="fileId")
+    file_id: str | None = Field(default=None, alias="fileId")
+    file_ids: list[str] = Field(default_factory=list, alias="fileIds", max_length=3)
     dataset_prompt: str = Field(alias="datasetPrompt")
     output_format: OutputFormat = Field(alias="outputFormat")
 
     model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def selected_files(self):
+        ids = self.file_ids or ([self.file_id] if self.file_id else [])
+        if not ids or len(ids) > 3 or len(set(ids)) != len(ids):
+            raise ValueError("Select between one and three distinct source documents.")
+        self.file_ids = ids
+        self.file_id = ids[0]
+        return self
 
 
 class ValidationSummary(BaseModel):

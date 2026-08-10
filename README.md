@@ -20,6 +20,12 @@ Dataset Forge is a local, single-page document-to-dataset application. It transf
 6. Run one bounded, advisory AI quality review; at most one model-authored revision is allowed globally.
 7. Export JSON or a deterministic CSV derived from the accepted canonical JSON, then download a ZIP package.
 
+## Carter 1.0
+
+Carter 1.0 is Dataset Forge's small agent/runtime layer, built on the configured `openai/gpt-oss-20b` base model; it is not presented as an independently pretrained model. It supports Cloud via RunPod and Local via LM Studio, up to three PDF/DOCX/TXT source documents, SQLite FTS5 local knowledge, Ask Carter, three controlled tools, document-grounded Q&A, and grounded multi-document dataset generation. No model weights are included in this repository.
+
+For Local Carter, install LM Studio, download and load a compatible model there, start its local API server, then configure `LM_STUDIO_ENABLED=true`, `LM_STUDIO_BASE_URL=http://127.0.0.1:1234`, and `LM_STUDIO_MODEL=<served model id>`. Select Local in Dataset Forge. Model weights remain managed by LM Studio and are never included in this repository. When Local is selected, Carter inference and document retrieval do not use RunPod.
+
 ## Design principles
 
 - Canonical JSON is the source of truth; CSV is never separately AI-generated.

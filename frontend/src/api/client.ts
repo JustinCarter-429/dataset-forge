@@ -1,4 +1,4 @@
-import type { GenerationJob, GenerationResult, OutputFormat, UploadedFile } from './types'
+import type { CarterAnswer, CarterRuntimeStatus, GenerationJob, GenerationResult, OutputFormat, UploadedFile } from './types'
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
 
@@ -20,8 +20,8 @@ export async function uploadFile(file: File): Promise<UploadedFile> {
   const data = await request<{ file: UploadedFile }>('/files', { method: 'POST', body }); return data.file
 }
 
-export async function createGeneration(fileId: string, datasetPrompt: string, outputFormat: OutputFormat) {
-  return request<{ generationId: string; status: string }>('/generations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileId, datasetPrompt, outputFormat }) })
+export async function createGeneration(fileId: string, datasetPrompt: string, outputFormat: OutputFormat, fileIds: string[] = [fileId]) {
+  return request<{ generationId: string; status: string }>('/generations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileId, fileIds, datasetPrompt, outputFormat }) })
 }
 
 export function getGeneration(id: string) { return request<GenerationJob>(`/generations/${encodeURIComponent(id)}`) }
@@ -29,3 +29,6 @@ export function cancelGeneration(id: string) { return request<GenerationJob>(`/g
 
 export function downloadUrl(jobId: string) { return `${baseUrl}/download/${encodeURIComponent(jobId)}` }
 export function generationDownloadUrl(id: string) { return `${baseUrl}/generations/${encodeURIComponent(id)}/download` }
+export function getCarterRuntimes() { return request<CarterRuntimeStatus>('/carter/runtimes') }
+export function ingestCarterDocuments(fileIds: string[]) { return request<{ documents: { documentId: string; name: string }[] }>('/carter/ingest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileIds }) }) }
+export function askCarter(question: string, runtime: 'cloud' | 'local', documentIds: string[]) { return request<CarterAnswer>('/carter/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, runtime, documentIds }) }) }
