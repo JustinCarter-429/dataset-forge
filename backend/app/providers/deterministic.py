@@ -34,6 +34,22 @@ class DeterministicCarterProvider:
 
     def infer(self, request: CarterInferenceRequest) -> CarterInferenceResponse:
         self.calls += 1
+        # Production-route deterministic fixture.  It deliberately follows the
+        # same manifest-derived schemas as live adapters and keeps custom fields
+        # intact, rather than exercising the retired fixed-record generator.
+        schema = request.response_schema or {}
+        properties = schema.get("properties", {})
+        text = " ".join(str(message.get("content", "")) for message in request.messages)
+        if "dataset_type" in properties:
+            spec = {"status":"ready","dataset_type":"custom","dataset_name":"deterministic-custom","dataset_description":"Deterministic Carter custom dataset.","requested_record_count":1,"effective_record_count":1,"fields":[{"name":"customer_intent","type":"string","required":True,"description":"Intent."},{"name":"confidence_label","type":"enum","required":True,"description":"Confidence.","enum_values":["high","low"]},{"name":"reasoning_style","type":"array_string","required":False,"description":"Style."}],"source_policy":"selected_documents_only","grounding_required":True,"evidence_required":True,"generation_requirements":["source_grounded","avoid_exact_duplicates"],"user_constraints":[],"clarification":{"required":False,"reason_code":None,"question":None,"reason":None}}
+            return CarterInferenceResponse(json.dumps(spec), [])
+        if "recommendation" in properties:
+            return CarterInferenceResponse(json.dumps({"status":"completed","recommendation":"accept","summary":"Deterministic review accepted the validated candidate.","issues":[]}), [])
+        if "records" in properties:
+            refs = re.findall(r'"allowed_source_refs"\s*:\s*\[\s*"([^"]+)"', text)
+            ref = refs[0] if refs else "source_1"
+            record = {"customer_intent":"support request","confidence_label":"high","reasoning_style":["concise"],"evidence":[{"source_ref":ref,"quote":"Deterministic evidence."}]}
+            return CarterInferenceResponse(json.dumps({"status":"generated","records":[record],"insufficiency":None}), [])
         question = " ".join(str(message.get("content", "")) for message in request.messages)
         if scenario() in {"ask_failure", "cloud_failure"} or "TEST_ASK_FAILURE" in question or "TEST_CLOUD_FAILURE" in question:
             raise ProviderError("CARTER_TEST_FAILURE", "Carter could not complete the request safely.")

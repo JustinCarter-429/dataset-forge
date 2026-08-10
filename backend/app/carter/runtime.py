@@ -212,7 +212,17 @@ def normalize_agent_action(package: CarterPromptPackage, native_calls: list[dict
     else:
         action = content if isinstance(content, dict) else json.loads(content)
     schema = deepcopy(package.schemas_by_id["carter-tool-call-1.0"])
-    schema["$defs"]["final_response_placeholder"] = final_schema
+    embedded_final = deepcopy(final_schema)
+    # It is embedded beneath the action schema, not registered as a second
+    # document.  Retaining its $id would make local refs resolve to the frozen
+    # template resource instead of this compiled copy.
+    embedded_final.pop("$id", None)
+    schema["$defs"]["final_response_placeholder"] = embedded_final
+    # The compiled generation schema has local ``#/$defs`` references.  Once it
+    # is embedded in the action contract those references resolve against the
+    # action root, so carry its definitions across without changing either
+    # frozen contract.
+    schema["$defs"].update(deepcopy(embedded_final.get("$defs", {})))
     package.validate(schema, action)
     if action["action"] == "final_response": package.validate(final_schema, action["final_response"])
     return action

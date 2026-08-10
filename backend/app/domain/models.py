@@ -182,6 +182,7 @@ class GenerationRequest(BaseModel):
     file_ids: list[str] = Field(default_factory=list, alias="fileIds", max_length=3)
     dataset_prompt: str = Field(alias="datasetPrompt")
     output_format: OutputFormat = Field(alias="outputFormat")
+    runtime: str = "runpod"
 
     model_config = {"populate_by_name": True}
 
@@ -227,6 +228,7 @@ class GenerationJob(BaseModel):
     extraction: CanonicalExtractedDocument | None = None
     analysis: dict[str, object] | None = None
     provider: dict[str, object] | None = None
+    runtime: str | None = None
     batch: dict[str, int] | None = None
     error: dict[str, str] | None = None
 

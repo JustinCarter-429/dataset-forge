@@ -10,12 +10,17 @@ from ...services.job_store import StoredFile, job_store
 from ...services.extraction import ExtractionError, ExtractionService
 from ...services.extraction_analysis import analyze_extraction
 from ...services.pipeline import PipelineService
-from ...services.generation import RunPodDatasetGenerator
 from ...providers.config import provider_config_from_env
 from ...providers.runpod import RunPodProvider
 from ...providers.contracts import ProviderError
-from ...providers.deterministic import DeterministicDatasetProvider, enabled as deterministic_enabled
+from ...providers.deterministic import DeterministicCarterProvider, enabled as deterministic_enabled
 from ...services.quality_review import QualityReviewService, QualityRevisionService
+from ...services.carter import LMStudioCarterProvider, RunPodCarterProvider
+from ...carter.runtime import CarterPromptPackage, CarterPromptPackageError
+from ...carter.production import CarterDatasetGenerationService
+from ...carter.dynamic_dataset import export_canonical_csv, export_canonical_json
+from ...services.packaging import ZipDatasetPackager
+from ...domain.models import GenerationManifest
 from ...utils.files import validate_filename
 
 logger = logging.getLogger(__name__)
@@ -98,40 +103,34 @@ def _run_job(job_id: str, request: GenerationRequest):
         analysis = analyze_extraction(extracted)
         job_store.update_job(job_id, extraction=extracted, analysis=analysis)
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "ready"}))
-        stage("generating", 35, "waiting_for_ai_worker")
+        stage("planning", 35, "planning")
         config = provider_config_from_env()
-        provider = DeterministicDatasetProvider(config) if deterministic_enabled() else _provider_factory(config)
-        _active_providers[job_id] = provider
-        provider.cancel_check = lambda: job_store.is_cancelled(job_id)
-        provider.on_job_created = lambda external_id: job_store.update_job(job_id, provider={"name": "runpod_serverless", "model": config.model, "state": "queued", "externalJobId": external_id})
-        job_store.update_job(job_id, provider={"name": "runpod_serverless", "model": config.model, "state": "configured"})
-        generator = RunPodDatasetGenerator(provider, max_model_len=config.max_model_len, records_per_batch=config.records_per_batch, max_dataset_records=config.max_dataset_records)
-        def generation_progress(percent: int, detail: str):
-            current = job_store.get_job(job_id)
-            if job_store.is_cancelled(job_id): return
-            batch = current.batch if current else None
-            if detail.startswith("batch "):
-                import re
-                match = re.search(r"batch (\d+) of (\d+)", detail)
-                if match: batch = {"completed": int(match.group(1)) - 1, "total": int(match.group(2))}
-            job_store.update_job(job_id, status="generating", stage="generating", progress={"percent": percent, "currentStage": detail}, batch=batch, provider={"name": "runpod_serverless", "model": config.model, "state": "running"})
-        review_enabled = (isinstance(provider, RunPodProvider) or deterministic_enabled()) and settings.quality_validator_mode != "disabled"
-        reviewer = QualityReviewService(provider, model=config.model, max_model_len=config.max_model_len) if review_enabled else None
-        reviser = QualityRevisionService(provider, model=config.model) if review_enabled else None
-        def agentic_state(state: str, percent: int, current_stage: str):
-            job_store.update_job(job_id, status="validating", stage="validating", progress={"percent": percent, "currentStage": current_stage})
-        result = PipelineService(settings.output_directory, generator=generator, quality_review_enabled=review_enabled, quality_reviewer=reviewer, quality_reviser=reviser).run(PipelineInput(job_id=job_id, source_path=stored.path, source_filename=extracted.source_filename, dataset_prompt=request.dataset_prompt.strip(), output_format=request.output_format), extracted_document=extracted, file_id=stored.record.id, model=config.model, on_progress=generation_progress, on_state=agentic_state)
+        runtime = request.runtime
+        if runtime not in {"runpod", "local_lm_studio"}: raise ValueError("Unsupported Carter runtime.")
+        if deterministic_enabled(): provider = DeterministicCarterProvider(runtime)
+        elif runtime == "runpod": provider = RunPodCarterProvider(_provider_factory(config))
+        else: provider = LMStudioCarterProvider(settings.lm_studio_base_url, settings.lm_studio_model, settings.lm_studio_timeout_seconds, settings.lm_studio_enabled, settings.carter_max_tokens)
+        _active_providers[job_id] = getattr(provider, "provider", provider)
+        availability = provider.available()
+        if not availability.get("available"): raise ProviderError("RUNTIME_UNAVAILABLE", "The selected Carter runtime is unavailable.")
+        job_store.update_job(job_id, runtime=runtime, provider={"name": runtime, "model": availability.get("model"), "state": "configured"})
+        phase_percent = {"planning": 40, "generating": 55, "tool_use": 62, "reviewing": 76, "revising": 84}
+        def on_phase(phase: str):
+            job_store.update_job(job_id, status=phase, stage=phase, progress={"percent": phase_percent[phase], "currentStage": phase}, provider={"name": runtime, "model": availability.get("model"), "state": "running"})
+        documents = [item.extraction for item in stored_files if item.extraction]
+        package = CarterPromptPackage.load()
+        result = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id)).generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents)
         if job_store.is_cancelled(job_id): return
-        stage("validating", 80)
+        stage("validating", 90)
         archive = settings.output_directory / job_id / "dataset.zip"
-        report = result.validation_report
-        grounding = report.grounding if report else None
-        quality = report.quality if report else None
-        validation = ValidationSummary(schemaValid=bool(report and report.schema_valid), totalRecords=result.record_count, validRecords=quality.valid_records if quality else result.record_count, invalidRecords=quality.invalid_records if quality else 0, groundingStatus=grounding.status if grounding else "failed", groundedRecords=grounding.grounded_records if grounding else 0, totalEvidenceItems=grounding.total_evidence_items if grounding else 0, verifiedEvidenceItems=grounding.verified_evidence_items if grounding else 0, qualityStatus=quality.status if quality else "failed", exactDuplicatesRemoved=quality.exact_duplicates_removed if quality else 0, nearDuplicatePairs=quality.near_duplicate_pairs if quality else 0)
+        output = settings.output_directory / job_id / ("dataset.json" if request.output_format.value == "json" else "dataset.csv")
+        (export_canonical_json if request.output_format.value == "json" else export_canonical_csv)(result.dataset, output)
+        manifest = GenerationManifest(job_id=job_id, source_file=extracted.source_filename, requested_format=request.output_format, record_count=len(result.dataset.records), phase="carter_1_0", generator="carter_1_0", provider=runtime, model=str(availability.get("model") or "unknown"), prompt_version=package.package_version, schema_version="carter-1.0", validation_status="passed", quality_review_status=result.review["recommendation"])
+        ZipDatasetPackager().package(output, manifest, archive, validation_report={"status": "passed"}, quality_review=result.review)
+        validation = ValidationSummary(schemaValid=True, totalRecords=len(result.dataset.records), validRecords=len(result.dataset.records), invalidRecords=0, groundingStatus="passed", groundedRecords=len(result.dataset.records), totalEvidenceItems=sum(len(record["evidence"]) for record in result.dataset.records), verifiedEvidenceItems=sum(len(record["evidence"]) for record in result.dataset.records), qualityStatus="passed")
         stage("packaging", 96)
-        review = result.quality_review
-        review_summary = ReviewSummary(status=review.status if review else "not_evaluated", issueCount=review.issues_found if review else 0, blockingIssueCount=review.blocking_issues if review else 0, warningCount=review.warnings if review else 0, revisionAttempted=review.revision_attempted if review else False, revisionSucceeded=review.revision_succeeded if review else False, revisionAttempts=generator.last_run.get("revision_attempts", 0), reviewAttempts=generator.last_run.get("review_attempts", 0), providerJobs=generator.last_run.get("provider_jobs", 0), repairReason=generator.last_run.get("repair_reason"), revisionReason=generator.last_run.get("revision_reason", []))
-        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": result.record_count, "finalRecordCount": result.record_count, "sizeBytes": archive.stat().st_size}, validation=validation, validation_report=report, quality_review=review, review=review_summary, package_ready=True, provider={"name": "runpod_serverless", "model": config.model, "state": "completed", **_provider_diagnostics(provider)}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "runpod_serverless_gpt_oss_20b", "groundingValidation": "phase4_deterministic_source_evidence", "qualityReview": "bounded_same_model_advisory_review"})
+        review_summary = ReviewSummary(status=result.review["recommendation"], issueCount=len(result.review["issues"]), blockingIssueCount=sum(issue["severity"] == "major" for issue in result.review["issues"]), warningCount=sum(issue["severity"] == "warning" for issue in result.review["issues"]), revisionAttempted=bool(result.revisions), revisionSucceeded=bool(result.revisions), revisionAttempts=result.revisions, reviewAttempts=result.calls["review"], providerJobs=sum(result.calls.values()))
+        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(result.dataset.records), "finalRecordCount": len(result.dataset.records), "sizeBytes": archive.stat().st_size}, validation=validation, review=review_summary, package_ready=True, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
     except ExtractionError as exc:
         logger.warning("Extraction failed for job %s: %s", job_id, exc.code)
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
@@ -168,7 +167,8 @@ def create_generation(request: GenerationRequest, background_tasks: BackgroundTa
     if not job_store.try_acquire_generation():
         raise HTTPException(409, "Another dataset generation is already in progress. Please wait for it to finish.")
     job_id = uuid.uuid4().hex
-    job = GenerationJob(id=job_id, status="queued", stage="queued", progress={"percent": 3, "currentStage": "queued"}, file={"id": stored.record.id, "name": stored.record.name}, output={"requestedFormat": request.output_format.value, "recordCount": None, "finalRecordCount": None, "sizeBytes": None}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "runpod_serverless_gpt_oss_20b", "groundingValidation": "phase4_deterministic_source_evidence", "qualityReview": "bounded_same_model_advisory_review"}, provider={"name": "runpod_serverless", "state": "not_started"})
+    if request.runtime not in {"runpod", "local_lm_studio"}: raise HTTPException(422, "Unsupported Carter runtime.")
+    job = GenerationJob(id=job_id, status="queued", stage="queued", progress={"percent": 3, "currentStage": "queued"}, file={"id": stored.record.id, "name": stored.record.name}, output={"requestedFormat": request.output_format.value, "recordCount": None, "finalRecordCount": None, "sizeBytes": None}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"}, provider={"name": request.runtime, "state": "not_started"}, runtime=request.runtime)
     job_store.add_job(job); background_tasks.add_task(_run_job, job_id, request)
     return {"generationId": job_id, "status": "queued"}
 
