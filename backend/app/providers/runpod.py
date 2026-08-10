@@ -54,11 +54,22 @@ def _safe_output_snapshot(output: Any) -> dict[str, Any]:
                 choice = output["choices"][0]
     if choice is not None:
         message = choice.get("message") if isinstance(choice.get("message"), dict) else {}
+        snapshot["message_keys"] = sorted(message.keys())
         content = message.get("content") if isinstance(message.get("content"), str) else choice.get("text")
+        snapshot["assistant_content_present"] = bool(content)
         snapshot["content_type"] = type(content).__name__ if content is not None else None
         snapshot["content_length"] = len(content) if isinstance(content, str) else 0
         snapshot["reasoning_present"] = bool(message.get("reasoning") or message.get("reasoning_content"))
         snapshot["finish_reason"] = choice.get("finish_reason")
+        tool_calls = message.get("tool_calls")
+        snapshot["tool_call_container"] = "tool_calls" if isinstance(tool_calls, list) else None
+        snapshot["tool_call_count"] = len(tool_calls) if isinstance(tool_calls, list) else 0
+        if isinstance(tool_calls, list):
+            snapshot["tool_calls"] = [{
+                "id_present": bool(isinstance(item, dict) and item.get("id")),
+                "name": ((item.get("function") or {}).get("name") if isinstance(item, dict) and isinstance(item.get("function"), dict) else None),
+                "arguments_type": type((item.get("function") or {}).get("arguments")).__name__ if isinstance(item, dict) and isinstance(item.get("function"), dict) else None,
+            } for item in tool_calls]
         snapshot.setdefault("usage_present", False)
     return snapshot
 

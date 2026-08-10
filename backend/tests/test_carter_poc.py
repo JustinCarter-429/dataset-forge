@@ -6,7 +6,7 @@ import pytest
 from app.domain.extraction_models import CanonicalExtractedDocument, ExtractionElement, ExtractionElementType, ExtractionStatistics, ExtractionValidation
 from app.providers.contracts import ProviderError
 from app.services.carter import CarterAskService, CarterInferenceResponse, KnowledgeStore, MAX_DOCUMENTS, MAX_TOOL_ROUNDS
-from app.providers.runpod import build_runpod_openai_chat_job
+from app.providers.runpod import _safe_output_snapshot, build_runpod_openai_chat_job
 from app.api.routes.carter import AskRequest
 from pydantic import ValidationError
 
@@ -115,6 +115,13 @@ def test_runpod_tool_transport_preserves_canonical_tools_without_structured_answ
     request = payload["input"]["openai_input"]
     assert request["tools"] == tools and request["tool_choice"] == "auto"
     assert "structured_outputs" not in request
+
+
+def test_runpod_safe_protocol_snapshot_records_tool_shape_without_content():
+    snapshot = _safe_output_snapshot({"choices": [{"finish_reason": "tool_calls", "message": {"content": None, "reasoning": "never retained", "tool_calls": [{"id": "call-1", "function": {"name": "search_local_knowledge", "arguments": "{}"}}]}}]})
+    assert snapshot["tool_call_count"] == 1
+    assert snapshot["tool_calls"] == [{"id_present": True, "name": "search_local_knowledge", "arguments_type": "str"}]
+    assert snapshot["reasoning_present"] is True and "never retained" not in str(snapshot)
 
 
 def test_tool_continuation_keeps_runtime_pinned(tmp_path):

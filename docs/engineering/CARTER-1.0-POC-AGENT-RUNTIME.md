@@ -71,3 +71,11 @@ The missing tool call was traced to Carter preloading retrieval results into the
 The continuation request uses the existing RunPod `structured_outputs` compatibility transport with the canonical Carter `{answer, citations}` schema. The application rejects unstructured prose and citations absent from actual tool-returned source references. A live selected-document RunPod attempt reached the provider but returned `CARTER_STRUCTURED_OUTPUT_INVALID`; this is not accepted as a completed tool loop. Provider-side model identity remains not verifiable beyond configuration. LM Studio remains explicitly disabled.
 
 Focused Carter tests: 26 passed. Frontend tests: 6 passed. Generated root-level `app/outputs` acceptance artifacts are ignored explicitly; no artifact is committed.
+
+## RunPod protocol diagnostics
+
+Date: 2026-08-10
+
+The RunPod adapter now records a sanitized per-call protocol summary: route, model identifier, role count, token setting, tool count/names supplied by the request, tool-choice mode, structured-output presence/schema digest, response top-level and message field names, finish reason, content presence, reasoning-field presence, and normalized tool-call ID/name/argument-type metadata. It deliberately excludes authorization, source text, argument values, assistant content, and reasoning content. This is the diagnostic evidence point for the real endpoint; it does not alter Carter business logic.
+
+The live endpoint still has not produced an accepted canonical continuation payload. The `CARTER_STRUCTURED_OUTPUT_INVALID` error is retained as a failure rather than falling back to prose. Protocol instrumentation is covered by a regression test that proves raw reasoning text is not retained.
