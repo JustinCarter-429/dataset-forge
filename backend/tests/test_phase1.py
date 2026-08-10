@@ -1,6 +1,7 @@
 import io
 import json
 import re
+import csv
 import pytest
 from pathlib import Path
 from zipfile import ZipFile
@@ -34,6 +35,11 @@ class FakeProvider:
 @pytest.fixture(autouse=True)
 def fake_provider(monkeypatch):
     monkeypatch.setattr(generation_route, "_provider_factory", lambda config: FakeProvider())
+    # The public route is Carter-backed.  The deterministic Carter adapter
+    # exercises its DatasetSpec-defined artifact contract; the old fake fixed
+    # record provider remains only for legacy service tests.
+    monkeypatch.setenv("APP_ENVIRONMENT", "test")
+    monkeypatch.setenv("CARTER_TEST_PROVIDER", "deterministic")
 
 
 def upload(name="source.txt", content=b"hello", prompt="Create examples", output_format="json"):
@@ -76,14 +82,19 @@ def test_supported_files_complete_and_json_zip_is_safe():
         with ZipFile(io.BytesIO(archive_response.content)) as archive:
             assert {"dataset.json", "generation_manifest.json", "manifest.json", "metadata.json", "README.txt"}.issubset(set(archive.namelist()))
             assert "app/" not in archive.read("generation_manifest.json").decode()
-            assert len(json.loads(archive.read("dataset.json"))) == 3
+            payload = json.loads(archive.read("dataset.json"))
+            assert payload["dataset_spec"]["dataset_type"] == "custom"
+            assert payload["records"][0]["customer_intent"] == "support request"
+            assert "instruction" not in payload["records"][0]
 
 
 def test_csv_zip_contains_manifest_and_dataset():
     result = upload(output_format="csv").json()
     with ZipFile(io.BytesIO(client.get(result["download_url"]).content)) as archive:
         assert {"dataset.csv", "generation_manifest.json", "manifest.json", "metadata.json", "README.txt"}.issubset(set(archive.namelist()))
-        assert b"instruction,input,output,metadata" in archive.read("dataset.csv")
+        rows = list(csv.DictReader(io.StringIO(archive.read("dataset.csv").decode())))
+        assert rows and list(rows[0]) == ["customer_intent", "confidence_label", "reasoning_style", "evidence"]
+        assert rows[0]["customer_intent"] == "support request" and "source_" in rows[0]["evidence"]
 
 
 def test_unknown_and_traversal_downloads_are_safe():
@@ -107,13 +118,13 @@ def test_resource_api_upload_generation_status_and_download():
     body = status.json()
     assert body["status"] == "completed"
     assert body["progress"]["percent"] == 100
-    assert body["output"]["recordCount"] == 3
+    assert body["output"]["recordCount"] == 1
     assert body["output"]["sizeBytes"] > 0
     assert body["validation"]["schemaValid"] is True
     assert body["validation"]["groundingStatus"] == "passed"
-    assert body["validation"]["groundedRecords"] == 3
-    assert body["validation"]["verifiedEvidenceItems"] == 3
-    assert body["validationReport"]["schema_version"] == "2.0"
+    assert body["validation"]["groundedRecords"] == 1
+    assert body["validation"]["verifiedEvidenceItems"] == 1
+    assert body["validation"]["qualityStatus"] == "passed"
     assert body["packageReady"] is True
     downloaded = client.get(f"/api/generations/{generation_id}/download")
     assert downloaded.status_code == 200

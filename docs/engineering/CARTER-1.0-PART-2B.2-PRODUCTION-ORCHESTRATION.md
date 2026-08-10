@@ -26,3 +26,14 @@ path does not project through the legacy six-field record shape.
 
 The external RunPod health diagnostic remains a separate live-acceptance gate.
 No live inference call is made by this implementation document or its tests.
+
+## Part 2B.3 compatibility reconciliation
+
+The Phase 1 assertions that exercised `/api/generate` and `/api/generations`
+were classified as mixed-contract assertions: those routes now intentionally
+start a Carter job, but the assertions still expected the former fixed-record
+artifact.  Dataset Forge v1.0.0 compatibility preserves upload, request,
+asynchronous job, polling, format-selection, ZIP/download, and error lifecycle
+behavior.  It does not require a Carter dataset to be projected into six legacy
+fields.  The reconciled checks validate DatasetSpec-driven JSON and CSV fields,
+evidence serialization, and absence of fabricated `instruction` fields.
