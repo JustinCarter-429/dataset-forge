@@ -246,3 +246,43 @@ gpt-oss Harmony parsing and `openai` tool-call configuration follow the
 corresponding vLLM recipe.  No Carter schema, normalizer, or fallback was
 changed; basic generation, tools, review, and export remain blocked pending a
 legitimate final channel.
+
+## Part 2B.11 RunPod deployment configuration audit (2026-08-10)
+
+The authenticated RunPod endpoint console and its worker startup logs were
+inspected read-only.  The console release label is `vLLM v2.22.5`; the actual
+worker startup log identifies the serving engine as **vLLM v0.20.2** (V1
+engine).  Three idle workers were visible, all NVIDIA A40 workers with 50 GB
+RAM and 9 vCPUs.
+
+The startup configuration provides the following deployment baseline:
+
+| Setting | Observed value |
+| --- | --- |
+| Model / served model name | `openai/gpt-oss-20b` |
+| Quantization | `gpt_oss_mxfp4` |
+| Dtype | `torch.bfloat16` |
+| KV-cache dtype | `auto` |
+| Maximum sequence length | `131072` |
+| `ENFORCE_EAGER` | `true` |
+| CUDA graph mode / capture size | `NONE` / `0` |
+| Reasoning parser | `openai_gptoss` |
+| Custom chat template | not exposed in the sanitized startup configuration |
+| `TOOL_CALL_PARSER` / auto-tool choice | not exposed in the sanitized startup configuration |
+
+This changes the immediate diagnosis materially: the proposed first isolation
+setting, eager execution, is already enabled and CUDA graph capture is already
+disabled.  The Part 2B.10 content-free completion therefore cannot be
+attributed to the default CUDA-graph path or to a request exceeding a graph
+capture threshold.  The configured context length also exceeds the 11,260
+input-token failing request, so it was not rejected for exceeding the visible
+engine context limit.
+
+The endpoint configuration editor was not opened through `Update endpoint`,
+because that control can alter/redeploy the live external endpoint.  No
+environment variable, worker image, or endpoint configuration was changed;
+therefore no new live inference was sent and no tool, review, revision, or
+export flow was attempted.  The remaining unverified server-side settings
+(`TOOL_CALL_PARSER`, auto-tool choice, and custom chat template) need a
+sanitized editor/configuration read.  Any isolated setting change requires
+explicit confirmation immediately before the external save/redeploy action.
