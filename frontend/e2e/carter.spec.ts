@@ -102,6 +102,20 @@ test('generation failure, validation failure, warning, and completed states use 
   expect(results.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')).toHaveLength(0)
 })
 
+test('multi-batch Carter generation exposes backend-owned batch progress', async ({ page }) => {
+  await page.goto('/')
+  await twoDocs(page)
+  await page.locator('#prompt').fill('TEST_BATCH_PAUSE Create exactly 12 records.')
+  await page.getByRole('button', { name: 'Generate Dataset' }).click()
+  await expect(page.getByText('Dataset planned')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Batch 2 of 3 · 5 / 12 records generated')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByLabel('5 of 12 records generated')).toBeVisible()
+  await expect(page.getByText('Batch 3 of 3 · 10 / 12 records generated')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('12 / 12 records generated')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Ready', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeEnabled()
+})
+
 test('keyboard reaches core controls and responsive layouts do not overflow', async ({ page }) => {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720 }, { width: 768, height: 1024 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport); await page.goto('/');

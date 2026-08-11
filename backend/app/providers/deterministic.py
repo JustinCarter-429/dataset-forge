@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from typing import Any
 
 from .contracts import ProviderError, ProviderJob
@@ -62,7 +63,9 @@ class DeterministicCarterProvider:
         if "records" in properties:
             if "TEST_GENERATION_FAILURE" in text:
                 raise ProviderError("CARTER_TEST_GENERATION_FAILED", "Deterministic generation failed safely.")
-            refs = re.findall(r'"allowed_source_refs"\s*:\s*\[\s*"([^"]+)"', text)
+            if "TEST_BATCH_PAUSE" in text:
+                time.sleep(2)
+            refs = re.findall(r'"allowed_source_refs"\s*:\s*\[\s*"([^"]+)"', text) or re.findall(r"\bsource_\d+\b", text)
             ref = refs[0] if refs else "source_1"
             if "TEST_VALIDATION_FAILURE" in text:
                 ref = "unknown-source"

@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from fastapi.responses import FileResponse
 from ...core.config import get_settings
 from ...domain.enums import OutputFormat, GenerationStage
-from ...domain.models import GenerationJob, GenerationRequest, GenerationResult, PipelineInput, UploadedFile, ValidationSummary, ReviewSummary
+from ...domain.models import BatchProgress, GenerationJob, GenerationRequest, GenerationResult, PipelineInput, UploadedFile, ValidationSummary, ReviewSummary
 from ...domain.extraction_models import CanonicalExtractedDocument
 from ...services.job_store import StoredFile, job_store
 from ...services.extraction import ExtractionError, ExtractionService
@@ -118,7 +118,7 @@ def _run_job(job_id: str, request: GenerationRequest):
         def on_phase(phase: str, batch: dict[str, int] | None = None):
             percent = phase_percent[phase]
             if batch and phase == "generating": percent = 45 + int(35 * batch["recordsGenerated"] / batch["recordsRequested"])
-            job_store.update_job(job_id, status=phase, stage=phase, progress={"percent": percent, "currentStage": phase}, batch=batch, provider={"name": runtime, "model": availability.get("model"), "state": "running"})
+            job_store.update_job(job_id, status=phase, stage=phase, progress={"percent": percent, "currentStage": phase}, batch=BatchProgress(**batch) if batch else None, provider={"name": runtime, "model": availability.get("model"), "state": "running"})
         documents = [item.extraction for item in stored_files if item.extraction]
         package = CarterPromptPackage.load()
         result = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id), generation_batch_size=settings.carter_generation_batch_size).generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents)
