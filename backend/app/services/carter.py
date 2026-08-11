@@ -110,7 +110,13 @@ class RunPodCarterProvider:
         try:
             message = output["choices"][0]["message"] if isinstance(output, dict) else {}
             if not isinstance(message, dict): raise TypeError("missing message")
-            return CarterInferenceResponse(str(message.get("content") or ""), list(message.get("tool_calls") or []))
+            content, tool_calls = message.get("content"), list(message.get("tool_calls") or [])
+            if not isinstance(content, str) or not content.strip():
+                if not tool_calls:
+                    self.provider._publish_telemetry(json_parse="NOT_RUN", dynamic_schema_validation="NOT_RUN", safe_error_code="PROVIDER_NO_FINAL_CONTENT")
+                    raise ProviderError("PROVIDER_NO_FINAL_CONTENT", "Carter cloud runtime returned no final content.")
+                content = ""
+            return CarterInferenceResponse(content, tool_calls)
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise ProviderError("CARTER_PROVIDER_INVALID_RESPONSE", "Carter cloud runtime returned an invalid response.") from exc
 

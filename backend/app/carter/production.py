@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from ..domain.extraction_models import CanonicalExtractedDocument
 from ..services.carter import CarterInferenceRequest as TransportRequest, CarterProvider, KnowledgeStore
+from ..providers.contracts import ProviderError
 from .dynamic_dataset import CarterCanonicalDataset, validate_canonical_dataset
 from .runtime import (CarterAgentTurnState, CarterPromptPackage, CarterPromptPackageError,
                       CarterToolRegistry, authorize_revision, build_knowledge_tool_handlers,
@@ -52,6 +53,9 @@ class CarterDatasetGenerationService:
             raise CarterPromptPackageError("Generation cancelled.")
         self.calls[phase] += 1
         self.invocation_ledger.append({"phase": phase, "runtime": self.provider.runtime})
+        transport = getattr(self.provider, "provider", None)
+        if transport is not None:
+            transport.current_phase = phase
         response = self.provider.infer(TransportRequest(messages=list(request.messages), tools=list(request.tools),
             response_schema=request.response_schema, tool_choice="auto"))
         return response
@@ -87,7 +91,10 @@ class CarterDatasetGenerationService:
             "requested_output_format": output_format, "application_limits": {"maximum_dataset_records": 100},
             "selected_document_metadata": [{"document_id": d.document_id, "name": d.source_filename} for d in documents]}, runtime=logical_runtime)
         specification = self._json(self._infer(plan_request, "planner").content, "Planner returned malformed JSON.")
-        self.package.validate(planner.output_schema, specification)
+        try:
+            self.package.validate(planner.output_schema, specification)
+        except CarterPromptPackageError as exc:
+            raise ProviderError("DYNAMIC_SCHEMA_INVALID", "Planner result did not match the application schema.") from exc
         # Compile is both semantic validation and the single canonical compiler.
         requested_records = specification["effective_record_count"]
         batch_targets = [min(self.generation_batch_size, requested_records - offset) for offset in range(0, requested_records, self.generation_batch_size)]
@@ -110,7 +117,10 @@ class CarterDatasetGenerationService:
                 if action["action"] == "final_response":
                     records = action["final_response"]["records"]
                     if len(records) != target: raise CarterPromptPackageError("Generator returned an incorrect batch record count.")
-                    validated = validate_canonical_dataset(self.package, specification, records, allowed_source_refs=allowed_refs, batch_count=target)
+                    try:
+                        validated = validate_canonical_dataset(self.package, specification, records, allowed_source_refs=allowed_refs, batch_count=target)
+                    except CarterPromptPackageError as exc:
+                        raise ProviderError("DYNAMIC_SCHEMA_INVALID", "Generated records did not match the DatasetSpec schema.") from exc
                     merged_records.extend(validated.records); break
                 self._phase("tool_use", batch); call = action["tool_call"]; result = registry.execute(call["name"], call["arguments"])
                 batch_tools.append(call["name"]); tools_executed.append(call["name"]); messages.append({"role": "tool", "name": call["name"], "content": json.dumps(result, separators=(",", ":"))})

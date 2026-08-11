@@ -36,6 +36,24 @@ def _provider_diagnostics(provider) -> dict[str, object]:
     return {key: int(value) for key, value in metrics.items() if key in {"providerSubmitAttempts", "providerJobsCreated", "providerJobsCompleted", "providerJobsFailed", "providerStatusPolls", "providerTransportRetries", "providerCancelCalls"}}
 
 
+def _safe_provider_telemetry(provider) -> dict[str, object]:
+    telemetry = getattr(provider, "last_telemetry", {}) or {}
+    allowed = {"phase", "request_attempted", "request_accepted", "external_job_id", "status_transitions",
+               "terminal_state", "content_present", "reasoning_present", "tool_call_count", "finish_reason",
+               "json_parse", "dynamic_schema_validation", "safe_error_code", "elapsed_ms"}
+    return {key: telemetry[key] for key in allowed if key in telemetry}
+
+
+def _failure_code(code: str) -> str:
+    if code in {"PROVIDER_NO_FINAL_CONTENT", "STRUCTURED_OUTPUT_INVALID", "DYNAMIC_SCHEMA_INVALID", "TOOL_EXECUTION_FAILED"}:
+        return code
+    if "TIMEOUT" in code: return "PROVIDER_TIMEOUT"
+    if code in {"RUNPOD_NETWORK_ERROR", "RUNPOD_MISSING_JOB_ID"}: return "PROVIDER_REQUEST_NOT_SENT"
+    if code in {"RUNPOD_AUTH_FAILED", "RUNPOD_REQUEST_INVALID", "RUNPOD_RATE_LIMITED"}: return "PROVIDER_REQUEST_REJECTED"
+    if code.startswith("RUNPOD_") or code.startswith("CARTER_PROVIDER_"): return "PROVIDER_FAILED" if code in {"RUNPOD_FAILED", "RUNPOD_CANCELLED", "RUNPOD_TIMED_OUT", "RUNPOD_WORKER_ERROR"} else "PROVIDER_RESPONSE_INVALID"
+    return code
+
+
 def _combined_document(request: GenerationRequest) -> tuple[list[StoredFile], CanonicalExtractedDocument]:
     stored_files = [job_store.get_file(file_id) for file_id in request.file_ids]
     if any(item is None for item in stored_files):
@@ -92,6 +110,7 @@ def _run_job(job_id: str, request: GenerationRequest):
     stored = job_store.get_file(request.file_id or "")
     if not stored: return
     settings = get_settings()
+    provider = None
     def stage(name: str, percent: int, current_stage: str | None = None):
         job_store.update_job(job_id, status=name, stage=name, progress={"percent": percent, "currentStage": current_stage or name})
     try:
@@ -110,10 +129,17 @@ def _run_job(job_id: str, request: GenerationRequest):
         if deterministic_enabled(): provider = DeterministicCarterProvider(runtime)
         elif runtime == "runpod": provider = RunPodCarterProvider(_provider_factory(config))
         else: provider = LMStudioCarterProvider(settings.lm_studio_base_url, settings.lm_studio_model, settings.lm_studio_timeout_seconds, settings.lm_studio_enabled, settings.carter_max_tokens)
-        _active_providers[job_id] = getattr(provider, "provider", provider)
+        transport = getattr(provider, "provider", provider)
+        _active_providers[job_id] = transport
         availability = provider.available()
         if not availability.get("available"): raise ProviderError("RUNTIME_UNAVAILABLE", "The selected Carter runtime is unavailable.")
         job_store.update_job(job_id, runtime=runtime, provider={"name": runtime, "model": availability.get("model"), "state": "configured"})
+        if hasattr(transport, "on_telemetry"):
+            def retain_telemetry(_snapshot):
+                current = job_store.get_job(job_id)
+                if not current or current.status in {"completed", "failed", "cancelled"}: return
+                job_store.update_job(job_id, provider={"name": runtime, "model": availability.get("model"), "state": "running", **_provider_diagnostics(transport), "telemetry": _safe_provider_telemetry(transport)})
+            transport.on_telemetry = retain_telemetry
         phase_percent = {"planning": 40, "generating": 55, "tool_use": 62, "reviewing": 76, "revising": 84}
         def on_phase(phase: str, batch: dict[str, int] | None = None):
             percent = phase_percent[phase]
@@ -139,7 +165,7 @@ def _run_job(job_id: str, request: GenerationRequest):
         validation = ValidationSummary(schemaValid=quality.schema_failures == 0, totalRecords=quality.total_records, validRecords=quality.accepted_records, invalidRecords=quality.rejected_records + quality.quarantined_records, groundingStatus="passed" if quality.grounding_failures == 0 else "failed", groundedRecords=quality.accepted_records, totalEvidenceItems=sum(len(record["evidence"]) for record in export_dataset.records), verifiedEvidenceItems=sum(len(record["evidence"]) for record in export_dataset.records), qualityStatus="passed" if not quality.findings else "passed_with_warnings", exactDuplicatesRemoved=quality.duplicate_records)
         stage("packaging", 96)
         review_summary = ReviewSummary(status=result.review["recommendation"], issueCount=len(result.review["issues"]), blockingIssueCount=sum(issue["severity"] == "major" for issue in result.review["issues"]), warningCount=sum(issue["severity"] == "warning" for issue in result.review["issues"]), revisionAttempted=bool(result.revisions), revisionSucceeded=bool(result.revisions), revisionAttempts=result.revisions, reviewAttempts=result.calls["review"], providerJobs=sum(result.calls.values()))
-        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(export_dataset.records), "finalRecordCount": len(export_dataset.records), "sizeBytes": archive.stat().st_size, "qualitySummary": quality_payload}, validation=validation, review=review_summary, package_ready=True, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
+        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(export_dataset.records), "finalRecordCount": len(export_dataset.records), "sizeBytes": archive.stat().st_size, "qualitySummary": quality_payload}, validation=validation, review=review_summary, package_ready=True, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed, **_provider_diagnostics(transport), "telemetry": _safe_provider_telemetry(transport)}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
     except ExtractionError as exc:
         logger.warning("Extraction failed for job %s: %s", job_id, exc.code)
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
@@ -149,7 +175,18 @@ def _run_job(job_id: str, request: GenerationRequest):
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
         review_code = exc.code.startswith("QUALITY_REVIEW") or exc.code.startswith("QUALITY_REVISION")
         if job_store.is_cancelled(job_id): return
-        job_store.update_job(job_id, status="failed", stage="validating" if review_code else "generating", progress={"percent": 86 if review_code else 35, "currentStage": "reviewing" if review_code else "generating"}, provider={"name": "runpod_serverless", "state": "failed", **_provider_diagnostics(provider)}, error=_safe_error(exc.code, "Dataset quality review could not be completed safely." if review_code else exc.message))
+        safe_code = _failure_code(exc.code)
+        current = job_store.get_job(job_id)
+        job_store.update_job(job_id, status="failed", stage="validating" if review_code else (current.stage if current else "generating"), progress=(current.progress if current else {"percent": 35, "currentStage": "generating"}), provider={"name": runtime if 'runtime' in locals() else "runpod", "state": "failed", **_provider_diagnostics(getattr(provider, "provider", provider)), "telemetry": _safe_provider_telemetry(getattr(provider, "provider", provider))}, error=_safe_error(safe_code, "Dataset quality review could not be completed safely." if review_code else exc.message))
+    except CarterPromptPackageError as exc:
+        logger.warning("Carter contract failed for job %s", job_id)
+        job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
+        if not job_store.is_cancelled(job_id):
+            current = job_store.get_job(job_id)
+            message = getattr(exc, "detail", str(exc))
+            code = "STRUCTURED_OUTPUT_INVALID" if "malformed JSON" in message else "DYNAMIC_SCHEMA_INVALID"
+            transport = getattr(provider, "provider", provider)
+            job_store.update_job(job_id, status="failed", stage=current.stage if current else "generating", progress=current.progress if current else {"percent": 35, "currentStage": "generating"}, provider={"name": runtime if 'runtime' in locals() else "runpod", "state": "failed", **_provider_diagnostics(transport), "telemetry": _safe_provider_telemetry(transport)}, error=_safe_error(code, "Carter returned output that could not be validated."))
     except ValueError as exc:
         logger.warning("Validation failed for job %s: %s", job_id, str(exc))
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
@@ -157,7 +194,10 @@ def _run_job(job_id: str, request: GenerationRequest):
     except Exception:
         logger.exception("Generation failed for job %s", job_id)
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
-        if not job_store.is_cancelled(job_id): job_store.update_job(job_id, status="failed", stage="generating", error=_safe_error("GENERATION_FAILED", "Dataset generation failed. Your inputs have been preserved."))
+        if not job_store.is_cancelled(job_id):
+            current = job_store.get_job(job_id)
+            transport = getattr(locals().get("provider"), "provider", locals().get("provider"))
+            job_store.update_job(job_id, status="failed", stage=current.stage if current else "generating", progress=current.progress if current else {"percent": 35, "currentStage": "generating"}, provider={"name": runtime if 'runtime' in locals() else "runpod", "state": "failed", **_provider_diagnostics(transport), "telemetry": _safe_provider_telemetry(transport)}, error=_safe_error("GENERATION_INTERNAL_ERROR", "Dataset generation failed. Your inputs have been preserved."))
     finally:
         _active_providers.pop(job_id, None)
         job_store.release_generation()

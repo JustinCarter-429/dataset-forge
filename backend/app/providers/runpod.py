@@ -162,6 +162,15 @@ class RunPodProvider(DatasetGenerationProvider):
         }
         self.cancel_check = None
         self.on_job_created = None
+        # Receives a strictly content-free operational snapshot after every
+        # meaningful transport transition.  The route owns persistence.
+        self.on_telemetry = None
+        self.current_phase = "unknown"
+
+    def _publish_telemetry(self, **changes: Any) -> None:
+        self.last_telemetry = {**self.last_telemetry, **changes}
+        if self.on_telemetry:
+            self.on_telemetry(dict(self.last_telemetry))
 
     @property
     def headers(self) -> dict[str, str]:
@@ -195,11 +204,24 @@ class RunPodProvider(DatasetGenerationProvider):
         # A /run submission is intentionally single-shot. Retrying an unknown
         # POST outcome could create a duplicate paid inference job.
         self.metrics["providerSubmitAttempts"] += 1
-        submitted = self._request("POST", "/run", json=payload)
+        self.last_telemetry = {}
+        self._publish_telemetry(phase=self.current_phase, request_attempted=True,
+                                request_accepted=False, status_transitions=[],
+                                terminal_state=None, json_parse="NOT_RUN",
+                                dynamic_schema_validation="NOT_RUN", elapsed_ms=0)
+        try:
+            submitted = self._request("POST", "/run", json=payload)
+        except ProviderError as exc:
+            self._publish_telemetry(safe_error_code=exc.code,
+                                    elapsed_ms=round((time.monotonic() - started) * 1000, 1))
+            raise
         external_id = submitted.get("id")
         if not external_id or not isinstance(external_id, str):
+            self._publish_telemetry(safe_error_code="RUNPOD_MISSING_JOB_ID",
+                                    elapsed_ms=round((time.monotonic() - started) * 1000, 1))
             raise ProviderError("RUNPOD_MISSING_JOB_ID", "RunPod did not return an external job ID.")
         self.metrics["providerJobsCreated"] += 1
+        self._publish_telemetry(external_job_id=external_id, request_accepted=True)
         if self.on_job_created:
             self.on_job_created(external_id)
         queue_started = time.monotonic()
@@ -224,9 +246,13 @@ class RunPodProvider(DatasetGenerationProvider):
                     time.sleep(min(0.25, self.config.poll_interval_seconds))
             state = str(current.get("status", "")).upper()
             status_sequence.append(state)
+            self._publish_telemetry(external_job_id=external_id,
+                                    status_transitions=list(status_sequence),
+                                    terminal_state=state if state in {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"} else None,
+                                    elapsed_ms=round((time.monotonic() - started) * 1000, 1))
             if state == "COMPLETED":
                 output = current.get("output")
-                self.last_telemetry = {
+                self._publish_telemetry(**{
                     "external_job_id": external_id,
                     "status_sequence": status_sequence,
                     "queue_duration_ms": round((time.monotonic() - queue_started) * 1000, 1),
@@ -249,19 +275,23 @@ class RunPodProvider(DatasetGenerationProvider):
                     },
                     "output": _safe_output_snapshot(output),
                     "terminal_response_shape": describe_provider_shape(current),
-                }
+                    "content_present": bool(_safe_output_snapshot(output).get("assistant_content_present")),
+                    "reasoning_present": bool(_safe_output_snapshot(output).get("reasoning_present")),
+                    "tool_call_count": _safe_output_snapshot(output).get("tool_call_count", 0),
+                    "finish_reason": _safe_output_snapshot(output).get("finish_reason"),
+                })
                 if isinstance(output, dict) and isinstance(output.get("error"), dict):
                     self.metrics["providerJobsFailed"] += 1
                     raise ProviderError("RUNPOD_WORKER_ERROR", "RunPod worker returned an inference error.")
                 self.metrics["providerJobsCompleted"] += 1
                 return ProviderJob(external_id, "completed", output, {"status": state, "output": self.last_telemetry["output"]})
             if state in {"FAILED", "CANCELLED", "TIMED_OUT"}:
-                self.last_telemetry = {
+                self._publish_telemetry(**{
                     "external_job_id": external_id,
                     "status_sequence": status_sequence,
                     "total_duration_ms": round((time.monotonic() - started) * 1000, 1),
                     "terminal_failure": _safe_terminal_failure(current),
-                }
+                })
                 self.metrics["providerJobsFailed"] += 1
                 raise ProviderError(f"RUNPOD_{state}", f"RunPod job ended with status {state.lower()}.")
             if state not in {"IN_QUEUE", "IN_PROGRESS"}:
