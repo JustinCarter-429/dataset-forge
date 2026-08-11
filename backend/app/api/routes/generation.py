@@ -41,7 +41,7 @@ def _safe_provider_telemetry(provider) -> dict[str, object]:
     allowed = {"phase", "request_attempted", "request_accepted", "external_job_id", "status_transitions",
                "terminal_state", "content_present", "reasoning_present", "tool_call_count", "finish_reason",
                "json_parse", "dynamic_schema_validation", "record_count", "structural_errors", "safe_error_code", "elapsed_ms",
-               "batch_number", "attempt_number", "maximum_attempts", "retry_category", "content_length"}
+               "batch_number", "attempt_number", "maximum_attempts", "retry_category", "content_length", "expected_record_count"}
     return {key: telemetry[key] for key in allowed if key in telemetry}
 
 

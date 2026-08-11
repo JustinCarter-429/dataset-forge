@@ -35,6 +35,7 @@ class CarterDatasetGenerationService:
     """Provider-neutral, fail-closed Carter production orchestrator."""
     MAX_BATCH_PROVIDER_ATTEMPTS = 3
     MAX_STRUCTURED_OUTPUT_REGENERATIONS = 2
+    MAX_DYNAMIC_SCHEMA_REGENERATIONS = 2
     def __init__(self, package: CarterPromptPackage, provider: CarterProvider, *, knowledge_path: Path,
                  on_phase: Callable[[str, dict[str, int] | None], None] | None = None, cancelled: Callable[[], bool] | None = None,
                  generation_batch_size: int = 5, generation_no_content_retries: int = 2):
@@ -73,6 +74,24 @@ class CarterDatasetGenerationService:
             transport._publish_telemetry(batch_number=batch_number, attempt_number=attempt_number,
                                          maximum_attempts=self.MAX_BATCH_PROVIDER_ATTEMPTS,
                                          retry_category=retry_category, **changes)
+
+    @staticmethod
+    def _batch_execution_header(*, requested_records: int, batch_number: int, total_batches: int,
+                                records_completed: int, batch_target: int) -> str:
+        """Make the authoritative batch assignment explicit without changing frozen prompts."""
+        first = records_completed + 1
+        last = records_completed + batch_target
+        return (
+            "BATCH_EXECUTION_HEADER\n"
+            f"TOTAL DATASET REQUEST: {requested_records} records\n"
+            f"CURRENT BATCH: {batch_number} of {total_batches}\n"
+            f"RECORDS ALREADY COMPLETED: {records_completed}\n"
+            f"CURRENT BATCH TARGET: exactly {batch_target} new records\n"
+            f"CURRENT BATCH RECORD RANGE: {first} through {last}\n"
+            f"RESPONSE REQUIREMENT: Return exactly {batch_target} records in this response.\n"
+            f"DO NOT return all {requested_records} requested records, repeat records from prior batches, "
+            f"return records belonging to another batch, or return more or fewer than {batch_target} records."
+        )
 
     def _revision_snapshot(self, *, phase: str, attempt: int, response: Any | None = None,
                            json_parse: str = "NOT_RUN", schema: str = "NOT_RUN",
@@ -203,20 +222,25 @@ class CarterDatasetGenerationService:
         merged_records: list[dict[str, Any]] = []
         for batch_index, target in enumerate(batch_targets, 1):
             batch = {"currentBatch": batch_index, "totalBatches": len(batch_targets), "recordsGenerated": len(merged_records), "recordsRequested": requested_records, "currentBatchTarget": target}
+            batch_header = self._batch_execution_header(requested_records=requested_records, batch_number=batch_index,
+                                                        total_batches=len(batch_targets), records_completed=len(merged_records),
+                                                        batch_target=target)
             self._phase("generating", batch)
             compiled = self.package.compile_generation_schema(specification, target)
             generator = self.package.resolve_operation("dataset_generation", compiled)
             request = self.package.render(generator, {"dataset_spec": specification, "user_request": user_request,
                 "selected_document_ids": sorted(document_ids), "source_units": source_units,
                 "allowed_source_refs": sorted(allowed_refs), "batch_number": batch_index,
-                "total_batches": len(batch_targets), "batch_record_target": target}, runtime=logical_runtime)
+                "total_batches": len(batch_targets), "batch_record_target": target,
+                "records_completed_before_batch": len(merged_records),
+                "current_batch_record_range": {"first": len(merged_records) + 1, "last": len(merged_records) + target}}, runtime=logical_runtime)
             # The frozen operation allows retrieval only when the application
             # enables it.  This bounded source payload is sufficient, therefore
             # no native tools are sent and vLLM owns no Harmony tool conversion.
-            request = request.__class__(request.runtime, request.operation, request.messages, (),
+            request = request.__class__(request.runtime, request.operation, request.messages + ({"role": "system", "content": batch_header},), (),
                                         request.response_schema, request.package_fingerprint)
             state = CarterAgentTurnState(self.package, compiled); messages = list(request.messages); batch_tools: list[str] = []
-            batch_provider_attempts = 0; no_content_retries = 0; structured_regenerations = 0
+            batch_provider_attempts = 0; no_content_retries = 0; structured_regenerations = 0; dynamic_schema_regenerations = 0
             while True:
                 current = request.__class__(request.runtime, request.operation, tuple(messages), request.tools, request.response_schema, request.package_fingerprint)
                 phase = "generator" if not batch_tools else "tool_continuation"
@@ -245,26 +269,37 @@ class CarterDatasetGenerationService:
                     errors = self.package.safe_validation_errors(compiled, final_response) if isinstance(final_response, dict) else []
                     code = "DYNAMIC_SCHEMA_INVALID" if isinstance(final_response, dict) else "STRUCTURED_OUTPUT_INVALID"
                     self._publish_batch_telemetry(batch_number=batch_index, attempt_number=batch_provider_attempts,
-                                                  retry_category="structured_output" if code == "STRUCTURED_OUTPUT_INVALID" else None,
+                                                  retry_category="structured_output" if code == "STRUCTURED_OUTPUT_INVALID" else "dynamic_schema",
                                                   json_parse="PASS" if isinstance(final_response, dict) else "FAIL",
                                                   dynamic_schema_validation="FAIL" if isinstance(final_response, dict) else "NOT_RUN",
                                                   structural_errors=errors,
                                                   record_count=len(final_response.get("records", [])) if isinstance(final_response, dict) and isinstance(final_response.get("records"), list) else None,
+                                                  expected_record_count=target,
                                                   content_length=len(response.content) if isinstance(response.content, str) else 0,
                                                   safe_error_code=code)
                     if self.cancelled(): raise CarterPromptPackageError("Generation cancelled.")
-                    if (code != "STRUCTURED_OUTPUT_INVALID" or phase != "generator" or self.cancelled()
-                            or structured_regenerations >= self.MAX_STRUCTURED_OUTPUT_REGENERATIONS
+                    retryable = code in {"STRUCTURED_OUTPUT_INVALID", "DYNAMIC_SCHEMA_INVALID"}
+                    exhausted_category = (structured_regenerations >= self.MAX_STRUCTURED_OUTPUT_REGENERATIONS if code == "STRUCTURED_OUTPUT_INVALID"
+                                          else dynamic_schema_regenerations >= self.MAX_DYNAMIC_SCHEMA_REGENERATIONS)
+                    if (not retryable or phase != "generator" or exhausted_category
                             or batch_provider_attempts >= self.MAX_BATCH_PROVIDER_ATTEMPTS):
                         raise ProviderError(code, "Generated records did not match the DatasetSpec schema.") from exc
-                    structured_regenerations += 1
-                    messages.append({"role": "system", "content": "The previous response was not valid JSON. Return a completely new response containing exactly one valid JSON object that matches the supplied output contract. Do not include markdown, prose, comments, code fences, or any text outside the JSON object. Safe parser feedback: invalid JSON syntax."})
+                    if code == "STRUCTURED_OUTPUT_INVALID":
+                        structured_regenerations += 1
+                        correction = "The previous response was not valid JSON. Return a completely new response containing exactly one valid JSON object that matches the supplied output contract. Do not include markdown, prose, comments, code fences, or any text outside the JSON object. Safe parser feedback: invalid JSON syntax."
+                    else:
+                        dynamic_schema_regenerations += 1
+                        feedback = "; ".join(errors) or "output-contract validation failed"
+                        actual = len(final_response.get("records", [])) if isinstance(final_response, dict) and isinstance(final_response.get("records"), list) else "an invalid count"
+                        correction = f"Your prior response contained {actual} records, but this batch requires exactly {target} records. Generate a completely new response containing exactly {target} records for the current batch only. Safe structural feedback: {feedback}."
+                    messages.append({"role": "system", "content": correction})
                     self._phase("generating", batch)
                     continue
                 self._publish_batch_telemetry(batch_number=batch_index, attempt_number=batch_provider_attempts,
                                               json_parse="PASS" if isinstance(final_response, dict) else "NOT_RUN",
                                               dynamic_schema_validation="PASS" if isinstance(final_response, dict) else "NOT_RUN",
                                               record_count=len(final_response.get("records", [])) if isinstance(final_response, dict) and isinstance(final_response.get("records"), list) else None,
+                                              expected_record_count=target,
                                               content_length=len(response.content) if isinstance(response.content, str) else 0)
                 if action["action"] == "final_response":
                     records = action["final_response"]["records"]

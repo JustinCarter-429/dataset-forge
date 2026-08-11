@@ -211,6 +211,67 @@ def test_generation_mixed_no_content_and_malformed_json_never_exceeds_three_atte
     assert run.calls["generator"] == 3 and provider.calls == 5 and len(run.dataset.records) == 1
 
 
+def test_generation_regenerates_batch_two_when_it_returns_the_full_dataset(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_candidate_many(10)), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_review()), [])])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "batch-two-full-dataset.sqlite3", generation_batch_size=5)
+    run = service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 10 and run.calls["generator"] == 3
+    batch_two_header = provider.requests[2].messages[-1]["content"]
+    assert "TOTAL DATASET REQUEST: 10 records" in batch_two_header
+    assert "CURRENT BATCH: 2 of 2" in batch_two_header
+    assert "RECORDS ALREADY COMPLETED: 5" in batch_two_header
+    assert "CURRENT BATCH TARGET: exactly 5 new records" in batch_two_header
+    assert "CURRENT BATCH RECORD RANGE: 6 through 10" in batch_two_header
+    assert "DO NOT return all 10 requested records" in batch_two_header
+    assert provider.requests[2].response_schema == provider.requests[3].response_schema
+    assert "prior response contained 10 records" in provider.requests[3].messages[-1]["content"]
+
+
+def test_generation_allows_a_second_dynamic_schema_regeneration(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_candidate_many(10)), []), CarterInferenceResponse(json.dumps(_candidate_many(4)), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_review()), [])])
+    run = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "batch-two-second-schema-retry.sqlite3", generation_batch_size=5).generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 10 and run.calls["generator"] == 4 and provider.calls == 6
+
+
+def test_generation_stops_after_three_dynamic_schema_invalid_batch_attempts(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_candidate_many(10)), []), CarterInferenceResponse(json.dumps(_candidate_many(10)), []), CarterInferenceResponse(json.dumps(_candidate_many(10)), [])])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "batch-two-schema-exhausted.sqlite3", generation_batch_size=5)
+    with pytest.raises(ProviderError) as error:
+        service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert error.value.code == "DYNAMIC_SCHEMA_INVALID" and service.calls["generator"] == 4 and service.calls["review"] == 0
+
+
+def test_generation_regenerates_schema_invalid_first_batch_without_repeating_it(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(10)), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_review()), [])])
+    run = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "first-batch-schema-retry.sqlite3", generation_batch_size=5).generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 10 and run.calls["generator"] == 3
+
+
+def test_partial_final_batch_header_and_schema_retry_are_exact(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 12
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_candidate_many(5)), []), CarterInferenceResponse(json.dumps(_candidate_many(12)), []), CarterInferenceResponse(json.dumps(_candidate_many(2)), []), CarterInferenceResponse(json.dumps(_review()), [])])
+    run = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "partial-final-schema-retry.sqlite3", generation_batch_size=5).generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 12 and run.calls["generator"] == 4
+    header = provider.requests[3].messages[-1]["content"]
+    assert "TOTAL DATASET REQUEST: 12 records" in header
+    assert "CURRENT BATCH: 3 of 3" in header
+    assert "RECORDS ALREADY COMPLETED: 10" in header
+    assert "CURRENT BATCH TARGET: exactly 2 new records" in header
+    assert "CURRENT BATCH RECORD RANGE: 11 through 12" in header
+
+
+def test_mixed_retry_categories_share_the_three_attempt_batch_ceiling(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), CarterInferenceResponse("not-json", []), CarterInferenceResponse(json.dumps(_candidate_many(10)), [])])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "mixed-schema-ceiling.sqlite3")
+    with pytest.raises(ProviderError) as error:
+        service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert error.value.code == "DYNAMIC_SCHEMA_INVALID" and service.calls["generator"] == 3 and provider.calls == 4
+
+
 def test_cancellation_prevents_malformed_json_regeneration(tmp_path):
     provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse("not-json", [])])
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "cancel-malformed.sqlite3", cancelled=lambda: provider.calls >= 2)
@@ -290,11 +351,11 @@ def test_valid_full_revision_never_uses_repair(tmp_path):
 
 def test_pre_revision_invalid_dataset_fails_before_review(tmp_path):
     specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
-    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(valid=False)), [])])
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(valid=False)), []), CarterInferenceResponse(json.dumps(_candidate_many(valid=False)), []), CarterInferenceResponse(json.dumps(_candidate_many(valid=False)), [])])
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "pre-revision-invalid.sqlite3", generation_batch_size=10)
     with pytest.raises(ProviderError, match="DatasetSpec schema"):
         service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
-    assert service.calls["review"] == service.calls["revision"] == service.calls["revision_repair"] == 0
+    assert service.calls["generator"] == 3 and service.calls["review"] == service.calls["revision"] == service.calls["revision_repair"] == 0
 
 
 @pytest.mark.parametrize("runtime", ["runpod", "local_lm_studio"])
