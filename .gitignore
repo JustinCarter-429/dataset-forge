@@ -16,6 +16,7 @@ venv/
 .pytest_cache/
 .pytest-tmp/
 backend/.pytest-tmp*/
+backend/.pytest-*/
 backend/.pytest-audit*/
 backend/.pytest-carter*/
 backend/.pytest-part1-baseline/

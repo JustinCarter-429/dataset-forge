@@ -1,5 +1,16 @@
 # Dataset Forge Engineering Implementation Log
 
+## Carter 1.0 final PoC closure
+
+Part 1 prompt package: **COMPLETE**. Part 2 runtime integration: **COMPLETE
+FOR POC SCOPE** (RunPod minimal inference/planner/DatasetSpec verified; large
+generation hardening deferred; LM Studio retained but disabled). Part 3
+quality/export gate: **COMPLETE**. Final PoC closure: **COMPLETE**. Final
+deterministic evidence is 132 backend tests, 16 focused quality checks, 6
+frontend tests, and 5 browser checks, with typecheck and production build
+passing. See `DATASET-FORGE-POC-HANDOFF.md` for startup, package, and limitation
+details.
+
 ## Phase 1A — UI contract integration and async workflow
 
 Date: 2026-08-09
