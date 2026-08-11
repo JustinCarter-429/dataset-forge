@@ -22,7 +22,7 @@ def test_production_orchestrator_preserves_dynamic_records(tmp_path):
     run = CarterDatasetGenerationService(CarterPromptPackage.load(), DeterministicCarterProvider("runpod"), knowledge_path=tmp_path / "knowledge.sqlite3").generate(runtime="runpod", user_request="Create a custom support dataset", output_format="json", documents=[document()])
     assert run.specification["dataset_type"] == "custom"
     assert run.dataset.records[0]["customer_intent"] == "support request"
-    assert run.calls == {"planner": 1, "generator": 1, "tool_continuation": 0, "review": 1, "revision": 0}
+    assert run.calls == {"planner": 1, "generator": 1, "tool_continuation": 0, "review": 1, "revision": 0, "revision_repair": 0}
 
 
 def test_generation_with_application_source_context_sends_no_native_tools(tmp_path):
@@ -104,6 +104,16 @@ def _candidate(value="request"):
     return {"status":"generated","records":[{"customer_intent":value,"evidence":[{"source_ref":"source_1","quote":"Customers can request support."}]}],"insufficiency":None}
 
 
+def _candidate_many(count=10, *, valid=True):
+    records = []
+    for index in range(count):
+        record = {"customer_intent": f"request {index + 1}", "evidence":[{"source_ref":"source_1","quote":"Customers can request support."}]}
+        if not valid:
+            record.pop("customer_intent")
+        records.append(record)
+    return {"status":"generated", "records":records, "insufficiency":None}
+
+
 def _review(revise=False):
     return {"status":"completed","recommendation":"revise_recommended" if revise else "accept","summary":"Review.","issues":[{"issue_id":"issue_001","category":"custom_schema_quality","severity":"major","affected_record_refs":["review_record_001"],"affected_field":"customer_intent","description":"Revise.","recommended_correction":"Revise."}] if revise else []}
 
@@ -111,7 +121,7 @@ def _review(revise=False):
 def test_generation_retries_one_transient_no_content_response(tmp_path):
     provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "no final content"), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review()), [])])
     run = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "retry.sqlite3").generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
-    assert run.calls == {"planner": 1, "generator": 2, "tool_continuation": 0, "review": 1, "revision": 0}
+    assert run.calls == {"planner": 1, "generator": 2, "tool_continuation": 0, "review": 1, "revision": 0, "revision_repair": 0}
     assert len(run.dataset.records) == 1
 
 
@@ -144,10 +154,66 @@ def test_tool_continuation_and_revision_are_bounded(tmp_path):
 
 
 def test_invalid_bounded_revision_fails_closed(tmp_path):
-    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review(True)), []), CarterInferenceResponse(json.dumps({"status":"generated","records":[],"insufficiency":None}), [])])
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review(True)), []), CarterInferenceResponse(json.dumps({"status":"generated","records":[],"insufficiency":None}), []), CarterInferenceResponse(json.dumps({"status":"generated","records":[],"insufficiency":None}), [])])
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "bad.sqlite3")
     with pytest.raises(CarterPromptPackageError):
         service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+
+
+def test_invalid_full_revision_uses_one_valid_structural_repair_without_regenerating_batches(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([
+        CarterInferenceResponse(json.dumps(specification), []),
+        CarterInferenceResponse(json.dumps(_candidate_many()), []),
+        CarterInferenceResponse(json.dumps(_review(True)), []),
+        CarterInferenceResponse(json.dumps(_candidate_many(9)), []),
+        CarterInferenceResponse(json.dumps(_candidate_many()), []),
+    ])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "revision-repair.sqlite3", generation_batch_size=10)
+    run = service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 10
+    assert run.calls == {"planner": 1, "generator": 1, "tool_continuation": 0, "review": 1, "revision": 1, "revision_repair": 1}
+    assert [item["dynamic_schema_validation"] for item in run.revision_telemetry] == ["FAIL", "PASS"]
+    assert all(entry["runtime"] == "runpod" for entry in service.invocation_ledger)
+    assert provider.requests[3].response_schema["allOf"][0]["then"]["properties"]["records"]["maxItems"] == 10
+
+
+def test_invalid_full_revision_and_repair_fail_closed_after_one_repair(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([
+        CarterInferenceResponse(json.dumps(specification), []),
+        CarterInferenceResponse(json.dumps(_candidate_many()), []),
+        CarterInferenceResponse(json.dumps(_review(True)), []),
+        CarterInferenceResponse(json.dumps(_candidate_many(9)), []),
+        CarterInferenceResponse(json.dumps(_candidate_many(9)), []),
+    ])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "revision-repair-fail.sqlite3", generation_batch_size=10)
+    with pytest.raises(CarterPromptPackageError):
+        service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert service.calls["generator"] == 1 and service.calls["revision"] == 1 and service.calls["revision_repair"] == 1
+    assert len(service.revision_telemetry) == 2
+
+
+def test_valid_full_revision_never_uses_repair(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([
+        CarterInferenceResponse(json.dumps(specification), []),
+        CarterInferenceResponse(json.dumps(_candidate_many()), []),
+        CarterInferenceResponse(json.dumps(_review(True)), []),
+        CarterInferenceResponse(json.dumps(_candidate_many()), []),
+    ])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "revision-valid.sqlite3", generation_batch_size=10)
+    run = service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 10 and run.calls["revision_repair"] == 0
+
+
+def test_pre_revision_invalid_dataset_fails_before_review(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(valid=False)), [])])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "pre-revision-invalid.sqlite3", generation_batch_size=10)
+    with pytest.raises(CarterPromptPackageError):
+        service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert service.calls["review"] == service.calls["revision"] == service.calls["revision_repair"] == 0
 
 
 @pytest.mark.parametrize("runtime", ["runpod", "local_lm_studio"])
@@ -156,7 +222,7 @@ def test_runtime_is_pinned_for_tool_continuation_review_and_revision(tmp_path, r
     provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse("", [tool]), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review(True)), []), CarterInferenceResponse(json.dumps(_candidate("revised")), [])], runtime=runtime)
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / f"{runtime}.sqlite3")
     run = service.generate(runtime=runtime, user_request="Use source", output_format="json", documents=[document()])
-    assert provider.runtime == runtime and run.calls == {"planner": 1, "generator": 1, "tool_continuation": 1, "review": 1, "revision": 1}
+    assert provider.runtime == runtime and run.calls == {"planner": 1, "generator": 1, "tool_continuation": 1, "review": 1, "revision": 1, "revision_repair": 0}
     assert [entry["phase"] for entry in service.invocation_ledger] == ["planner", "generator", "tool_continuation", "review", "revision"]
     assert [entry["runtime"] for entry in service.invocation_ledger] == [runtime] * 5
 
