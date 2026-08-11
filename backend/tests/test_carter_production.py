@@ -268,8 +268,9 @@ def test_runtime_is_pinned_for_tool_continuation_review_and_revision(tmp_path, r
 def test_selected_runtime_failure_has_no_fallback(tmp_path, runtime):
     provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse("not-json", [])], runtime=runtime)
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / f"{runtime}-failure.sqlite3")
-    with pytest.raises(CarterPromptPackageError):
+    with pytest.raises(ProviderError) as exc_info:
         service.generate(runtime=runtime, user_request="Use source", output_format="json", documents=[document()])
+    assert exc_info.value.code == "STRUCTURED_OUTPUT_INVALID"
     assert provider.calls == 2 and [entry["runtime"] for entry in service.invocation_ledger] == [runtime, runtime]
 
 
