@@ -61,6 +61,27 @@ class CarterDatasetGenerationService:
         return response
 
     @staticmethod
+    def _generation_source_units(documents: list[CanonicalExtractedDocument]) -> tuple[list[dict[str, Any]], set[str]]:
+        """Provide the bounded source context required by the generation contract.
+
+        A normal generation turn with this context has no retrieval requirement,
+        so it must not advertise unrelated OpenAI tools to a GPT-OSS transport.
+        """
+        units: list[dict[str, Any]] = []
+        budget = 12_000
+        for document in documents:
+            for element in document.elements:
+                text = element.text.strip()
+                if not text or budget <= 0:
+                    continue
+                text = text[:min(1_200, budget)]
+                budget -= len(text)
+                units.append({"source_ref": element.element_id, "document_name": document.source_filename,
+                              "section": " / ".join(element.section_path), "page": element.page_number,
+                              "text": text})
+        return units, {unit["source_ref"] for unit in units}
+
+    @staticmethod
     def _json(content: Any, error: str) -> dict[str, Any]:
         try:
             value = content if isinstance(content, dict) else json.loads(content)
@@ -80,7 +101,7 @@ class CarterDatasetGenerationService:
         for document in documents:
             store.ingest(document)
         document_ids = {document.document_id for document in documents}
-        allowed_refs = {element.element_id for document in documents for element in document.elements if element.text.strip()}
+        source_units, allowed_refs = self._generation_source_units(documents)
         if not allowed_refs:
             raise CarterPromptPackageError("No usable source units are available.")
 
@@ -107,7 +128,15 @@ class CarterDatasetGenerationService:
             self._phase("generating", batch)
             compiled = self.package.compile_generation_schema(specification, target)
             generator = self.package.resolve_operation("dataset_generation", compiled)
-            request = self.package.render(generator, {"dataset_spec": specification, "user_request": user_request, "selected_document_ids": sorted(document_ids), "allowed_source_refs": sorted(allowed_refs), "batch_number": batch_index, "total_batches": len(batch_targets), "batch_record_target": target}, runtime=logical_runtime)
+            request = self.package.render(generator, {"dataset_spec": specification, "user_request": user_request,
+                "selected_document_ids": sorted(document_ids), "source_units": source_units,
+                "allowed_source_refs": sorted(allowed_refs), "batch_number": batch_index,
+                "total_batches": len(batch_targets), "batch_record_target": target}, runtime=logical_runtime)
+            # The frozen operation allows retrieval only when the application
+            # enables it.  This bounded source payload is sufficient, therefore
+            # no native tools are sent and vLLM owns no Harmony tool conversion.
+            request = request.__class__(request.runtime, request.operation, request.messages, (),
+                                        request.response_schema, request.package_fingerprint)
             state = CarterAgentTurnState(self.package, compiled); messages = list(request.messages); batch_tools: list[str] = []
             while True:
                 current = request.__class__(request.runtime, request.operation, tuple(messages), request.tools, request.response_schema, request.package_fingerprint)

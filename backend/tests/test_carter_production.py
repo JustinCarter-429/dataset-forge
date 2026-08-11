@@ -25,6 +25,16 @@ def test_production_orchestrator_preserves_dynamic_records(tmp_path):
     assert run.calls == {"planner": 1, "generator": 1, "tool_continuation": 0, "review": 1, "revision": 0}
 
 
+def test_generation_with_application_source_context_sends_no_native_tools(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review()), [])])
+    CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "no-tools.sqlite3").generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    generation_request = provider.requests[1]
+    assert generation_request.tools == []
+    rendered = "\n".join(message["content"] for message in generation_request.messages)
+    assert "Customers can request support." in rendered
+    assert "to=tool:" not in rendered
+
+
 def test_production_orchestrator_generates_three_valid_batches_in_order(tmp_path):
     phases = []
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), DeterministicCarterProvider("runpod"), knowledge_path=tmp_path / "batched.sqlite3", generation_batch_size=5, on_phase=lambda phase, batch=None: phases.append((phase, batch.copy() if batch else None)))
