@@ -33,6 +33,8 @@ class CarterRunResult:
 
 class CarterDatasetGenerationService:
     """Provider-neutral, fail-closed Carter production orchestrator."""
+    MAX_BATCH_PROVIDER_ATTEMPTS = 3
+    MAX_STRUCTURED_OUTPUT_REGENERATIONS = 2
     def __init__(self, package: CarterPromptPackage, provider: CarterProvider, *, knowledge_path: Path,
                  on_phase: Callable[[str, dict[str, int] | None], None] | None = None, cancelled: Callable[[], bool] | None = None,
                  generation_batch_size: int = 5, generation_no_content_retries: int = 2):
@@ -62,6 +64,15 @@ class CarterDatasetGenerationService:
         response = self.provider.infer(TransportRequest(messages=list(request.messages), tools=list(request.tools),
             response_schema=request.response_schema, tool_choice="auto"))
         return response
+
+    def _publish_batch_telemetry(self, *, batch_number: int, attempt_number: int,
+                                 retry_category: str | None = None, **changes: Any) -> None:
+        """Attach bounded batch-attempt facts without retaining provider content."""
+        transport = getattr(self.provider, "provider", None)
+        if transport is not None and hasattr(transport, "_publish_telemetry"):
+            transport._publish_telemetry(batch_number=batch_number, attempt_number=attempt_number,
+                                         maximum_attempts=self.MAX_BATCH_PROVIDER_ATTEMPTS,
+                                         retry_category=retry_category, **changes)
 
     def _revision_snapshot(self, *, phase: str, attempt: int, response: Any | None = None,
                            json_parse: str = "NOT_RUN", schema: str = "NOT_RUN",
@@ -205,19 +216,26 @@ class CarterDatasetGenerationService:
             request = request.__class__(request.runtime, request.operation, request.messages, (),
                                         request.response_schema, request.package_fingerprint)
             state = CarterAgentTurnState(self.package, compiled); messages = list(request.messages); batch_tools: list[str] = []
+            batch_provider_attempts = 0; no_content_retries = 0; structured_regenerations = 0
             while True:
                 current = request.__class__(request.runtime, request.operation, tuple(messages), request.tools, request.response_schema, request.package_fingerprint)
                 phase = "generator" if not batch_tools else "tool_continuation"
-                for attempt in range(1, self.generation_no_content_retries + 2):
-                    try:
-                        response = self._infer(current, phase)
-                        break
-                    except ProviderError as exc:
-                        if phase != "generator" or exc.code != "PROVIDER_NO_FINAL_CONTENT" or attempt > self.generation_no_content_retries or self.cancelled():
-                            raise
-                        # Reuse this exact batch request; only a completed
-                        # no-content provider response is transient here.
-                        self._phase("generating", batch)
+                if self.cancelled(): raise CarterPromptPackageError("Generation cancelled.")
+                if batch_provider_attempts >= self.MAX_BATCH_PROVIDER_ATTEMPTS:
+                    raise ProviderError("STRUCTURED_OUTPUT_INVALID", "Generation batch exhausted its provider-attempt budget.")
+                batch_provider_attempts += 1
+                try:
+                    response = self._infer(current, phase)
+                except ProviderError as exc:
+                    if (phase != "generator" or exc.code != "PROVIDER_NO_FINAL_CONTENT" or self.cancelled()
+                            or no_content_retries >= self.generation_no_content_retries
+                            or batch_provider_attempts >= self.MAX_BATCH_PROVIDER_ATTEMPTS):
+                        raise
+                    no_content_retries += 1
+                    # Reuse this exact batch request; the total ceiling prevents
+                    # no-content and malformed-output retries from stacking.
+                    self._phase("generating", batch)
+                    continue
                 final_response = None
                 try:
                     content = response.content if response.tool_calls else {"action": "final_response", "final_response": self._json(response.content, "Generator returned malformed JSON.")}
@@ -225,14 +243,29 @@ class CarterDatasetGenerationService:
                     action = state.normalize(response.tool_calls, content)
                 except CarterPromptPackageError as exc:
                     errors = self.package.safe_validation_errors(compiled, final_response) if isinstance(final_response, dict) else []
-                    transport = getattr(self.provider, "provider", None)
                     code = "DYNAMIC_SCHEMA_INVALID" if isinstance(final_response, dict) else "STRUCTURED_OUTPUT_INVALID"
-                    if transport is not None and hasattr(transport, "_publish_telemetry"):
-                        transport._publish_telemetry(json_parse="PASS" if isinstance(final_response, dict) else "FAIL",
-                                                     dynamic_schema_validation="FAIL" if isinstance(final_response, dict) else "NOT_RUN", structural_errors=errors,
-                                                     record_count=len(final_response.get("records", [])) if isinstance(final_response, dict) and isinstance(final_response.get("records"), list) else None,
-                                                     safe_error_code=code)
-                    raise ProviderError(code, "Generated records did not match the DatasetSpec schema.") from exc
+                    self._publish_batch_telemetry(batch_number=batch_index, attempt_number=batch_provider_attempts,
+                                                  retry_category="structured_output" if code == "STRUCTURED_OUTPUT_INVALID" else None,
+                                                  json_parse="PASS" if isinstance(final_response, dict) else "FAIL",
+                                                  dynamic_schema_validation="FAIL" if isinstance(final_response, dict) else "NOT_RUN",
+                                                  structural_errors=errors,
+                                                  record_count=len(final_response.get("records", [])) if isinstance(final_response, dict) and isinstance(final_response.get("records"), list) else None,
+                                                  content_length=len(response.content) if isinstance(response.content, str) else 0,
+                                                  safe_error_code=code)
+                    if self.cancelled(): raise CarterPromptPackageError("Generation cancelled.")
+                    if (code != "STRUCTURED_OUTPUT_INVALID" or phase != "generator" or self.cancelled()
+                            or structured_regenerations >= self.MAX_STRUCTURED_OUTPUT_REGENERATIONS
+                            or batch_provider_attempts >= self.MAX_BATCH_PROVIDER_ATTEMPTS):
+                        raise ProviderError(code, "Generated records did not match the DatasetSpec schema.") from exc
+                    structured_regenerations += 1
+                    messages.append({"role": "system", "content": "The previous response was not valid JSON. Return a completely new response containing exactly one valid JSON object that matches the supplied output contract. Do not include markdown, prose, comments, code fences, or any text outside the JSON object. Safe parser feedback: invalid JSON syntax."})
+                    self._phase("generating", batch)
+                    continue
+                self._publish_batch_telemetry(batch_number=batch_index, attempt_number=batch_provider_attempts,
+                                              json_parse="PASS" if isinstance(final_response, dict) else "NOT_RUN",
+                                              dynamic_schema_validation="PASS" if isinstance(final_response, dict) else "NOT_RUN",
+                                              record_count=len(final_response.get("records", [])) if isinstance(final_response, dict) and isinstance(final_response.get("records"), list) else None,
+                                              content_length=len(response.content) if isinstance(response.content, str) else 0)
                 if action["action"] == "final_response":
                     records = action["final_response"]["records"]
                     if len(records) != target: raise CarterPromptPackageError("Generator returned an incorrect batch record count.")

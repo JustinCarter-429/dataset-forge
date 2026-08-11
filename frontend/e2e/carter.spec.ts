@@ -93,10 +93,10 @@ test('generation failure, validation failure, warning, and completed states use 
   await expect(page.getByText('Your package is ready')).toBeVisible()
   await expect(page.getByText('Quality check passed')).toBeVisible()
   await expect(page.getByText(/accepted .* quarantined .* rejected/)).toBeVisible()
-  const downloadButton = page.getByRole('button', { name: 'Download ZIP' })
-  await expect(downloadButton).toBeEnabled()
+  const downloadLink = page.getByRole('link', { name: 'Download ZIP' })
+  await expect(downloadLink).toBeVisible()
   const download = page.waitForEvent('download')
-  await downloadButton.click()
+  await downloadLink.click()
   expect((await download).suggestedFilename()).toMatch(/\.zip$/)
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')).toHaveLength(0)
@@ -113,7 +113,7 @@ test('multi-batch Carter generation exposes backend-owned batch progress', async
   await expect(page.getByText('Batch 3 of 3 · 10 / 12 records generated')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('12 / 12 records generated')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Ready', { exact: true })).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeEnabled()
+  await expect(page.getByRole('link', { name: 'Download ZIP' })).toBeVisible()
 })
 
 test('keyboard reaches core controls and responsive layouts do not overflow', async ({ page }) => {
