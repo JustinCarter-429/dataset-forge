@@ -212,6 +212,16 @@ class ValidationSummary(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class BatchProgress(BaseModel):
+    current_batch: int = Field(alias="currentBatch", ge=1)
+    total_batches: int = Field(alias="totalBatches", ge=1)
+    records_generated: int = Field(alias="recordsGenerated", ge=0)
+    records_requested: int = Field(alias="recordsRequested", ge=1)
+    current_batch_target: int = Field(alias="currentBatchTarget", ge=1)
+
+    model_config = {"populate_by_name": True}
+
+
 class GenerationJob(BaseModel):
     id: str
     status: str
@@ -229,10 +239,11 @@ class GenerationJob(BaseModel):
     analysis: dict[str, object] | None = None
     provider: dict[str, object] | None = None
     runtime: str | None = None
-    batch: dict[str, int] | None = None
+    batch: BatchProgress | None = None
     error: dict[str, str] | None = None
 
     model_config = {"populate_by_name": True}
+
 
 
 class PipelineInput(BaseModel):

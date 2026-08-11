@@ -37,6 +37,11 @@ dynamic schema, generator, exactly three bounded tools (`list_documents`,
 `search_local_knowledge`, `get_source_units`), advisory quality review, one
 bounded revision, and the application-owned quality/export gate.
 
+Generation is sequential and batch-aware: `CARTER_GENERATION_BATCH_SIZE=5`
+is the bounded PoC default. Each batch is structurally validated before merge;
+the final quality gate runs once over the merged candidate dataset, so duplicate
+and sensitive-record handling remains authoritative across batch boundaries.
+
 RunPod is the active PoC runtime. The logical model is Carter 1.0 and the
 technical model is `openai/gpt-oss-20b`; configure `RUNPOD_ENDPOINT_ID`,
 `RUNPOD_API_KEY`, `RUNPOD_MODEL`, capacity, polling, and timeout variables in

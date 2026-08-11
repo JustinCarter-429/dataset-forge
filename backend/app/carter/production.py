@@ -32,12 +32,20 @@ class CarterRunResult:
 class CarterDatasetGenerationService:
     """Provider-neutral, fail-closed Carter production orchestrator."""
     def __init__(self, package: CarterPromptPackage, provider: CarterProvider, *, knowledge_path: Path,
-                 on_phase: Callable[[str], None] | None = None, cancelled: Callable[[], bool] | None = None):
+                 on_phase: Callable[[str, dict[str, int] | None], None] | None = None, cancelled: Callable[[], bool] | None = None,
+                 generation_batch_size: int = 5):
         self.package, self.provider = package, provider
-        self.knowledge_path, self.on_phase = knowledge_path, on_phase or (lambda _phase: None)
+        if not 1 <= generation_batch_size <= 20: raise ValueError("generation_batch_size must be between 1 and 20")
+        self.knowledge_path, self.on_phase, self.generation_batch_size = knowledge_path, on_phase or (lambda _phase, _batch=None: None), generation_batch_size
         self.cancelled = cancelled or (lambda: False)
         self.calls: dict[str, int] = {name: 0 for name in ("planner", "generator", "tool_continuation", "review", "revision")}
         self.invocation_ledger: list[dict[str, str]] = []
+
+    def _phase(self, name: str, batch: dict[str, int] | None = None) -> None:
+        try:
+            self.on_phase(name, batch)
+        except TypeError:
+            self.on_phase(name)
 
     def _infer(self, request: Any, phase: str):
         if self.cancelled():
@@ -72,7 +80,7 @@ class CarterDatasetGenerationService:
         if not allowed_refs:
             raise CarterPromptPackageError("No usable source units are available.")
 
-        self.on_phase("planning")
+        self._phase("planning")
         planner = self.package.resolve_operation("dataset_planning")
         logical_runtime = "cloud" if runtime == "runpod" else "local"
         plan_request = self.package.render(planner, {"user_request": user_request,
@@ -81,36 +89,35 @@ class CarterDatasetGenerationService:
         specification = self._json(self._infer(plan_request, "planner").content, "Planner returned malformed JSON.")
         self.package.validate(planner.output_schema, specification)
         # Compile is both semantic validation and the single canonical compiler.
-        compiled = self.package.compile_generation_schema(specification, specification["effective_record_count"])
+        requested_records = specification["effective_record_count"]
+        batch_targets = [min(self.generation_batch_size, requested_records - offset) for offset in range(0, requested_records, self.generation_batch_size)]
 
-        self.on_phase("generating")
-        generator = self.package.resolve_operation("dataset_generation", compiled)
-        request = self.package.render(generator, {"dataset_spec": specification, "user_request": user_request, "selected_document_ids": sorted(document_ids),
-            "allowed_source_refs": sorted(allowed_refs)}, runtime=logical_runtime)
         registry = CarterToolRegistry(self.package, build_knowledge_tool_handlers(store, document_ids, allowed_refs))
-        state = CarterAgentTurnState(self.package, compiled)
-        messages = list(request.messages)
         tools_executed: list[str] = []
-        while True:
-            current = request.__class__(request.runtime, request.operation, tuple(messages), request.tools,
-                                        request.response_schema, request.package_fingerprint)
-            response = self._infer(current, "generator" if not tools_executed else "tool_continuation")
-            content = response.content
-            # Native tool calls are normalized by Part 1; a structured terminal result is
-            # wrapped only at this boundary to fit the canonical agent-action contract.
-            if not response.tool_calls:
-                content = {"action": "final_response", "final_response": self._json(content, "Generator returned malformed JSON.")}
-            action = state.normalize(response.tool_calls, content)
-            if action["action"] == "final_response":
-                candidate = validate_canonical_dataset(self.package, specification, action["final_response"]["records"], allowed_source_refs=allowed_refs)
-                break
-            self.on_phase("tool_use")
-            call = action["tool_call"]
-            result = registry.execute(call["name"], call["arguments"])
-            tools_executed.append(call["name"])
-            messages.append({"role": "tool", "name": call["name"], "content": json.dumps(result, separators=(",", ":"))})
+        merged_records: list[dict[str, Any]] = []
+        for batch_index, target in enumerate(batch_targets, 1):
+            batch = {"currentBatch": batch_index, "totalBatches": len(batch_targets), "recordsGenerated": len(merged_records), "recordsRequested": requested_records, "currentBatchTarget": target}
+            self._phase("generating", batch)
+            compiled = self.package.compile_generation_schema(specification, target)
+            generator = self.package.resolve_operation("dataset_generation", compiled)
+            request = self.package.render(generator, {"dataset_spec": specification, "user_request": user_request, "selected_document_ids": sorted(document_ids), "allowed_source_refs": sorted(allowed_refs), "batch_number": batch_index, "total_batches": len(batch_targets), "batch_record_target": target}, runtime=logical_runtime)
+            state = CarterAgentTurnState(self.package, compiled); messages = list(request.messages); batch_tools: list[str] = []
+            while True:
+                current = request.__class__(request.runtime, request.operation, tuple(messages), request.tools, request.response_schema, request.package_fingerprint)
+                response = self._infer(current, "generator" if not batch_tools else "tool_continuation")
+                content = response.content if response.tool_calls else {"action": "final_response", "final_response": self._json(response.content, "Generator returned malformed JSON.")}
+                action = state.normalize(response.tool_calls, content)
+                if action["action"] == "final_response":
+                    records = action["final_response"]["records"]
+                    if len(records) != target: raise CarterPromptPackageError("Generator returned an incorrect batch record count.")
+                    validated = validate_canonical_dataset(self.package, specification, records, allowed_source_refs=allowed_refs, batch_count=target)
+                    merged_records.extend(validated.records); break
+                self._phase("tool_use", batch); call = action["tool_call"]; result = registry.execute(call["name"], call["arguments"])
+                batch_tools.append(call["name"]); tools_executed.append(call["name"]); messages.append({"role": "tool", "name": call["name"], "content": json.dumps(result, separators=(",", ":"))})
+            batch["recordsGenerated"] = len(merged_records); self._phase("generating", batch)
+        candidate = validate_canonical_dataset(self.package, specification, merged_records, allowed_source_refs=allowed_refs, batch_count=requested_records)
 
-        self.on_phase("reviewing")
+        self._phase("reviewing")
         review_op = self.package.resolve_operation("quality_review")
         refs = {f"review_record_{index:03d}" for index, _ in enumerate(candidate.records, 1)}
         review_request = self.package.render(review_op, {"dataset_spec": specification, "user_request": user_request,
@@ -120,7 +127,7 @@ class CarterDatasetGenerationService:
         revisions = 0
         if review["recommendation"] == "revise_recommended":
             authorize_revision(revisions, True); revisions = 1
-            self.on_phase("revising")
+            self._phase("revising")
             # A revision is a fresh bounded generator turn using the same compiled contract/runtime.
             revision_request = self.package.render(generator, {"dataset_spec": specification, "candidate_records": list(candidate.records),
                 "review": review, "selected_document_ids": sorted(document_ids), "allowed_source_refs": sorted(allowed_refs)}, runtime=logical_runtime)

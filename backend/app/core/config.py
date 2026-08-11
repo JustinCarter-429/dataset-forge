@@ -21,8 +21,13 @@ class Settings:
     # owned by the transport rather than an arbitrary UI polling deadline.
     lm_studio_timeout_seconds: float = float(os.getenv("LM_STUDIO_TIMEOUT_SECONDS", "180"))
     carter_max_tokens: int = int(os.getenv("CARTER_MAX_TOKENS", "4096"))
+    carter_generation_batch_size: int = int(os.getenv("CARTER_GENERATION_BATCH_SIZE", "5"))
     carter_knowledge_database: Path = Path(os.getenv("CARTER_KNOWLEDGE_DATABASE", "runtime/carter-knowledge.sqlite3"))
     app_test_mode: bool = os.getenv("APP_ENVIRONMENT", "development") == "test" and os.getenv("CARTER_TEST_PROVIDER", "") == "deterministic"
+
+    def __init__(self):
+        if not 1 <= self.carter_generation_batch_size <= 20:
+            raise ValueError("CARTER_GENERATION_BATCH_SIZE must be between 1 and 20.")
 
 
 @lru_cache

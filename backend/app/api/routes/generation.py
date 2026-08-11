@@ -115,11 +115,13 @@ def _run_job(job_id: str, request: GenerationRequest):
         if not availability.get("available"): raise ProviderError("RUNTIME_UNAVAILABLE", "The selected Carter runtime is unavailable.")
         job_store.update_job(job_id, runtime=runtime, provider={"name": runtime, "model": availability.get("model"), "state": "configured"})
         phase_percent = {"planning": 40, "generating": 55, "tool_use": 62, "reviewing": 76, "revising": 84}
-        def on_phase(phase: str):
-            job_store.update_job(job_id, status=phase, stage=phase, progress={"percent": phase_percent[phase], "currentStage": phase}, provider={"name": runtime, "model": availability.get("model"), "state": "running"})
+        def on_phase(phase: str, batch: dict[str, int] | None = None):
+            percent = phase_percent[phase]
+            if batch and phase == "generating": percent = 45 + int(35 * batch["recordsGenerated"] / batch["recordsRequested"])
+            job_store.update_job(job_id, status=phase, stage=phase, progress={"percent": percent, "currentStage": phase}, batch=batch, provider={"name": runtime, "model": availability.get("model"), "state": "running"})
         documents = [item.extraction for item in stored_files if item.extraction]
         package = CarterPromptPackage.load()
-        result = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id)).generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents)
+        result = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id), generation_batch_size=settings.carter_generation_batch_size).generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents)
         if job_store.is_cancelled(job_id): return
         stage("validating", 90)
         allowed_refs = {element.element_id for document in documents for element in document.elements if element.text.strip()}
