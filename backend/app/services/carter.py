@@ -98,7 +98,14 @@ class RunPodCarterProvider:
     def available(self) -> dict[str, Any]: return {"configured": True, "available": True, "model": self.provider.config.model}
     def infer(self, request: CarterInferenceRequest) -> CarterInferenceResponse:
         self.invocations += 1
-        job = self.provider.chat(messages=request.messages, tools=request.tools, tool_choice=request.tool_choice, schema=request.response_schema, max_tokens=min(request.max_tokens, max(1024, self.provider.config.max_model_len // 4)))
+        messages, schema = list(request.messages), request.response_schema
+        if schema and _requires_runpod_json_object_compat(schema):
+            # The deployed vLLM worker accepts simple JSON-object constraints but
+            # rejects Carter's conditional/$defs schemas.  Keep the authoritative
+            # schema in the prompt and validate the returned JSON in application.
+            schema = {"type": "object"}
+            messages.insert(-1 if messages else 0, {"role": "system", "content": "Return only JSON conforming to this authoritative application schema: " + json.dumps(request.response_schema, sort_keys=True, separators=(",", ":"))})
+        job = self.provider.chat(messages=messages, tools=request.tools, tool_choice=request.tool_choice, schema=schema, max_tokens=min(request.max_tokens, max(1024, self.provider.config.max_model_len // 4)))
         output = job.output[0] if isinstance(job.output, list) and job.output else job.output
         try:
             message = output["choices"][0]["message"] if isinstance(output, dict) else {}
@@ -106,6 +113,16 @@ class RunPodCarterProvider:
             return CarterInferenceResponse(str(message.get("content") or ""), list(message.get("tool_calls") or []))
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise ProviderError("CARTER_PROVIDER_INVALID_RESPONSE", "Carter cloud runtime returned an invalid response.") from exc
+
+
+def _requires_runpod_json_object_compat(schema: dict[str, Any]) -> bool:
+    """Detect schemas beyond the deployed worker's verified native subset."""
+    unsupported = {"$defs", "$ref", "oneOf", "contains", "minContains", "maxContains"}
+    if isinstance(schema, dict):
+        return bool(unsupported & set(schema)) or any(_requires_runpod_json_object_compat(value) for value in schema.values())
+    if isinstance(schema, list):
+        return any(_requires_runpod_json_object_compat(value) for value in schema)
+    return False
 
 
 class KnowledgeStore:

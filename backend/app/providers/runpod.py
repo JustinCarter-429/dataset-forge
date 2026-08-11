@@ -74,6 +74,43 @@ def _safe_output_snapshot(output: Any) -> dict[str, Any]:
     return snapshot
 
 
+def _safe_terminal_failure(status: dict[str, Any]) -> dict[str, Any]:
+    """Retain only diagnostic shape and an allowlisted provider error category."""
+    error = status.get("error")
+    detail: dict[str, Any] = {
+        "status_keys": sorted(str(key) for key in status.keys()),
+        "error_present": error is not None,
+        "error_type": None,
+        "error_code": None,
+        "error_category": None,
+    }
+    if isinstance(error, dict):
+        detail["error_keys"] = sorted(str(key) for key in error.keys())
+        for key, target in (("type", "error_type"), ("code", "error_code")):
+            value = error.get(key)
+            if isinstance(value, str) and value.replace("_", "").replace("-", "").isalnum() and len(value) <= 80:
+                detail[target] = value
+        error_text = " ".join(str(error.get(key, "")) for key in ("type", "code", "message"))
+    else:
+        error_text = error if isinstance(error, str) else ""
+    lowered = error_text.lower()
+    categories = (
+        ("context_length", ("context length", "max context", "too many tokens", "max_model_len")),
+        ("max_tokens", ("max_tokens", "max tokens")),
+        ("structured_output", ("structured output", "structured_outputs", "json schema", "response format")),
+        ("tool_protocol", ("tool_choice", "tool call", "tools")),
+        ("unsupported_parameter", ("unsupported", "unexpected keyword", "invalid parameter")),
+        ("model_load", ("model load", "model not")),
+        ("out_of_memory", ("out of memory", "cuda oom", "oom")),
+        ("timeout", ("timeout", "timed out")),
+    )
+    for category, indicators in categories:
+        if any(indicator in lowered for indicator in indicators):
+            detail["error_category"] = category
+            break
+    return detail
+
+
 class RunPodProvider(DatasetGenerationProvider):
     """Native RunPod Serverless /run + /status client for vLLM workers."""
 
@@ -185,6 +222,12 @@ class RunPodProvider(DatasetGenerationProvider):
                 self.metrics["providerJobsCompleted"] += 1
                 return ProviderJob(external_id, "completed", output, {"status": state, "output": self.last_telemetry["output"]})
             if state in {"FAILED", "CANCELLED", "TIMED_OUT"}:
+                self.last_telemetry = {
+                    "external_job_id": external_id,
+                    "status_sequence": status_sequence,
+                    "total_duration_ms": round((time.monotonic() - started) * 1000, 1),
+                    "terminal_failure": _safe_terminal_failure(current),
+                }
                 self.metrics["providerJobsFailed"] += 1
                 raise ProviderError(f"RUNPOD_{state}", f"RunPod job ended with status {state.lower()}.")
             if state not in {"IN_QUEUE", "IN_PROGRESS"}:

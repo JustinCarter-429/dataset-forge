@@ -64,6 +64,19 @@ def test_runpod_auth_and_unknown_status_are_safe():
     assert error.value.code == "RUNPOD_AUTH_FAILED"
 
 
+def test_runpod_terminal_failure_keeps_only_safe_error_telemetry():
+    config = provider_config_from_env().__class__(endpoint_id="endpoint", api_key="secret", model="gpt-oss-20b", poll_interval_seconds=0.001)
+    statuses = iter([{"status": "FAILED", "error": {"type": "invalid_request", "code": "UNSUPPORTED_FIELD", "message": "raw worker trace must not persist"}}])
+    def handler(request):
+        return httpx.Response(200, json={"id": "external-1"} if request.method == "POST" else next(statuses))
+    provider = RunPodProvider(config, httpx.Client(transport=httpx.MockTransport(handler)))
+    with pytest.raises(ProviderError, match="failed"):
+        provider.generate(messages=[{"role": "user", "content": "x"}], schema={"type": "object"}, max_tokens=32)
+    failure = provider.last_telemetry["terminal_failure"]
+    assert failure == {"status_keys": ["error", "status"], "error_present": True, "error_type": "invalid_request", "error_code": "UNSUPPORTED_FIELD", "error_category": "unsupported_parameter", "error_keys": ["code", "message", "type"]}
+    assert "raw worker trace" not in str(provider.last_telemetry)
+
+
 def test_context_batches_are_bounded_and_ordered():
     batches = build_context_batches(document(), max_model_len=1024, records_per_batch=2, record_limit=5)
     assert len(batches) >= 2

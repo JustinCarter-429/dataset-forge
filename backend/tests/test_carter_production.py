@@ -49,6 +49,9 @@ def test_runpod_adapter_accepts_production_prompt_package_request():
     }, runtime="cloud")
     RunPodCarterProvider(transport).infer(request)
     assert transport.request["tool_choice"] == "auto"
+    assert transport.request["schema"] == {"type": "object"}
+    assert len(transport.request["messages"]) == len(request.messages) + 1
+    assert "authoritative application schema" in transport.request["messages"][-2]["content"]
 
 
 @dataclass
