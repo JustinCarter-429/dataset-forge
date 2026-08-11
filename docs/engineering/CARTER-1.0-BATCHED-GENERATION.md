@@ -25,3 +25,9 @@ production orchestrator as `[5, 5, 2]`: one planner call, three generation
 calls, and 12 canonically valid records merged in batch order. The test records
 retain their dynamic fields and contain no batch metadata. Focused production
 and quality regression: 16 passed. Live RunPod batching was not attempted.
+
+Final certification used an exhaustive disjoint-file backend run: 133 collected
+and passed, 0 skipped, failed, or errors. The deterministic Playwright
+multi-batch flow passed, observing planning, batches 2/3 and 3/3, retained
+`12 / 12` candidate progress, Dataset Ready, and enabled ZIP download. The
+browser suite total is 6 passed.

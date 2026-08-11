@@ -21,7 +21,7 @@ def document():
 def test_production_orchestrator_preserves_dynamic_records(tmp_path):
     run = CarterDatasetGenerationService(CarterPromptPackage.load(), DeterministicCarterProvider("runpod"), knowledge_path=tmp_path / "knowledge.sqlite3").generate(runtime="runpod", user_request="Create a custom support dataset", output_format="json", documents=[document()])
     assert run.specification["dataset_type"] == "custom"
-    assert run.dataset.records[0]["customer_intent"] == "support request 1"
+    assert run.dataset.records[0]["customer_intent"] == "support request"
     assert run.calls == {"planner": 1, "generator": 1, "tool_continuation": 0, "review": 1, "revision": 0}
 
 

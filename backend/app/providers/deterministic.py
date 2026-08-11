@@ -70,7 +70,7 @@ class DeterministicCarterProvider:
             if "TEST_VALIDATION_FAILURE" in text:
                 ref = "unknown-source"
             count = _record_target(schema) or 1
-            records = [{"customer_intent":f"support request {index + 1}","confidence_label":"high","reasoning_style":["concise"],"evidence":[{"source_ref":ref,"quote":"Deterministic evidence."}]} for index in range(count)]
+            records = [{"customer_intent":"support request" if count == 1 else f"support request {index + 1}","confidence_label":"high","reasoning_style":["concise"],"evidence":[{"source_ref":ref,"quote":"Deterministic evidence."}]} for index in range(count)]
             return CarterInferenceResponse(json.dumps({"status":"generated","records":records,"insufficiency":None}), [])
         question = " ".join(str(message.get("content", "")) for message in request.messages)
         if scenario() in {"ask_failure", "cloud_failure"} or "TEST_ASK_FAILURE" in question or "TEST_CLOUD_FAILURE" in question:
