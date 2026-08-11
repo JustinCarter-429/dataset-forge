@@ -369,3 +369,22 @@ The required next gate, one real Carter planner request pinned to
 `LM_STUDIO_UNAVAILABLE` result.  Per the planner stop gate, no basic
 generation, tools, review, export, browser acceptance, RunPod request, or
 fallback was attempted.  No production source code was changed.
+
+## Carter PoC runtime scope lock (2026-08-10)
+
+The accepted PoC product runtime is **RunPod**.  The frontend explicitly sends
+`runtime=runpod` for Carter asks and dataset-generation requests; RunPod is the
+only enabled selector option.  Local / LM Studio remains visible as
+"Unavailable in this PoC" but is disabled in the product surface.  The
+underlying `local_lm_studio` contract and provider implementation remain in
+place for a future explicit reactivation; no request may silently cross over
+to it.
+
+PoC acceptance is deliberately split.  Level A is complete: RunPod
+configuration, authentication, remote minimal inference, the live Carter
+planner, DatasetSpec parsing/validation, runtime pinning, and no LM Studio
+crossover were proven.  Level B is deferred post-PoC runtime hardening: the
+large GPT-OSS final-channel issue, live RunPod tool/review/revision/export
+acceptance, and LM Studio live acceptance.  Deterministic Carter coverage for
+the complete planner, generation, tool, review, revision, and export flow
+remains the authoritative application-orchestration proof.

@@ -21,7 +21,7 @@ export async function uploadFile(file: File): Promise<UploadedFile> {
 }
 
 export async function createGeneration(fileId: string, datasetPrompt: string, outputFormat: OutputFormat, fileIds: string[] = [fileId]) {
-  return request<{ generationId: string; status: string }>('/generations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileId, fileIds, datasetPrompt, outputFormat }) })
+  return request<{ generationId: string; status: string }>('/generations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileId, fileIds, datasetPrompt, outputFormat, runtime: 'runpod' }) })
 }
 
 export function getGeneration(id: string) { return request<GenerationJob>(`/generations/${encodeURIComponent(id)}`) }

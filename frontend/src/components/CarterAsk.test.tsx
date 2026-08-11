@@ -18,12 +18,14 @@ beforeEach(() => {
   api.askCarter.mockResolvedValue({ answer: 'Grounded answer', runtime: 'runpod', logicalModel: 'Carter 1.0', technicalModel: 'openai/gpt-oss-20b', inferenceCount: 1, toolRounds: 1, assistant: 'Carter 1.0', sources: [{ documentId: 'a', documentName: 'functional.txt', sourceRef: 'unit-a' }, { documentId: 'b', documentName: 'accessibility.txt', sourceRef: 'unit-b', page: 2 }] })
 })
 
-test('shows Carter branding, RunPod readiness, local unavailable, and prevents silent fallback', async () => {
+test('locks the PoC runtime to RunPod while keeping LM Studio visible but disabled', async () => {
   render(<CarterAsk documents={docs} />)
   expect(await screen.findByRole('status')).toHaveTextContent('RunPod')
-  fireEvent.change(screen.getByLabelText('Carter runtime'), { target: { value: 'local_lm_studio' } })
-  expect(screen.getByText(/Local \/ LM Studio .* Unavailable/)).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Ask Carter' })).toBeDisabled()
+  const selector = screen.getByLabelText('Carter runtime') as HTMLSelectElement
+  expect(selector.value).toBe('runpod')
+  expect(screen.getByRole('option', { name: /Local \/ LM Studio/ })).toBeDisabled()
+  fireEvent.change(screen.getByLabelText('Ask Carter'), { target: { value: 'Question' } })
+  expect(screen.getByRole('button', { name: 'Ask Carter' })).not.toBeDisabled()
 })
 
 test('submits an answer and renders citations from multiple documents', async () => {

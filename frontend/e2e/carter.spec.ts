@@ -42,7 +42,7 @@ test('Ask Carter success includes multiple source citations', async ({ page }) =
   await expect(page.locator('.carter-answer li')).toHaveCount(2)
 })
 
-test('Ask no-result, failure, and local isolation remain safe', async ({ page }) => {
+test('Ask no-result, failure, and RunPod-only PoC runtime remain safe', async ({ page }) => {
   await page.goto('/')
   await twoDocs(page)
   await page.getByRole('textbox', { name: 'Ask Carter' }).fill('unsupported astronomy question')
@@ -51,18 +51,26 @@ test('Ask no-result, failure, and local isolation remain safe', async ({ page })
   await page.getByRole('textbox', { name: 'Ask Carter' }).fill('TEST_ASK_FAILURE negative testing')
   await page.getByRole('button', { name: 'Ask Carter' }).click()
   await expect(page.getByRole('alert')).toContainText('could not complete')
-  await page.getByLabel('Carter runtime').selectOption('local_lm_studio')
-  await expect(page.getByRole('status')).toContainText('Local / LM Studio · Unavailable')
-  await expect(page.getByRole('button', { name: 'Ask Carter' })).toBeDisabled()
+  const runtime = page.getByLabel('Carter runtime')
+  await expect(runtime).toHaveValue('runpod')
+  expect(await runtime.locator('option[value="local_lm_studio"]').getAttribute('disabled')).not.toBeNull()
+  await expect(page.getByRole('status')).toContainText('RunPod · Connected')
 })
 
 test('generation failure, validation failure, warning, and completed states use real API contracts', async ({ page }) => {
   await page.goto('/')
   await twoDocs(page)
+  const runtimes: string[] = []
+  page.on('request', request => {
+    if (request.method() === 'POST' && request.url().endsWith('/api/generations')) {
+      runtimes.push(request.postDataJSON().runtime)
+    }
+  })
   const prompt = page.locator('#prompt')
   await prompt.fill('TEST_GENERATION_FAILURE Create exactly 2 records.')
   await page.getByRole('button', { name: 'Generate Dataset' }).click()
   await expect(page.getByText('Failed', { exact: true })).toBeVisible({ timeout: 15_000 })
+  expect(runtimes[0]).toBe('runpod')
   await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeDisabled()
   // The failed worker releases the in-memory single-generation lease in its
   // terminal cleanup.  Wait for that backend-owned cleanup before starting
