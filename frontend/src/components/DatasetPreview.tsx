@@ -7,6 +7,7 @@ export function DatasetPreview({ job }: { job: GenerationJob | null }) {
   const output = job?.output
   const validation = job?.validation
   const report = job?.validationReport
+  const quality = output?.qualitySummary
   const metrics = [
     ['Records', output?.recordCount == null ? '—' : String(output.recordCount), 'records'],
     ['Format', output?.requestedFormat?.toUpperCase() || '—', 'format'],
@@ -25,6 +26,7 @@ export function DatasetPreview({ job }: { job: GenerationJob | null }) {
       <span>{report.grounding.verified_evidence_items} / {report.grounding.total_evidence_items} evidence references verified</span>
       {report.quality.warnings.length > 0 && <span className="validation-warning"><TriangleAlert size={14} /> {report.quality.warnings.length} quality warning{report.quality.warnings.length === 1 ? '' : 's'}</span>}
     </div> : <div className="grounding-note"><FileArchive size={16} /><div><strong>Source grounding pending</strong><span>Dataset Forge verifies evidence against extracted source units.</span></div></div>}
+    {quality && <div className={`validation-summary ${quality.exportEligible ? 'validation-passed' : 'validation-failed'}`}><div>{quality.exportEligible ? <CheckCircle2 size={16} /> : <XCircle size={16} />}<strong>Quality check {quality.exportEligible ? 'passed' : 'blocked'}</strong></div><span>{quality.acceptedRecords} accepted · {quality.quarantinedRecords} quarantined · {quality.rejectedRecords} rejected</span>{quality.findings.length > 0 && <span className="validation-warning"><TriangleAlert size={14} /> {quality.findings.map(item => item.code).slice(0, 3).join(', ')}</span>}</div>}
     {job?.qualityReview && <div className="quality-review-summary">
       <div><CheckCircle2 size={16} /><strong>AI quality review {job.qualityReview.status === 'passed_with_warnings' ? 'completed with warnings' : 'completed'}</strong></div>
       <span>{job.qualityReview.blockingIssues} blocking issues · {job.qualityReview.warnings} warnings</span>

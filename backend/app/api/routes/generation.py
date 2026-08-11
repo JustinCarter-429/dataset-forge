@@ -18,7 +18,7 @@ from ...services.quality_review import QualityReviewService, QualityRevisionServ
 from ...services.carter import LMStudioCarterProvider, RunPodCarterProvider
 from ...carter.runtime import CarterPromptPackage, CarterPromptPackageError
 from ...carter.production import CarterDatasetGenerationService
-from ...carter.dynamic_dataset import export_canonical_csv, export_canonical_json
+from ...carter.dynamic_dataset import export_canonical_csv, export_canonical_json, quality_gate
 from ...services.packaging import ZipDatasetPackager
 from ...domain.models import GenerationManifest
 from ...utils.files import validate_filename
@@ -122,15 +122,20 @@ def _run_job(job_id: str, request: GenerationRequest):
         result = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id)).generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents)
         if job_store.is_cancelled(job_id): return
         stage("validating", 90)
+        allowed_refs = {element.element_id for document in documents for element in document.elements if element.text.strip()}
+        export_dataset, quality = quality_gate(package, result.dataset, allowed_source_refs=allowed_refs)
+        if not quality.export_eligible:
+            raise CarterPromptPackageError("No records passed the deterministic quality gate.")
         archive = settings.output_directory / job_id / "dataset.zip"
         output = settings.output_directory / job_id / ("dataset.json" if request.output_format.value == "json" else "dataset.csv")
-        (export_canonical_json if request.output_format.value == "json" else export_canonical_csv)(result.dataset, output)
-        manifest = GenerationManifest(job_id=job_id, source_file=extracted.source_filename, requested_format=request.output_format, record_count=len(result.dataset.records), phase="carter_1_0", generator="carter_1_0", provider=runtime, model=str(availability.get("model") or "unknown"), prompt_version=package.package_version, schema_version="carter-1.0", validation_status="passed", quality_review_status=result.review["recommendation"])
-        ZipDatasetPackager().package(output, manifest, archive, validation_report={"status": "passed"}, quality_review=result.review)
-        validation = ValidationSummary(schemaValid=True, totalRecords=len(result.dataset.records), validRecords=len(result.dataset.records), invalidRecords=0, groundingStatus="passed", groundedRecords=len(result.dataset.records), totalEvidenceItems=sum(len(record["evidence"]) for record in result.dataset.records), verifiedEvidenceItems=sum(len(record["evidence"]) for record in result.dataset.records), qualityStatus="passed")
+        (export_canonical_json if request.output_format.value == "json" else export_canonical_csv)(export_dataset, output)
+        quality_payload = quality.as_dict()
+        manifest = GenerationManifest(job_id=job_id, source_file=extracted.source_filename, requested_format=request.output_format, record_count=len(export_dataset.records), phase="carter_1_0", generator="carter_1_0", provider=runtime, model=str(availability.get("model") or "unknown"), prompt_version=package.package_version, schema_version="carter-1.0", validation_status=quality_payload["status"], quality_review_status=result.review["recommendation"])
+        ZipDatasetPackager().package(output, manifest, archive, validation_report=quality_payload, quality_review=result.review)
+        validation = ValidationSummary(schemaValid=quality.schema_failures == 0, totalRecords=quality.total_records, validRecords=quality.accepted_records, invalidRecords=quality.rejected_records + quality.quarantined_records, groundingStatus="passed" if quality.grounding_failures == 0 else "failed", groundedRecords=quality.accepted_records, totalEvidenceItems=sum(len(record["evidence"]) for record in export_dataset.records), verifiedEvidenceItems=sum(len(record["evidence"]) for record in export_dataset.records), qualityStatus="passed" if not quality.findings else "passed_with_warnings", exactDuplicatesRemoved=quality.duplicate_records)
         stage("packaging", 96)
         review_summary = ReviewSummary(status=result.review["recommendation"], issueCount=len(result.review["issues"]), blockingIssueCount=sum(issue["severity"] == "major" for issue in result.review["issues"]), warningCount=sum(issue["severity"] == "warning" for issue in result.review["issues"]), revisionAttempted=bool(result.revisions), revisionSucceeded=bool(result.revisions), revisionAttempts=result.revisions, reviewAttempts=result.calls["review"], providerJobs=sum(result.calls.values()))
-        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(result.dataset.records), "finalRecordCount": len(result.dataset.records), "sizeBytes": archive.stat().st_size}, validation=validation, review=review_summary, package_ready=True, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
+        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(export_dataset.records), "finalRecordCount": len(export_dataset.records), "sizeBytes": archive.stat().st_size, "qualitySummary": quality_payload}, validation=validation, review=review_summary, package_ready=True, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
     except ExtractionError as exc:
         logger.warning("Extraction failed for job %s: %s", job_id, exc.code)
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
