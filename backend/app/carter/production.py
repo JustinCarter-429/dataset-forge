@@ -219,7 +219,18 @@ class CarterDatasetGenerationService:
                         # no-content provider response is transient here.
                         self._phase("generating", batch)
                 content = response.content if response.tool_calls else {"action": "final_response", "final_response": self._json(response.content, "Generator returned malformed JSON.")}
-                action = state.normalize(response.tool_calls, content)
+                try:
+                    action = state.normalize(response.tool_calls, content)
+                except CarterPromptPackageError as exc:
+                    final_response = content.get("final_response") if isinstance(content, dict) else None
+                    errors = self.package.safe_validation_errors(compiled, final_response) if isinstance(final_response, dict) else []
+                    transport = getattr(self.provider, "provider", None)
+                    if transport is not None and hasattr(transport, "_publish_telemetry"):
+                        transport._publish_telemetry(json_parse="PASS" if isinstance(final_response, dict) else "FAIL",
+                                                     dynamic_schema_validation="FAIL", structural_errors=errors,
+                                                     record_count=len(final_response.get("records", [])) if isinstance(final_response, dict) and isinstance(final_response.get("records"), list) else None,
+                                                     safe_error_code="DYNAMIC_SCHEMA_INVALID")
+                    raise ProviderError("DYNAMIC_SCHEMA_INVALID", "Generated records did not match the DatasetSpec schema.") from exc
                 if action["action"] == "final_response":
                     records = action["final_response"]["records"]
                     if len(records) != target: raise CarterPromptPackageError("Generator returned an incorrect batch record count.")

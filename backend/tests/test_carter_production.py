@@ -8,7 +8,7 @@ from app.carter.runtime import CarterPromptPackage
 from app.domain.extraction_models import (CanonicalExtractedDocument, ExtractionElement,
     ExtractionElementType, ExtractionStatistics, ExtractionValidation)
 from app.providers.deterministic import DeterministicCarterProvider
-from app.services.carter import CarterInferenceResponse, RunPodCarterProvider
+from app.services.carter import CarterInferenceResponse, RunPodCarterProvider, exact_output_contract_instruction
 from app.providers.contracts import ProviderError, ProviderJob
 from app.carter.runtime import CarterPromptPackageError
 from app.api.routes import generation as generation_route
@@ -74,8 +74,9 @@ def test_runpod_adapter_accepts_production_prompt_package_request():
     RunPodCarterProvider(transport).infer(request)
     assert transport.request["tool_choice"] == "auto"
     assert transport.request["schema"] == {"type": "object"}
-    assert len(transport.request["messages"]) == len(request.messages) + 1
-    assert "authoritative application schema" in transport.request["messages"][-2]["content"]
+    assert len(transport.request["messages"]) == len(request.messages) + 2
+    assert "AUTHORITATIVE_OUTPUT_CONTRACT=" in transport.request["messages"][-3]["content"]
+    assert "Provider constraint is JSON object" in transport.request["messages"][-2]["content"]
 
 
 @dataclass
@@ -112,6 +113,40 @@ def _candidate_many(count=10, *, valid=True):
             record.pop("customer_intent")
         records.append(record)
     return {"status":"generated", "records":records, "insufficiency":None}
+
+
+def test_dynamic_output_contract_exposes_exact_custom_fields_and_batch_count():
+    package = CarterPromptPackage.load()
+    specification = _spec()
+    specification["fields"] = [
+        {"name":"customer_intent","type":"string","required":True,"description":"Intent."},
+        {"name":"confidence_label","type":"enum","required":True,"description":"Confidence.","enum_values":["low","high"]},
+        {"name":"reasoning_style","type":"string","required":True,"description":"Style."},
+    ]
+    schema = package.compile_generation_schema(specification, 5)
+    contract = json.loads(exact_output_contract_instruction(schema).split("=", 1)[1])
+    assert contract["batch_record_count"] == {"min": 5, "max": 5}
+    assert contract["dynamic_fields"] == ["confidence_label", "customer_intent", "reasoning_style"]
+    assert set(contract["required_record_fields"]) == {"customer_intent", "confidence_label", "reasoning_style", "evidence"}
+    assert contract["output_schema"] == schema
+
+
+def test_dynamic_output_contract_uses_exact_partial_batch_cardinality():
+    package = CarterPromptPackage.load()
+    contract = json.loads(exact_output_contract_instruction(package.compile_generation_schema(_spec(), 2)).split("=", 1)[1])
+    assert contract["batch_record_count"] == {"min": 2, "max": 2}
+
+
+def test_safe_dynamic_schema_feedback_reports_count_extra_fields_and_types():
+    package = CarterPromptPackage.load()
+    schema = package.compile_generation_schema(_spec(), 5)
+    invalid = _candidate_many(4)["records"]
+    invalid[0]["customer_intent"] = {"not": "a string"}
+    invalid[0]["summary"] = "unexpected"
+    errors = package.safe_validation_errors(schema, {"status":"generated", "records":invalid, "insufficiency":None})
+    assert any("$.records: expected 5 minItems; received 4" == error for error in errors)
+    assert any("$.records[0]: unexpected field" == error for error in errors)
+    assert any("$.records[0].customer_intent: expected type; received dict" == error for error in errors)
 
 
 def _review(revise=False):
@@ -211,7 +246,7 @@ def test_pre_revision_invalid_dataset_fails_before_review(tmp_path):
     specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
     provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), []), CarterInferenceResponse(json.dumps(_candidate_many(valid=False)), [])])
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "pre-revision-invalid.sqlite3", generation_batch_size=10)
-    with pytest.raises(CarterPromptPackageError):
+    with pytest.raises(ProviderError, match="DatasetSpec schema"):
         service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
     assert service.calls["review"] == service.calls["revision"] == service.calls["revision_repair"] == 0
 

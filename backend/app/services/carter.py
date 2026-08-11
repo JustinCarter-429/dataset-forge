@@ -26,6 +26,31 @@ SEARCH_STOPWORDS = {
 CARTER_SYSTEM_PROMPT = """You are Carter 1.0. For questions grounded in selected local documents, retrieve evidence with the registered local knowledge tools before answering. Do not answer from memory, do not invent references, and do not reveal hidden reasoning. After evidence is available, return only JSON shaped exactly as {\"answer\": string, \"citations\": [{\"sourceRef\": string}]}; every citation must be a sourceRef returned by a tool."""
 
 
+def exact_output_contract_instruction(schema: dict[str, Any]) -> str:
+    """Return a provider-neutral, schema-derived output instruction.
+
+    The frozen Carter prompts establish the semantic contract; this envelope
+    gives the active model call the exact compiled schema and cardinality.
+    """
+    records = None
+    for branch in schema.get("allOf", []):
+        candidate = branch.get("then", {}).get("properties", {}).get("records")
+        if isinstance(candidate, dict):
+            records = candidate; break
+    record_schema = schema.get("$defs", {}).get("dynamic_record_template", {})
+    properties = record_schema.get("properties", {}) if isinstance(record_schema, dict) else {}
+    dynamic_fields = sorted(name for name in properties if name != "evidence")
+    required_fields = list(record_schema.get("required", [])) if isinstance(record_schema, dict) else []
+    contract = {
+        "instruction": "Return exactly one JSON value conforming to output_schema. No markdown, code fences, commentary, explanation, schema description, summary, reasoning, provider metadata, tool metadata, or fields outside output_schema. Every required field must be present with its exact declared JSON type; never use null unless output_schema permits it. Evidence must match its declared structure exactly.",
+        "batch_record_count": {"min": records.get("minItems"), "max": records.get("maxItems")} if isinstance(records, dict) else None,
+        "dynamic_fields": dynamic_fields,
+        "required_record_fields": required_fields,
+        "output_schema": schema,
+    }
+    return "AUTHORITATIVE_OUTPUT_CONTRACT=" + json.dumps(contract, sort_keys=True, separators=(",", ":"))
+
+
 @dataclass(frozen=True)
 class CarterInferenceRequest:
     messages: list[dict[str, Any]]
@@ -81,7 +106,10 @@ class LMStudioCarterProvider:
             raise ProviderError("LM_STUDIO_UNAVAILABLE", "Carter 1.0 local runtime is unavailable.")
         if not state["available"]:
             raise ProviderError("LM_STUDIO_MODEL_NOT_LOADED", "Local Carter 1.0 model not available.")
-        payload = {"model": self.model, "messages": request.messages, "tools": request.tools, "tool_choice": request.tool_choice, "max_tokens": min(request.max_tokens, self.max_tokens), "temperature": 0.1, "stream": False}
+        messages = list(request.messages)
+        if request.response_schema:
+            messages.insert(-1 if messages else 0, {"role": "system", "content": exact_output_contract_instruction(request.response_schema)})
+        payload = {"model": self.model, "messages": messages, "tools": request.tools, "tool_choice": request.tool_choice, "max_tokens": min(request.max_tokens, self.max_tokens), "temperature": 0.1, "stream": False}
         try:
             self.invocations += 1
             response = httpx.post(f"{self.base_url}/v1/chat/completions", json=payload, timeout=self.timeout)
@@ -99,12 +127,14 @@ class RunPodCarterProvider:
     def infer(self, request: CarterInferenceRequest) -> CarterInferenceResponse:
         self.invocations += 1
         messages, schema = list(request.messages), request.response_schema
+        if schema:
+            messages.insert(-1 if messages else 0, {"role": "system", "content": exact_output_contract_instruction(schema)})
         if schema and _requires_runpod_json_object_compat(schema):
             # The deployed vLLM worker accepts simple JSON-object constraints but
             # rejects Carter's conditional/$defs schemas.  Keep the authoritative
             # schema in the prompt and validate the returned JSON in application.
             schema = {"type": "object"}
-            messages.insert(-1 if messages else 0, {"role": "system", "content": "Return only JSON conforming to this authoritative application schema: " + json.dumps(request.response_schema, sort_keys=True, separators=(",", ":"))})
+            messages.insert(-1 if messages else 0, {"role": "system", "content": "Provider constraint is JSON object; the authoritative contract remains the supplied AUTHORITATIVE_OUTPUT_CONTRACT."})
         job = self.provider.chat(messages=messages, tools=request.tools, tool_choice=request.tool_choice, schema=schema, max_tokens=min(request.max_tokens, max(1024, self.provider.config.max_model_len // 4)))
         output = job.output[0] if isinstance(job.output, list) and job.output else job.output
         try:

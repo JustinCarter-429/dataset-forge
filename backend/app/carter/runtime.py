@@ -135,6 +135,23 @@ class CarterPromptPackage:
         try: Draft202012Validator(schema, registry=self.registry, format_checker=FormatChecker()).validate(instance)
         except ValidationError as exc: raise CarterPromptPackageError("Carter contract validation failed.") from exc
 
+    def safe_validation_errors(self, schema: dict[str, Any], instance: Any, *, limit: int = 12) -> list[str]:
+        """Return bounded structural diagnostics without retaining model values."""
+        errors = sorted(Draft202012Validator(schema, registry=self.registry, format_checker=FormatChecker()).iter_errors(instance), key=lambda item: list(item.absolute_path))
+        result: list[str] = []
+        for error in errors[:limit]:
+            path = "$" + "".join(f"[{part}]" if isinstance(part, int) else f".{part}" for part in error.absolute_path)
+            if error.validator == "required":
+                missing = next((name for name in error.validator_value if isinstance(name, str) and name not in error.instance), "required field")
+                result.append(f"{path}: missing required field {missing}")
+            elif error.validator == "additionalProperties":
+                result.append(f"{path}: unexpected field")
+            elif error.validator in {"minItems", "maxItems"}:
+                result.append(f"{path}: expected {error.validator_value} {error.validator}; received {len(error.instance) if isinstance(error.instance, list) else type(error.instance).__name__}")
+            else:
+                result.append(f"{path}: expected {error.validator}; received {type(error.instance).__name__}")
+        return result
+
     def resolve_operation(self, name: str, output_schema: dict[str, Any] | None = None) -> CarterOperation:
         try:
             binding = self.manifest["operation_bindings"][name]
