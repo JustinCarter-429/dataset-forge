@@ -4,63 +4,42 @@
 
 # Dataset Forge
 
-> Turn documents into validated, source-grounded AI datasets.
+> Turn source documents into validated, structured datasets.
 
-![Version](https://img.shields.io/badge/version-v1.0.0-5b43f3) ![Python](https://img.shields.io/badge/Python-FastAPI-3776AB) ![Frontend](https://img.shields.io/badge/React-TypeScript-61DAFB) ![License](https://img.shields.io/badge/license-source--available-4c1)
+Dataset Forge is a document-to-dataset application that turns uploaded source material into structured, downloadable datasets.
 
-Dataset Forge is a local, single-page document-to-dataset application. It transforms one PDF, DOCX, or TXT document into a packaged AI dataset using Docling extraction and **Techie custom agentic agents**. V1 is **PoC release ready**—it is not a hosted SaaS or production-certified service.
+## What you can do
 
-## What Dataset Forge V1 does
+1. Upload supported PDF, DOCX, or TXT source documents.
+2. Describe the dataset you want to create.
+3. Choose JSON or CSV output.
+4. Generate a source-grounded dataset through the remote Carter runtime.
+5. Follow each stage through the Live Pipeline, including batch progress for larger requests.
+6. Review validation and quality results.
+7. Download a validated dataset package.
 
-1. Upload up to three PDF, DOCX, or TXT source documents.
-2. Extract and normalize it: Docling for PDF/DOCX, direct UTF-8/CP1252 extraction for TXT.
-3. Analyze the document structure and accept a natural-language dataset request.
-4. Plan bounded generation batches and generate structured records through Techie custom agentic agents.
-5. Author the canonical dataset as structured JSON, then validate schema, source references, evidence, grounding, duplicates, and quality.
-6. Run one bounded, advisory AI quality review; at most one model-authored revision is allowed globally.
-7. Export JSON or a deterministic CSV derived from the accepted canonical JSON, then download a ZIP package.
+## Dataset generation and quality
 
-## Carter 1.0
+Dataset Forge plans structured datasets from natural-language requests and supports dynamic dataset fields, including custom dataset structures. Larger requests are divided into sequential batches and merged only after validation.
 
-Carter 1.0 is Dataset Forge's small agent/runtime layer, built on the configured `openai/gpt-oss-20b` base model; it is not presented as an independently pretrained model. It supports Cloud via RunPod and Local via LM Studio, up to three PDF/DOCX/TXT source documents, SQLite FTS5 local knowledge, Ask Carter, three controlled tools, document-grounded Q&A, and grounded multi-document dataset generation. No model weights are included in this repository.
+Every generated record is checked against the requested structure and its selected source material. The application detects duplicates, quarantines sensitive records, and exports only accepted records. CSV output is formula-safe.
 
-For Local Carter, install LM Studio, download and load a compatible model there, start its local API server, then configure `LM_STUDIO_ENABLED=true`, `LM_STUDIO_BASE_URL=http://127.0.0.1:1234`, and `LM_STUDIO_MODEL=<served model id>`. Select Local in Dataset Forge. Model weights remain managed by LM Studio and are never included in this repository. When Local is selected, Carter inference and document retrieval do not use RunPod.
+## Output package
 
-## Design principles
+Each completed run downloads as a ZIP containing the validated JSON or CSV dataset, a manifest, and a quality report.
 
-- Canonical JSON is the source of truth; CSV is never separately AI-generated.
-- A provider completion is not a validation success. Every final record needs verified evidence from the uploaded source.
-- Batch-local source aliases are canonicalized before global assembly, preventing cross-batch provenance leaks.
-- Deterministic validation is authoritative; the AI reviewer is advisory.
-- No chain-of-thought is stored, and production generation has no placeholder fallback.
+## Reliability improvements
 
-## Architecture
-
-```text
-Document
-  -> Docling / TXT extractor
-  -> Canonical extraction + generation planner
-  -> Techie custom agentic agents
-  -> Canonical Dataset JSON
-  -> Schema + evidence + grounding validation
-  -> Bounded AI quality review
-  -> JSON / deterministic CSV + ZIP package
-```
-
-## Technology
-
-| Area | Stack |
-| --- | --- |
-| Frontend | React, TypeScript, Vite, Tailwind CSS, Lucide |
-| Backend | Python, FastAPI, Pydantic, Docling |
-| AI | Techie custom agentic agents |
-| Testing | pytest, Vitest, Playwright acceptance coverage |
+- Bounded sequential batch generation with live progress.
+- Safe handling for failed batches.
+- No partial datasets reported as successful.
+- Deterministic validation and quality gates before export.
+- Download and package reconciliation checks.
+- Runtime isolation with no silent fallback.
 
 ## Run locally
 
-Prerequisites: Python 3.11 (the existing project setup), Node.js with npm, and your own Techie-compatible agent backend. Provider credentials stay on the backend.
-
-Clone the repository, then set up the backend:
+Prerequisites: Python 3.11, Node.js, npm, and configured runtime access.
 
 ```powershell
 cd backend
@@ -68,104 +47,34 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
-```
-
-Set your own values in `backend/.env`—never commit this file:
-
-```dotenv
-APP_ENVIRONMENT=development
-FRONTEND_ORIGIN=http://localhost:5173
-MAX_UPLOAD_SIZE=26214400
-OUTPUT_DIRECTORY=app/outputs
-TEMP_UPLOAD_DIRECTORY=app/uploads
-RUNPOD_ENDPOINT_ID=YOUR_TECHIE_ENDPOINT_ID
-RUNPOD_API_KEY=YOUR_TECHIE_API_KEY_HERE
-RUNPOD_MODEL=YOUR_CONFIGURED_TECHIE_MODEL_IDENTIFIER
-RUNPOD_MAX_MODEL_LEN=YOUR_CONFIGURED_MAX_MODEL_LEN
-QUALITY_VALIDATOR_MODE=same_model
-PUBLIC_RESEARCH_ENABLED=false
-RUNPOD_POLL_INTERVAL_SECONDS=1
-RUNPOD_QUEUE_TIMEOUT_SECONDS=300
-RUNPOD_EXECUTION_TIMEOUT_SECONDS=600
-RUNPOD_RECORDS_PER_BATCH=4
-MAX_DATASET_RECORDS=20
-```
-
-Start the backend:
-
-```powershell
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-In another terminal, start the frontend:
+In another terminal:
 
 ```powershell
 cd frontend
 npm install
-Copy-Item .env.example .env
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-Open `http://127.0.0.1:5173`. FastAPI documentation is available at `http://127.0.0.1:8000/docs`.
+Open `http://127.0.0.1:5173`. Never commit populated environment files.
 
-## Use the app
+## Validation
 
-Upload up to three documents, describe the dataset you want, select JSON or CSV, and generate. The UI keeps the maximum-document state visible and rejects a fourth source without removing the existing three. Follow extraction, generation, validation, and review progress in the UI; inspect the resulting metrics; then download the ZIP.
+- Backend: 133 passing
+- Frontend: 6 passing
+- Browser: 6 passing
+- Typecheck: PASS
+- Build: PASS
 
-## Output package
+## Current PoC scope
 
-```text
-dataset-forge-output.zip
-├── dataset.json (or dataset.csv)
-├── metadata.json
-├── validation-report.json
-├── quality-review.json
-├── README.txt
-├── manifest.json
-└── generation_manifest.json
-```
-
-### Grounding and batching
-
-Dataset Forge verifies evidence excerpts against the exact extracted source units provided during generation and requires every accepted record to satisfy the source/evidence grounding contract. This validates grounding to the uploaded document; it is not universal external fact-checking.
-
-Large documents are partitioned into bounded batches. Provider-visible, batch-local aliases are resolved to canonical extraction IDs before assembly, so provenance remains safe across batches.
-
-## Security, privacy, and limitations
-
-Your Techie backend credentials remain backend-only, and `.env` is ignored. When bounded extracted context is enough, original binaries are not sent wholesale. No chain-of-thought is persisted and public research is disabled by default. Every clone must use its own Techie credentials.
-
-V1 accepts one source document per generation and has no authentication, account history, durable job database, distributed queue, or high-availability deployment. Jobs are process-local, one provider/model is configured, and scanned-only PDF OCR support is limited. This is a PoC release-ready application, not a production-certified service.
-
-## Tests
-
-```powershell
-cd backend
-python -m pytest -q
-cd ..\frontend
-npm test
-npm run typecheck
-npm run build
-npm run test:e2e
-```
-
-The deterministic suite uses mocked provider transport and does not make real RunPod or LM Studio calls by default. Browser acceptance uses the explicit test-only `APP_ENVIRONMENT=test` and `CARTER_TEST_PROVIDER=deterministic` configuration with real frontend/FastAPI contracts. Carter closure verification: backend **83 passed** (4 third-party/deprecation/cache warnings); frontend **6 passed**, typecheck/build passed, and Playwright **5 passed / 0 failed / 0 skipped** with zero serious or critical axe violations. Details are recorded in the [Carter runtime POC document](docs/engineering/CARTER-1.0-POC-AGENT-RUNTIME.md).
-
-## Engineering history
-
-- [Implementation log](docs/engineering/IMPLEMENTATION-LOG.md)
-- [Phase 2: Docling extraction](docs/engineering/PHASE-2-DOCLING-EXTRACTION.md)
-- [Phase 3: RunPod generation](docs/engineering/PHASE-3-RUNPOD-GPT-OSS-GENERATION.md)
-- [Phase 4: grounding and validation](docs/engineering/PHASE-4-GROUNDING-VALIDATION-QUALITY.md)
-- [Phase 5: bounded quality review](docs/engineering/PHASE-5-AGENTIC-QUALITY-REVIEW.md)
-- [Phase 6: final hardening acceptance](docs/engineering/PHASE-6-FINAL-HARDENING-ACCEPTANCE.md)
+- Remote AI-assisted planning is enabled.
+- Local runtime selection is retained but disabled in the current PoC.
+- Additional remote-generation hardening is deferred to post-PoC work.
+- Production authentication, persistent workspaces, and production hosting are outside the current PoC scope.
 
 ## License
 
-Dataset Forge is source-available under the [Dataset Forge Community License 1.0](LICENSE). Personal, educational, research, nonprofit, and qualifying small-business use is permitted. Organizations with combined annual gross revenue of US $250,000 or more need a commercial license. See [commercial licensing](COMMERCIAL-LICENSE.md).
-
-The Dataset Forge name and logo are project branding; this license does not grant trademark rights.
-
-## Commercial licensing
-
-Organizations outside the Community License's permitted-use limits can contact the repository owner through GitHub Issues or Discussions for commercial licensing. Do not post security vulnerabilities or credentials in public issues; see [SECURITY.md](SECURITY.md).
+Dataset Forge is source-available under the [Dataset Forge Community License 1.0](LICENSE). See [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for commercial use and [SECURITY.md](SECURITY.md) for responsible disclosure.
