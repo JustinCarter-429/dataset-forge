@@ -9,7 +9,7 @@ from app.domain.extraction_models import (CanonicalExtractedDocument, Extraction
     ExtractionElementType, ExtractionStatistics, ExtractionValidation)
 from app.providers.deterministic import DeterministicCarterProvider
 from app.services.carter import CarterInferenceResponse, RunPodCarterProvider
-from app.providers.contracts import ProviderJob
+from app.providers.contracts import ProviderError, ProviderJob
 from app.carter.runtime import CarterPromptPackageError
 from app.api.routes import generation as generation_route
 
@@ -91,7 +91,9 @@ class ScriptedProvider:
         self.calls += 1
         self.requests.append(_request)
         if self.on_infer: self.on_infer(self.calls)
-        return self.replies.pop(0)
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception): raise reply
+        return reply
 
 
 def _spec():
@@ -104,6 +106,20 @@ def _candidate(value="request"):
 
 def _review(revise=False):
     return {"status":"completed","recommendation":"revise_recommended" if revise else "accept","summary":"Review.","issues":[{"issue_id":"issue_001","category":"custom_schema_quality","severity":"major","affected_record_refs":["review_record_001"],"affected_field":"customer_intent","description":"Revise.","recommended_correction":"Revise."}] if revise else []}
+
+
+def test_generation_retries_one_transient_no_content_response(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "no final content"), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review()), [])])
+    run = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "retry.sqlite3").generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert run.calls == {"planner": 1, "generator": 2, "tool_continuation": 0, "review": 1, "revision": 0}
+    assert len(run.dataset.records) == 1
+
+
+def test_non_no_content_provider_error_is_not_retried(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), ProviderError("RUNPOD_AUTH_FAILED", "no")])
+    with pytest.raises(ProviderError, match="no"):
+        CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "no-retry.sqlite3").generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert provider.calls == 2
 
 
 def test_tool_continuation_and_revision_are_bounded(tmp_path):

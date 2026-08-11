@@ -149,7 +149,7 @@ def _run_job(job_id: str, request: GenerationRequest):
             job_store.update_job(job_id, **changes)
         documents = [item.extraction for item in stored_files if item.extraction]
         package = CarterPromptPackage.load()
-        result = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id), generation_batch_size=settings.carter_generation_batch_size).generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents)
+        result = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id), generation_batch_size=settings.carter_generation_batch_size, generation_no_content_retries=settings.carter_generation_no_content_retries).generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents)
         if job_store.is_cancelled(job_id): return
         stage("validating", 90)
         allowed_refs = {element.element_id for document in documents for element in document.elements if element.text.strip()}

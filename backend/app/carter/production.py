@@ -34,10 +34,11 @@ class CarterDatasetGenerationService:
     """Provider-neutral, fail-closed Carter production orchestrator."""
     def __init__(self, package: CarterPromptPackage, provider: CarterProvider, *, knowledge_path: Path,
                  on_phase: Callable[[str, dict[str, int] | None], None] | None = None, cancelled: Callable[[], bool] | None = None,
-                 generation_batch_size: int = 5):
+                 generation_batch_size: int = 5, generation_no_content_retries: int = 1):
         self.package, self.provider = package, provider
         if not 1 <= generation_batch_size <= 20: raise ValueError("generation_batch_size must be between 1 and 20")
-        self.knowledge_path, self.on_phase, self.generation_batch_size = knowledge_path, on_phase or (lambda _phase, _batch=None: None), generation_batch_size
+        if not 0 <= generation_no_content_retries <= 1: raise ValueError("generation_no_content_retries must be 0 or 1")
+        self.knowledge_path, self.on_phase, self.generation_batch_size, self.generation_no_content_retries = knowledge_path, on_phase or (lambda _phase, _batch=None: None), generation_batch_size, generation_no_content_retries
         self.cancelled = cancelled or (lambda: False)
         self.calls: dict[str, int] = {name: 0 for name in ("planner", "generator", "tool_continuation", "review", "revision")}
         self.invocation_ledger: list[dict[str, str]] = []
@@ -140,7 +141,17 @@ class CarterDatasetGenerationService:
             state = CarterAgentTurnState(self.package, compiled); messages = list(request.messages); batch_tools: list[str] = []
             while True:
                 current = request.__class__(request.runtime, request.operation, tuple(messages), request.tools, request.response_schema, request.package_fingerprint)
-                response = self._infer(current, "generator" if not batch_tools else "tool_continuation")
+                phase = "generator" if not batch_tools else "tool_continuation"
+                for attempt in range(1, self.generation_no_content_retries + 2):
+                    try:
+                        response = self._infer(current, phase)
+                        break
+                    except ProviderError as exc:
+                        if phase != "generator" or exc.code != "PROVIDER_NO_FINAL_CONTENT" or attempt > self.generation_no_content_retries or self.cancelled():
+                            raise
+                        # Reuse this exact batch request; only a completed
+                        # no-content provider response is transient here.
+                        self._phase("generating", batch)
                 content = response.content if response.tool_calls else {"action": "final_response", "final_response": self._json(response.content, "Generator returned malformed JSON.")}
                 action = state.normalize(response.tool_calls, content)
                 if action["action"] == "final_response":
