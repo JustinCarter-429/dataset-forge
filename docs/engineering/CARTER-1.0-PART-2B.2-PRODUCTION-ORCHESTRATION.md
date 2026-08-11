@@ -51,3 +51,8 @@ source, credential, tool-argument, or reasoning data is retained.  Deterministic
 coverage confirms planner, generation, tool continuation, review, and revision
 remain on the selected RunPod or LM Studio adapter, and malformed selected-runtime
 generation does not trigger a cross-runtime retry.
+
+Active-run immutability is exercised with a controlled per-provider callback:
+Run A changes only a future-run selector during its generation turn, then its
+tool continuation, review, and revision remain on its already captured RunPod
+adapter.  Run B is subsequently constructed with the new LM Studio selection.

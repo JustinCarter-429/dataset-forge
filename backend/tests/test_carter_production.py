@@ -36,11 +36,13 @@ class ScriptedProvider:
     runtime: str = "runpod"
     calls: int = 0
     requests: list = None
+    on_infer: object = None
     def __post_init__(self): self.requests = []
     def available(self): return {"configured": True, "available": True, "model": "scripted"}
     def infer(self, _request):
         self.calls += 1
         self.requests.append(_request)
+        if self.on_infer: self.on_infer(self.calls)
         return self.replies.pop(0)
 
 
@@ -89,3 +91,18 @@ def test_selected_runtime_failure_has_no_fallback(tmp_path, runtime):
     with pytest.raises(CarterPromptPackageError):
         service.generate(runtime=runtime, user_request="Use source", output_format="json", documents=[document()])
     assert provider.calls == 2 and [entry["runtime"] for entry in service.invocation_ledger] == [runtime, runtime]
+
+
+def test_active_run_uses_captured_provider_after_future_selector_changes(tmp_path):
+    future_selection = {"runtime": "runpod"}
+    tool = {"id":"call-1","function":{"name":"get_source_units","arguments":json.dumps({"source_refs":["source_1"]})}}
+    run_a_provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse("", [tool]), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review(True)), []), CarterInferenceResponse(json.dumps(_candidate("revised")), [])], runtime="runpod")
+    run_a_provider.on_infer = lambda call: future_selection.update(runtime="local_lm_studio") if call == 2 else None
+    run_a = CarterDatasetGenerationService(CarterPromptPackage.load(), run_a_provider, knowledge_path=tmp_path / "run-a.sqlite3")
+    run_a.generate(runtime=future_selection["runtime"], user_request="Run A", output_format="json", documents=[document()])
+    assert future_selection["runtime"] == "local_lm_studio"
+    assert [entry["runtime"] for entry in run_a.invocation_ledger] == ["runpod"] * 5
+    run_b_provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review(False)), [])], runtime="local_lm_studio")
+    run_b = CarterDatasetGenerationService(CarterPromptPackage.load(), run_b_provider, knowledge_path=tmp_path / "run-b.sqlite3")
+    run_b.generate(runtime=future_selection["runtime"], user_request="Run B", output_format="json", documents=[document()])
+    assert [entry["runtime"] for entry in run_b.invocation_ledger] == ["local_lm_studio"] * 3
