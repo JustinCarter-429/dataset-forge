@@ -141,8 +141,12 @@ def _run_job(job_id: str, request: GenerationRequest):
                 if not current or current.status in {"completed", "failed", "cancelled"}: return
                 telemetry = _safe_provider_telemetry(transport)
                 external_job_id = telemetry.get("external_job_id")
-                if telemetry.get("terminal_state") and external_job_id and not any(item.get("external_job_id") == external_job_id for item in telemetry_history):
-                    telemetry_history.append(dict(telemetry))
+                if telemetry.get("terminal_state") and external_job_id:
+                    existing_index = next((index for index, item in enumerate(telemetry_history) if item.get("external_job_id") == external_job_id), None)
+                    if existing_index is None:
+                        telemetry_history.append(dict(telemetry))
+                    else:
+                        telemetry_history[existing_index] = dict(telemetry)
                 job_store.update_job(job_id, provider={"name": runtime, "model": availability.get("model"), "state": "running", **_provider_diagnostics(transport), "telemetry": telemetry, "telemetryHistory": telemetry_history})
             transport.on_telemetry = retain_telemetry
         phase_percent = {"planning": 40, "generating": 55, "tool_use": 62, "reviewing": 76, "revising": 84}
