@@ -41,7 +41,7 @@ def _safe_provider_telemetry(provider) -> dict[str, object]:
     allowed = {"phase", "request_attempted", "request_accepted", "external_job_id", "status_transitions",
                "terminal_state", "content_present", "reasoning_present", "tool_call_count", "finish_reason",
                "json_parse", "dynamic_schema_validation", "record_count", "structural_errors", "safe_error_code", "elapsed_ms",
-               "batch_number", "attempt_number", "maximum_attempts", "retry_category", "content_length", "expected_record_count"}
+               "batch_number", "attempt_number", "maximum_attempts", "retry_category", "content_length", "expected_record_count", "action"}
     return {key: telemetry[key] for key in allowed if key in telemetry}
 
 
@@ -177,7 +177,8 @@ def _run_job(job_id: str, request: GenerationRequest):
         stage("packaging", 96)
         review_summary = ReviewSummary(status=result.review["recommendation"], issueCount=len(result.review["issues"]), blockingIssueCount=sum(issue["severity"] == "major" for issue in result.review["issues"]), warningCount=sum(issue["severity"] == "warning" for issue in result.review["issues"]), revisionAttempted=bool(result.revisions), revisionSucceeded=bool(result.revisions), revisionAttempts=result.revisions, reviewAttempts=result.calls["review"], providerJobs=sum(result.calls.values()))
         revision_telemetry = result.revision_telemetry
-        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(export_dataset.records), "finalRecordCount": len(export_dataset.records), "sizeBytes": archive.stat().st_size, "qualitySummary": quality_payload}, validation=validation, review=review_summary, package_ready=True, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed, "revisionTelemetry": revision_telemetry, "telemetryHistory": locals().get("telemetry_history", []), **_provider_diagnostics(transport), "telemetry": _safe_provider_telemetry(transport)}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
+        post_generation_telemetry = generation_service.post_generation_telemetry
+        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(export_dataset.records), "finalRecordCount": len(export_dataset.records), "sizeBytes": archive.stat().st_size, "qualitySummary": quality_payload}, validation=validation, review=review_summary, package_ready=True, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed, "revisionTelemetry": revision_telemetry, "postGenerationTelemetry": post_generation_telemetry, "telemetryHistory": locals().get("telemetry_history", []), **_provider_diagnostics(transport), "telemetry": _safe_provider_telemetry(transport)}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
     except ExtractionError as exc:
         logger.warning("Extraction failed for job %s: %s", job_id, exc.code)
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))

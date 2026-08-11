@@ -175,6 +175,49 @@ def test_generation_stops_after_three_no_content_attempts(tmp_path):
     assert error.value.code == "PROVIDER_NO_FINAL_CONTENT" and provider.calls == 4
 
 
+def test_review_retries_no_content_then_succeeds_without_regenerating_batches(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 10
+    provider = ScriptedProvider([
+        CarterInferenceResponse(json.dumps(specification), []),
+        CarterInferenceResponse(json.dumps(_candidate_many(5)), []),
+        CarterInferenceResponse(json.dumps(_candidate_many(5)), []),
+        ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty review"),
+        CarterInferenceResponse(json.dumps(_review()), []),
+    ])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "review-retry.sqlite3", generation_batch_size=5)
+    run = service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 10 and service.calls["generator"] == 2 and service.calls["review"] == 2
+    assert service.post_generation_telemetry == [{"action": "review", "attempt_number": 2, "max_attempts": 3, "result": "PASS"}]
+
+
+def test_review_allows_second_no_content_retry_then_succeeds(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), CarterInferenceResponse(json.dumps(_review()), [])])
+    run = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "review-retry-three.sqlite3").generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 1 and run.calls["generator"] == 1 and run.calls["review"] == 3
+
+
+def test_review_stops_after_three_no_content_attempts_without_regenerating(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty")])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "review-exhausted.sqlite3")
+    with pytest.raises(ProviderError) as error:
+        service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert error.value.code == "PROVIDER_NO_FINAL_CONTENT" and service.calls["generator"] == 1 and service.calls["review"] == 3 and provider.calls == 5
+
+
+def test_review_mixed_no_content_and_malformed_json_shares_three_attempt_ceiling(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), CarterInferenceResponse("not-json", []), CarterInferenceResponse(json.dumps(_review()), [])])
+    run = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "review-mixed.sqlite3").generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert len(run.dataset.records) == 1 and run.calls["generator"] == 1 and run.calls["review"] == 3
+
+
+def test_review_cancellation_after_first_no_content_does_not_retry(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse(json.dumps(_candidate()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty")])
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "review-cancelled.sqlite3", cancelled=lambda: provider.calls >= 3)
+    with pytest.raises(ProviderError) as error:
+        service.generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert error.value.code == "PROVIDER_NO_FINAL_CONTENT" and service.calls["review"] == 1 and provider.calls == 3
+
+
 def test_generation_regenerates_malformed_json_once_and_preserves_the_batch(tmp_path):
     provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), CarterInferenceResponse("not-json", []), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review()), [])])
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "malformed-once.sqlite3")

@@ -36,6 +36,7 @@ class CarterDatasetGenerationService:
     MAX_BATCH_PROVIDER_ATTEMPTS = 3
     MAX_STRUCTURED_OUTPUT_REGENERATIONS = 2
     MAX_DYNAMIC_SCHEMA_REGENERATIONS = 2
+    MAX_POST_GENERATION_PROVIDER_ATTEMPTS = 3
     def __init__(self, package: CarterPromptPackage, provider: CarterProvider, *, knowledge_path: Path,
                  on_phase: Callable[[str, dict[str, int] | None], None] | None = None, cancelled: Callable[[], bool] | None = None,
                  generation_batch_size: int = 5, generation_no_content_retries: int = 2):
@@ -47,6 +48,7 @@ class CarterDatasetGenerationService:
         self.calls: dict[str, int] = {name: 0 for name in ("planner", "generator", "tool_continuation", "review", "revision", "revision_repair")}
         self.invocation_ledger: list[dict[str, str]] = []
         self.revision_telemetry: list[dict[str, Any]] = []
+        self.post_generation_telemetry: list[dict[str, Any]] = []
 
     def _phase(self, name: str, batch: dict[str, int] | None = None) -> None:
         try:
@@ -74,6 +76,64 @@ class CarterDatasetGenerationService:
             transport._publish_telemetry(batch_number=batch_number, attempt_number=attempt_number,
                                          maximum_attempts=self.MAX_BATCH_PROVIDER_ATTEMPTS,
                                          retry_category=retry_category, **changes)
+
+    def _publish_post_generation_telemetry(self, *, action: str, attempt_number: int,
+                                           **changes: Any) -> None:
+        """Record bounded post-generation attempt facts without provider output."""
+        transport = getattr(self.provider, "provider", None)
+        if transport is not None and hasattr(transport, "_publish_telemetry"):
+            transport._publish_telemetry(action=action, attempt_number=attempt_number,
+                                         maximum_attempts=self.MAX_POST_GENERATION_PROVIDER_ATTEMPTS,
+                                         **changes)
+
+    def _review_with_retries(self, request: Any, *, refs: set[str], fields: set[str]) -> dict[str, Any]:
+        """Retry only review output-contract failures, preserving generated candidates."""
+        for attempt in range(1, self.MAX_POST_GENERATION_PROVIDER_ATTEMPTS + 1):
+            if self.cancelled():
+                raise CarterPromptPackageError("Generation cancelled.")
+            try:
+                response = self._infer(request, "review")
+            except ProviderError as exc:
+                self._publish_post_generation_telemetry(action="review", attempt_number=attempt,
+                                                        json_parse="NOT_RUN", dynamic_schema_validation="NOT_RUN",
+                                                        safe_error_code=exc.code)
+                if (exc.code != "PROVIDER_NO_FINAL_CONTENT" or self.cancelled()
+                        or attempt == self.MAX_POST_GENERATION_PROVIDER_ATTEMPTS):
+                    raise
+                self._phase("reviewing")
+                continue
+            try:
+                review = self._json(response.content, "Quality review returned malformed JSON.")
+            except CarterPromptPackageError as exc:
+                code = "STRUCTURED_OUTPUT_INVALID"
+                self._publish_post_generation_telemetry(action="review", attempt_number=attempt,
+                                                        json_parse="FAIL", dynamic_schema_validation="NOT_RUN",
+                                                        content_length=len(response.content) if isinstance(response.content, str) else 0,
+                                                        safe_error_code=code)
+                if self.cancelled() or attempt == self.MAX_POST_GENERATION_PROVIDER_ATTEMPTS:
+                    raise ProviderError(code, "Quality review returned malformed JSON.") from exc
+                self._phase("reviewing")
+                continue
+            try:
+                validate_quality_review(self.package, review, refs, fields)
+            except CarterPromptPackageError as exc:
+                code = "DYNAMIC_SCHEMA_INVALID"
+                self._publish_post_generation_telemetry(action="review", attempt_number=attempt,
+                                                        json_parse="PASS", dynamic_schema_validation="FAIL",
+                                                        content_length=len(response.content) if isinstance(response.content, str) else 0,
+                                                        safe_error_code=code)
+                if self.cancelled() or attempt == self.MAX_POST_GENERATION_PROVIDER_ATTEMPTS:
+                    raise ProviderError(code, "Quality review did not match its output contract.") from exc
+                self._phase("reviewing")
+                continue
+            self._publish_post_generation_telemetry(action="review", attempt_number=attempt,
+                                                    json_parse="PASS", dynamic_schema_validation="PASS",
+                                                    content_length=len(response.content) if isinstance(response.content, str) else 0)
+            self.post_generation_telemetry.append({"action": "review", "attempt_number": attempt,
+                                                   "max_attempts": self.MAX_POST_GENERATION_PROVIDER_ATTEMPTS,
+                                                   "result": "PASS"})
+            return review
+        raise AssertionError("review retry loop exhausted without returning or raising")
 
     @staticmethod
     def _batch_execution_header(*, requested_records: int, batch_number: int, total_batches: int,
@@ -319,8 +379,8 @@ class CarterDatasetGenerationService:
         refs = {f"review_record_{index:03d}" for index, _ in enumerate(candidate.records, 1)}
         review_request = self.package.render(review_op, {"dataset_spec": specification, "user_request": user_request,
             "records": [{"record_ref": ref, "record": record} for ref, record in zip(sorted(refs), candidate.records)]}, runtime=logical_runtime)
-        review = self._json(self._infer(review_request, "review").content, "Quality review returned malformed JSON.")
-        validate_quality_review(self.package, review, refs, {field["name"] for field in specification["fields"]})
+        review = self._review_with_retries(review_request, refs=refs,
+                                           fields={field["name"] for field in specification["fields"]})
         revisions = 0
         if review["recommendation"] == "revise_recommended":
             authorize_revision(revisions, True); revisions = 1
