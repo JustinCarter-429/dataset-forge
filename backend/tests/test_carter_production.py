@@ -125,6 +125,8 @@ def test_dynamic_output_contract_exposes_exact_custom_fields_and_batch_count():
     ]
     schema = package.compile_generation_schema(specification, 5)
     contract = json.loads(exact_output_contract_instruction(schema).split("=", 1)[1])
+    assert contract["required_top_level_fields"] == ["status", "records", "insufficiency"]
+    assert set(contract["top_level_field_shapes"]) == {"status", "records", "insufficiency"}
     assert contract["batch_record_count"] == {"min": 5, "max": 5}
     assert contract["dynamic_fields"] == ["confidence_label", "customer_intent", "reasoning_style"]
     assert set(contract["required_record_fields"]) == {"customer_intent", "confidence_label", "reasoning_style", "evidence"}

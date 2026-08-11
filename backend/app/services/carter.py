@@ -41,8 +41,12 @@ def exact_output_contract_instruction(schema: dict[str, Any]) -> str:
     properties = record_schema.get("properties", {}) if isinstance(record_schema, dict) else {}
     dynamic_fields = sorted(name for name in properties if name != "evidence")
     required_fields = list(record_schema.get("required", [])) if isinstance(record_schema, dict) else []
+    top_level_properties = schema.get("properties", {}) if isinstance(schema.get("properties"), dict) else {}
+    top_level_required = list(schema.get("required", [])) if isinstance(schema.get("required"), list) else []
     contract = {
-        "instruction": "Return exactly one JSON value conforming to output_schema. No markdown, code fences, commentary, explanation, schema description, summary, reasoning, provider metadata, tool metadata, or fields outside output_schema. Every required field must be present with its exact declared JSON type; never use null unless output_schema permits it. Evidence must match its declared structure exactly.",
+        "instruction": "Return exactly one JSON object conforming to output_schema. The top-level object must contain every field in required_top_level_fields, including status, records, and insufficiency when listed; do not omit insufficiency (use null only when output_schema permits it). No markdown, code fences, commentary, explanation, schema description, summary, reasoning, provider metadata, tool metadata, or fields outside output_schema. Every required field must be present with its exact declared JSON type; never use null unless output_schema permits it. Evidence must match its declared structure exactly.",
+        "required_top_level_fields": top_level_required,
+        "top_level_field_shapes": {name: top_level_properties[name] for name in top_level_required if name in top_level_properties},
         "batch_record_count": {"min": records.get("minItems"), "max": records.get("maxItems")} if isinstance(records, dict) else None,
         "dynamic_fields": dynamic_fields,
         "required_record_fields": required_fields,
