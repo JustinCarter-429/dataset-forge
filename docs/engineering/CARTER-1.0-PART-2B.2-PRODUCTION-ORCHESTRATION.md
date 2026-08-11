@@ -286,3 +286,44 @@ export flow was attempted.  The remaining unverified server-side settings
 (`TOOL_CALL_PARSER`, auto-tool choice, and custom chat template) need a
 sanitized editor/configuration read.  Any isolated setting change requires
 explicit confirmation immediately before the external save/redeploy action.
+
+## Part 2B.12 Direct OpenAI-surface isolation (2026-08-10)
+
+The documented RunPod OpenAI-compatible base URL was exercised directly,
+without changing the production native `/run` plus `/status` transport.  A
+read-only `GET /openai/v1/models` returned HTTP 200 and exactly one safe served
+model ID: `openai/gpt-oss-20b`.  A minimal non-streaming JSON chat request to
+the direct surface also returned HTTP 200 with `finish_reason=stop`, reasoning
+present, and non-empty content.
+
+The historical failing request text was deliberately not retained.  To avoid
+recovering or persisting it, the large direct isolation control was instead
+constructed at runtime by the current frozen Carter package using the normal
+dataset-generation operation, dynamic-schema compiler, compatibility system
+instruction, three registered tools, and the same model, max-tokens,
+temperature, and structured-output mode.  It contained four messages and
+60,365 characters.  No message or model output content was printed or stored.
+
+| Surface / variant | Input tokens | Completion tokens | Finish | Reasoning | Content | Tool calls |
+| --- | ---: | ---: | --- | --- | --- | ---: |
+| Historical native basic generation | 11,260 | 255 | `stop` | present | null | 0 |
+| Direct OpenAI compatible, Carter-shaped control | 11,335 | 321 | `stop` | present | null | 0 |
+| Direct OpenAI compatible, identical control with `reasoning_effort=low` | 11,335 | 114 | `stop` | present | non-empty | 0 |
+
+The direct control reproduces the content-free completion at essentially the
+same Carter prompt scale, eliminating the RunPod native wrapper as the primary
+boundary for this symptom.  Repository inspection confirms that Carter does
+not send `reasoning_effort`; the baseline is therefore **omitted**.  Adding
+only `reasoning_effort=low` produced final content, making low reasoning effort
+a model/serving mitigation candidate.  This single diagnostic does not prove
+reliability or validate a complete canonical dataset, and it was not adopted
+as a global production default because it could silently override Carter
+reasoning-profile semantics.
+
+Because direct and low-effort diagnostics isolated the behavior, the
+conditional prompt-duplication, small-vs-full, hardware, and vLLM-version
+branches were not run.  No frozen Carter contract, response normalizer,
+production transport, endpoint setting, GPU, or worker image was changed.
+Tool configuration remains unverified and tool, review, revision, and export
+remain blocked until a selected mitigation is validated through the full Carter
+workflow.
