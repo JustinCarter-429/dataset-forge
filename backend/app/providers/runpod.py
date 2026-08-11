@@ -37,21 +37,23 @@ def build_runpod_openai_chat_job(
 def _safe_output_snapshot(output: Any) -> dict[str, Any]:
     snapshot: dict[str, Any] = {"output_type": type(output).__name__}
     choice: dict[str, Any] | None = None
+    response: dict[str, Any] | None = None
     if isinstance(output, list):
         snapshot["array_length"] = len(output)
         if output and isinstance(output[0], dict):
-            snapshot["top_level_keys"] = sorted(output[0].keys())
-            if isinstance(output[0].get("choices"), list):
-                snapshot["choices_count"] = len(output[0]["choices"])
-                if output[0]["choices"] and isinstance(output[0]["choices"][0], dict):
-                    choice = output[0]["choices"][0]
+            response = output[0]
     elif isinstance(output, dict):
-        snapshot["top_level_keys"] = sorted(output.keys())
-        snapshot["usage_present"] = "usage" in output
-        if isinstance(output.get("choices"), list):
-            snapshot["choices_count"] = len(output["choices"])
-            if output["choices"] and isinstance(output["choices"][0], dict):
-                choice = output["choices"][0]
+        response = output
+    if response is not None:
+        snapshot["top_level_keys"] = sorted(response.keys())
+        usage = response.get("usage")
+        snapshot["usage_present"] = isinstance(usage, dict)
+        if isinstance(usage, dict):
+            snapshot["usage"] = {key: value for key, value in usage.items() if key in {"prompt_tokens", "completion_tokens", "total_tokens"} and isinstance(value, int)}
+        if isinstance(response.get("choices"), list):
+            snapshot["choices_count"] = len(response["choices"])
+            if response["choices"] and isinstance(response["choices"][0], dict):
+                choice = response["choices"][0]
     if choice is not None:
         message = choice.get("message") if isinstance(choice.get("message"), dict) else {}
         snapshot["message_keys"] = sorted(message.keys())
@@ -72,6 +74,37 @@ def _safe_output_snapshot(output: Any) -> dict[str, Any]:
             } for item in tool_calls]
         snapshot.setdefault("usage_present", False)
     return snapshot
+
+
+def describe_provider_shape(value: Any, depth: int = 0) -> dict[str, Any]:
+    """Return a strictly bounded, content-free structural diagnostic.
+
+    This is deliberately suitable for transient provider telemetry: it never
+    copies a string value, inspects at most twelve object keys and two array
+    items, and stops before descending beyond five levels.
+    """
+    if isinstance(value, str):
+        return {"type": "string", "length": len(value)}
+    if value is None:
+        return {"type": "null"}
+    if isinstance(value, bool):
+        return {"type": "boolean"}
+    if isinstance(value, (int, float)):
+        return {"type": "number"}
+    if depth >= 5:
+        return {"type": "object" if isinstance(value, dict) else "array" if isinstance(value, list) else type(value).__name__, "truncated": True}
+    if isinstance(value, dict):
+        keys = sorted(str(key) for key in value.keys())[:12]
+        return {
+            "type": "object", "keys": keys,
+            "fields": {key: describe_provider_shape(value[key], depth + 1) for key in keys if key in value},
+        }
+    if isinstance(value, list):
+        return {
+            "type": "array", "length": len(value),
+            "items": [describe_provider_shape(item, depth + 1) for item in value[:2]],
+        }
+    return {"type": type(value).__name__}
 
 
 def _safe_terminal_failure(status: dict[str, Any]) -> dict[str, Any]:
@@ -215,6 +248,7 @@ class RunPodProvider(DatasetGenerationProvider):
                         "tool_choice": tool_choice if tools else None,
                     },
                     "output": _safe_output_snapshot(output),
+                    "terminal_response_shape": describe_provider_shape(current),
                 }
                 if isinstance(output, dict) and isinstance(output.get("error"), dict):
                     self.metrics["providerJobsFailed"] += 1

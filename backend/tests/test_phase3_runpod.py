@@ -4,7 +4,7 @@ import pytest
 from app.domain.extraction_models import CanonicalExtractedDocument, ExtractionElement, ExtractionElementType, ExtractionStatistics, ExtractionValidation
 from app.providers.config import provider_config_from_env
 from app.providers.contracts import ProviderError, ProviderJob
-from app.providers.runpod import RunPodProvider, build_runpod_openai_chat_job
+from app.providers.runpod import RunPodProvider, build_runpod_openai_chat_job, describe_provider_shape
 from app.services.context_projection import build_context_batches
 from app.services.generation import RunPodDatasetGenerator, _extract_provider_content, _parse_provider_output
 
@@ -75,6 +75,15 @@ def test_runpod_terminal_failure_keeps_only_safe_error_telemetry():
     failure = provider.last_telemetry["terminal_failure"]
     assert failure == {"status_keys": ["error", "status"], "error_present": True, "error_type": "invalid_request", "error_code": "UNSUPPORTED_FIELD", "error_category": "unsupported_parameter", "error_keys": ["code", "message", "type"]}
     assert "raw worker trace" not in str(provider.last_telemetry)
+
+
+def test_provider_shape_diagnostic_is_bounded_and_content_free():
+    raw_reasoning = "private reasoning must never be copied"
+    raw_content = "generated content must never be copied"
+    shape = describe_provider_shape({"output": [{"choices": [{"message": {"reasoning": raw_reasoning, "content": raw_content}}]}]})
+    assert shape["fields"]["output"]["type"] == "array"
+    assert shape["fields"]["output"]["items"][0]["fields"]["choices"]["items"][0]["fields"]["message"]["truncated"] is True
+    assert raw_reasoning not in str(shape) and raw_content not in str(shape)
 
 
 def test_context_batches_are_bounded_and_ordered():

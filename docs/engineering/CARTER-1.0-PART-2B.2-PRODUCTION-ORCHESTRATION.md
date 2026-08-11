@@ -137,3 +137,112 @@ export were not attempted.
 Live status: minimal health **PASS**; planner **FAIL** (provider terminal
 failure / insufficient exposed detail); generation, tool flow, review, and
 export **BLOCKED**.  There was no LM Studio crossover.
+
+## Part 2B.9 RunPod generation response-shape diagnosis (2026-08-10)
+
+The corrected repository root was `C:\Users\Justin\Documents\dataset generate v1`;
+the backend working directory was
+`C:\Users\Justin\Documents\dataset generate v1\backend`; and the verified Python
+executable was
+`C:\Users\Justin\Documents\dataset generate v1\backend\.venv\Scripts\python.exe`.
+The backend directory, virtual-environment Python, production RunPod module,
+diagnostic module, and safe temporary diagnostic directory were verified before
+the live request.  No recoverable earlier terminal response was present.
+
+One production-compatible basic generation call was made through the real
+`CarterPromptPackage` dynamic-schema compiler, `RunPodCarterProvider`, and
+`RunPodProvider`; it did not run the tool/review/export lifecycle.  It reached
+`COMPLETED` after `IN_QUEUE` and `IN_PROGRESS`.  A subsequent read of the same
+terminal status record recovered only a sanitized structural snapshot (no new
+generation was submitted).
+
+The terminal status was an object with keys `delayTime`, `executionTime`, `id`,
+`output`, `status`, and `workerId`.  `output` was an array of length one;
+`output[0]` was an OpenAI-style completion object with keys `choices`,
+`created`, `id`, `kv_transfer_params`, `model`, `object`,
+`prompt_logprobs`, `prompt_token_ids`, `service_tier`, `system_fingerprint`,
+and `usage`.  `output[0].choices` was an array of length one and its choice
+had a `message` object with `content`, `reasoning`, `tool_calls`, `role`,
+`annotations`, `audio`, `function_call`, and `refusal` fields.  The observed
+finish reason was `stop`; usage was 11,260 input tokens, 255 output tokens,
+and 11,515 total tokens.
+
+`output[0].choices[0].message.content` was null, the `tool_calls` container
+was present but empty, and no `text`, token-array, final-channel, top-level
+`choices`, or `response` path was present.  The reasoning field was present
+but is intentionally neither logged nor returned as Carter content.  Thus the
+primary observed variant is **B: OpenAI ChatCompletion nested inside RunPod
+output**, but it contains no usable final output.  This is not an unhandled
+normalization path: it is an analysis-only provider/model completion.  No
+response parser was changed, no speculative fallback was added, and tool,
+review, revision, and export were correctly blocked.
+
+The RunPod transport now has a bounded content-free terminal-shape diagnostic:
+at most five nesting levels, twelve object keys, and two array entries are
+inspected; strings are represented only by length.  Its regression test proves
+reasoning and generated content are excluded.  The temporary snapshot is not
+an artifact and is not committed.  Raw provider responses, reasoning,
+credentials, prompts, and tool arguments were not persisted.
+
+Affected backend recertification was deliberately scoped to the provider,
+production orchestration, Carter closure, dynamic-schema, prompt-package,
+grounding, quality-review, and hardening modules: 110 passed, 0 failed.  Phase
+1 upload/download and Phase 2 extraction nodes do not import the changed
+transport diagnostic or Carter adapter and were not rerun.  Frontend
+recertification passed: Vitest 6/0, TypeScript typecheck, production build, and
+deterministic Playwright 5/0.  The browser suite uses its explicit deterministic
+provider and makes no additional live RunPod request.
+
+## Part 2B.10 gpt-oss Harmony final-channel diagnosis (2026-08-10)
+
+The verified failing response remains a nested OpenAI Chat Completion in the
+native RunPod `/run` then `/status` lifecycle: it completed with `stop`, 11,260
+input tokens, 255 completion tokens, `message.content: null`, empty
+`message.tool_calls`, and a present reasoning field.  Carter neither returns,
+persists, nor substitutes that reasoning as final content.
+
+The endpoint is configured in this repository only as model
+`openai/gpt-oss-20b` and `RUNPOD_MAX_MODEL_LEN=128000`.  Its health endpoint
+exposes only worker/job counters.  No startup logs, deployment/image metadata,
+vLLM version, served-model name, parser settings, custom chat template, or
+reasoning-effort/stop settings are exposed through the repository or endpoint.
+Accordingly the deployed vLLM version, worker image,
+`REASONING_PARSER`, `TOOL_CALL_PARSER`, and `ENABLE_AUTO_TOOL_CHOICE` are **not
+verifiable**.  The repository itself does not configure any of those variables.
+
+All requests used the production native RunPod wrapper with
+`input.openai_route=/v1/chat/completions`, `stream=false`, temperature 0.2, and
+no manual Harmony control tokens.  The compatibility path represents a schema
+as `structured_outputs.json`; it adds exactly one authoritative-schema system
+message for a complex Carter schema.  No duplicate schema injection was found.
+
+Safe live capability isolation (assistant text and reasoning were never
+recorded) found the following:
+
+| Request | Prompt tokens | Structured JSON | Tools | Final content |
+| --- | ---: | --- | ---: | --- |
+| Minimal one-message JSON object | 78 | yes | 0 | present; valid JSON |
+| Small schema-instruction, three-message JSON object | 99 | yes | 0 | present; valid JSON |
+| Short Carter-shaped, four-message JSON object | 222 | yes | 3 | present; valid JSON |
+| Full Carter-shaped request without structured JSON | 11,015 | no | 3 | absent; reasoning present |
+
+The final large no-tools control ended with a terminal worker failure without
+a safe exposed category, so it neither establishes nor refutes a tool-parser
+contribution.  It was not retried.  The completed large no-JSON control proves
+that `json_object` is not the primary trigger; the reproducible boundary is the
+large Carter-shaped prompt/serving interaction.  It also stopped voluntarily
+after 228 completion tokens with a 4,096-token budget, so it is not a token-cap
+truncation.
+
+This is partially compatible with the documented upstream gpt-oss/vLLM class of
+Harmony final-channel failures: current vLLM documentation states that gpt-oss
+uses Harmony parsing, and an upstream report reproduces null Chat Completion
+content for gpt-oss under multi-turn JSON conditions.  The exact deployed vLLM
+version and the no-JSON large-prompt condition cannot be matched, so this is
+not sufficient to identify a particular upstream release as the root cause.
+The required external next step is to obtain sanitized RunPod worker startup
+configuration/version evidence and, for the deployed version, ensure its
+gpt-oss Harmony parsing and `openai` tool-call configuration follow the
+corresponding vLLM recipe.  No Carter schema, normalizer, or fallback was
+changed; basic generation, tools, review, and export remain blocked pending a
+legitimate final channel.
