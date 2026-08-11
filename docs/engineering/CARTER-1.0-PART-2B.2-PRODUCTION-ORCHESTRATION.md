@@ -346,3 +346,26 @@ was made during the local acceptance attempt, and no runtime fallback occurred.
 RunPod remains implemented, selectable, and deterministically validated, but
 its live generation remains externally blocked by the deployed GPT-OSS/vLLM
 final-channel behavior.
+
+## Carter emergency local transport gate (2026-08-10)
+
+The configured local base is `http://127.0.0.1:1234`; the existing provider
+uses `/v1/models` and `/v1/chat/completions`, does not use a Responses route,
+and sends `stream=false`.  A direct, non-streaming minimal chat request using
+the server-authoritative model ID `openai/gpt-oss-20b` succeeded in 19.125
+seconds (HTTP 200, `stop`, OpenAI Chat Completion shape, non-empty content).
+The direct request matching the provider's optional empty-tools envelope also
+succeeded in 20.422 seconds.  After that warm-up, the existing
+`LMStudioCarterProvider` completed the same minimal request successfully in
+24.281 seconds.  Reasoning was not recorded or exposed.
+
+The initial minimal provider failure was therefore not a base URL, model ID,
+endpoint, streaming, response-shape, or empty-tools serialization defect.  It
+is consistent with a transient local model readiness/serving condition; the
+LM Studio models registry alone is not an inference-readiness guarantee.
+
+The required next gate, one real Carter planner request pinned to
+`local_lm_studio`, then failed in 1.797 seconds with the provider's safe
+`LM_STUDIO_UNAVAILABLE` result.  Per the planner stop gate, no basic
+generation, tools, review, export, browser acceptance, RunPod request, or
+fallback was attempted.  No production source code was changed.
