@@ -21,8 +21,22 @@ def document():
 def test_production_orchestrator_preserves_dynamic_records(tmp_path):
     run = CarterDatasetGenerationService(CarterPromptPackage.load(), DeterministicCarterProvider("runpod"), knowledge_path=tmp_path / "knowledge.sqlite3").generate(runtime="runpod", user_request="Create a custom support dataset", output_format="json", documents=[document()])
     assert run.specification["dataset_type"] == "custom"
-    assert run.dataset.records[0]["customer_intent"] == "support request"
+    assert run.dataset.records[0]["customer_intent"] == "support request 1"
     assert run.calls == {"planner": 1, "generator": 1, "tool_continuation": 0, "review": 1, "revision": 0}
+
+
+def test_production_orchestrator_generates_three_valid_batches_in_order(tmp_path):
+    phases = []
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), DeterministicCarterProvider("runpod"), knowledge_path=tmp_path / "batched.sqlite3", generation_batch_size=5, on_phase=lambda phase, batch=None: phases.append((phase, batch.copy() if batch else None)))
+    run = service.generate(runtime="runpod", user_request="Create exactly 12 records", output_format="json", documents=[document()])
+    assert run.calls["planner"] == 1 and run.calls["generator"] == 3 and len(run.dataset.records) == 12
+    completed = {}
+    for phase, batch in phases:
+        if phase == "generating" and batch: completed[batch["currentBatch"]] = batch
+    assert [completed[index]["currentBatchTarget"] for index in (1, 2, 3)] == [5, 5, 2]
+    assert [completed[index]["recordsGenerated"] for index in (1, 2, 3)] == [5, 10, 12]
+    assert [record["customer_intent"] for record in run.dataset.records] == [f"support request {index}" for index in (1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2)]
+    assert not any({"batch", "batch_id", "batch_number", "batch_index", "current_batch"} & set(record) for record in run.dataset.records)
 
 
 def test_generation_route_uses_carter_not_legacy_generator():

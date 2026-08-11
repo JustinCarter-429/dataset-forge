@@ -19,6 +19,16 @@ def scenario() -> str:
     return os.getenv("CARTER_TEST_SCENARIO", "success")
 
 
+def _record_target(schema: Any) -> int:
+    if isinstance(schema, dict):
+        records = schema.get("properties", {}).get("records")
+        own = records.get("minItems", 0) if isinstance(records, dict) else 0
+        return max(own if isinstance(own, int) else 0, *(_record_target(value) for value in schema.values()))
+    elif isinstance(schema, list):
+        return max((_record_target(value) for value in schema), default=0)
+    return 0
+
+
 class DeterministicCarterProvider:
     runtime = "runpod"
     allow_empty_retrieval = True
@@ -41,7 +51,9 @@ class DeterministicCarterProvider:
         properties = schema.get("properties", {})
         text = " ".join(str(message.get("content", "")) for message in request.messages)
         if "dataset_type" in properties:
-            spec = {"status":"ready","dataset_type":"custom","dataset_name":"deterministic-custom","dataset_description":"Deterministic Carter custom dataset.","requested_record_count":1,"effective_record_count":1,"fields":[{"name":"customer_intent","type":"string","required":True,"description":"Intent."},{"name":"confidence_label","type":"enum","required":True,"description":"Confidence.","enum_values":["high","low"]},{"name":"reasoning_style","type":"array_string","required":False,"description":"Style."}],"source_policy":"selected_documents_only","grounding_required":True,"evidence_required":True,"generation_requirements":["source_grounded","avoid_exact_duplicates"],"user_constraints":[],"clarification":{"required":False,"reason_code":None,"question":None,"reason":None}}
+            requested = re.search(r"(?:exactly|create|generate)\s+(\d+)\s+records", text, re.I)
+            count = min(int(requested.group(1)) if requested else 1, 20)
+            spec = {"status":"ready","dataset_type":"custom","dataset_name":"deterministic-custom","dataset_description":"Deterministic Carter custom dataset.","requested_record_count":count,"effective_record_count":count,"fields":[{"name":"customer_intent","type":"string","required":True,"description":"Intent."},{"name":"confidence_label","type":"enum","required":True,"description":"Confidence.","enum_values":["high","low"]},{"name":"reasoning_style","type":"array_string","required":False,"description":"Style."}],"source_policy":"selected_documents_only","grounding_required":True,"evidence_required":True,"generation_requirements":["source_grounded","avoid_exact_duplicates"],"user_constraints":[],"clarification":{"required":False,"reason_code":None,"question":None,"reason":None}}
             return CarterInferenceResponse(json.dumps(spec), [])
         if "recommendation" in properties:
             if "TEST_QUALITY_WARNING" in text:
@@ -54,8 +66,9 @@ class DeterministicCarterProvider:
             ref = refs[0] if refs else "source_1"
             if "TEST_VALIDATION_FAILURE" in text:
                 ref = "unknown-source"
-            record = {"customer_intent":"support request","confidence_label":"high","reasoning_style":["concise"],"evidence":[{"source_ref":ref,"quote":"Deterministic evidence."}]}
-            return CarterInferenceResponse(json.dumps({"status":"generated","records":[record],"insufficiency":None}), [])
+            count = _record_target(schema) or 1
+            records = [{"customer_intent":f"support request {index + 1}","confidence_label":"high","reasoning_style":["concise"],"evidence":[{"source_ref":ref,"quote":"Deterministic evidence."}]} for index in range(count)]
+            return CarterInferenceResponse(json.dumps({"status":"generated","records":records,"insufficiency":None}), [])
         question = " ".join(str(message.get("content", "")) for message in request.messages)
         if scenario() in {"ask_failure", "cloud_failure"} or "TEST_ASK_FAILURE" in question or "TEST_CLOUD_FAILURE" in question:
             raise ProviderError("CARTER_TEST_FAILURE", "Carter could not complete the request safely.")

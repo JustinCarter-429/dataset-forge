@@ -17,3 +17,11 @@ completed candidate-record count. Batch size is an environment reliability
 setting, not a user-facing control. Smaller batches make more provider calls;
 larger batches make fewer, larger generation turns. The GPT-OSS/vLLM final
 channel limitation for live large generation remains deferred.
+
+## Deterministic certification
+
+A 12-record custom DatasetSpec with batch size 5 completed through the real
+production orchestrator as `[5, 5, 2]`: one planner call, three generation
+calls, and 12 canonically valid records merged in batch order. The test records
+retain their dynamic fields and contain no batch metadata. Focused production
+and quality regression: 16 passed. Live RunPod batching was not attempted.
