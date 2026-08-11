@@ -91,7 +91,13 @@ test('generation failure, validation failure, warning, and completed states use 
   // Carter review warnings remain advisory; completion is owned by the
   // validated dynamic dataset gate rather than legacy fixed-record metrics.
   await expect(page.getByText('Your package is ready')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeEnabled()
+  await expect(page.getByText('Quality check passed')).toBeVisible()
+  await expect(page.getByText(/accepted .* quarantined .* rejected/)).toBeVisible()
+  const downloadButton = page.getByRole('button', { name: 'Download ZIP' })
+  await expect(downloadButton).toBeEnabled()
+  const download = page.waitForEvent('download')
+  await downloadButton.click()
+  expect((await download).suggestedFilename()).toMatch(/\.zip$/)
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')).toHaveLength(0)
 })
