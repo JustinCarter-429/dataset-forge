@@ -327,3 +327,22 @@ production transport, endpoint setting, GPU, or worker image was changed.
 Tool configuration remains unverified and tool, review, revision, and export
 remain blocked until a selected mitigation is validated through the full Carter
 workflow.
+
+## Carter PoC local-runtime acceptance attempt (2026-08-10)
+
+The explicitly selected PoC runtime was evaluated as Local / LM Studio; this
+was not a fallback from RunPod.  The configured default local endpoint
+(`http://127.0.0.1:1234`) was reachable, and its model registry returned the
+intended technical model ID `openai/gpt-oss-20b` (alongside other local models).
+The repository feature flag `LM_STUDIO_ENABLED` was not configured, so the
+production UI would correctly present the runtime as unavailable.  A
+process-local invocation of the existing `LMStudioCarterProvider` with the
+same endpoint, model, and explicit enablement then failed the required minimal
+inference with its safe `LM_STUDIO_UNAVAILABLE` error.
+
+Accordingly the local PoC acceptance stopped before planner, DatasetSpec,
+generation, tools, review, exports, or browser acceptance.  No RunPod request
+was made during the local acceptance attempt, and no runtime fallback occurred.
+RunPod remains implemented, selectable, and deterministically validated, but
+its live generation remains externally blocked by the deployed GPT-OSS/vLLM
+final-channel behavior.
