@@ -8,7 +8,8 @@ from app.carter.runtime import CarterPromptPackage
 from app.domain.extraction_models import (CanonicalExtractedDocument, ExtractionElement,
     ExtractionElementType, ExtractionStatistics, ExtractionValidation)
 from app.providers.deterministic import DeterministicCarterProvider
-from app.services.carter import CarterInferenceResponse
+from app.services.carter import CarterInferenceResponse, RunPodCarterProvider
+from app.providers.contracts import ProviderJob
 from app.carter.runtime import CarterPromptPackageError
 from app.api.routes import generation as generation_route
 
@@ -28,6 +29,26 @@ def test_generation_route_uses_carter_not_legacy_generator():
     source = inspect.getsource(generation_route._run_job)
     assert "CarterDatasetGenerationService" in source
     assert "RunPodDatasetGenerator(" not in source
+
+
+def test_runpod_adapter_accepts_production_prompt_package_request():
+    class Transport:
+        class Config:
+            max_model_len = 1024
+        config = Config()
+        def __init__(self): self.request = None
+        def chat(self, **kwargs):
+            self.request = kwargs
+            return ProviderJob("job-1", "completed", {"choices": [{"message": {"content": "{}"}}]})
+
+    transport = Transport()
+    package = CarterPromptPackage.load()
+    request = package.render(package.resolve_operation("dataset_planning"), {
+        "user_request": "Create one example.", "requested_output_format": "json",
+        "application_limits": {"maximum_dataset_records": 1}, "selected_document_metadata": [],
+    }, runtime="cloud")
+    RunPodCarterProvider(transport).infer(request)
+    assert transport.request["tool_choice"] == "auto"
 
 
 @dataclass

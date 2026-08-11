@@ -52,6 +52,8 @@ class CarterInferenceRequest:
     tools: tuple[dict[str, Any], ...]
     response_schema: dict[str, Any]
     package_fingerprint: str
+    tool_choice: str = "auto"
+    max_tokens: int = 4096
 
 
 class CarterPromptPackage:
