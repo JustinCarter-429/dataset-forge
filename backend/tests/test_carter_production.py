@@ -115,6 +115,19 @@ def test_generation_retries_one_transient_no_content_response(tmp_path):
     assert len(run.dataset.records) == 1
 
 
+def test_generation_allows_a_second_no_content_retry(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), CarterInferenceResponse(json.dumps(_candidate()), []), CarterInferenceResponse(json.dumps(_review()), [])])
+    run = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "retry-three.sqlite3").generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert run.calls["generator"] == 3 and len(run.dataset.records) == 1
+
+
+def test_generation_stops_after_three_no_content_attempts(tmp_path):
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty"), ProviderError("PROVIDER_NO_FINAL_CONTENT", "empty")])
+    with pytest.raises(ProviderError) as error:
+        CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "retry-exhausted.sqlite3").generate(runtime="runpod", user_request="Use source", output_format="json", documents=[document()])
+    assert error.value.code == "PROVIDER_NO_FINAL_CONTENT" and provider.calls == 4
+
+
 def test_non_no_content_provider_error_is_not_retried(tmp_path):
     provider = ScriptedProvider([CarterInferenceResponse(json.dumps(_spec()), []), ProviderError("RUNPOD_AUTH_FAILED", "no")])
     with pytest.raises(ProviderError, match="no"):

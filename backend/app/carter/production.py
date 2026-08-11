@@ -34,10 +34,10 @@ class CarterDatasetGenerationService:
     """Provider-neutral, fail-closed Carter production orchestrator."""
     def __init__(self, package: CarterPromptPackage, provider: CarterProvider, *, knowledge_path: Path,
                  on_phase: Callable[[str, dict[str, int] | None], None] | None = None, cancelled: Callable[[], bool] | None = None,
-                 generation_batch_size: int = 5, generation_no_content_retries: int = 1):
+                 generation_batch_size: int = 5, generation_no_content_retries: int = 2):
         self.package, self.provider = package, provider
         if not 1 <= generation_batch_size <= 20: raise ValueError("generation_batch_size must be between 1 and 20")
-        if not 0 <= generation_no_content_retries <= 1: raise ValueError("generation_no_content_retries must be 0 or 1")
+        if not 0 <= generation_no_content_retries <= 2: raise ValueError("generation_no_content_retries must be between 0 and 2")
         self.knowledge_path, self.on_phase, self.generation_batch_size, self.generation_no_content_retries = knowledge_path, on_phase or (lambda _phase, _batch=None: None), generation_batch_size, generation_no_content_retries
         self.cancelled = cancelled or (lambda: False)
         self.calls: dict[str, int] = {name: 0 for name in ("planner", "generator", "tool_continuation", "review", "revision")}
