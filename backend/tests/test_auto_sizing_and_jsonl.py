@@ -24,6 +24,12 @@ def test_explicit_count_remains_authoritative():
     assert plan.mode == "explicit" and plan.requested == plan.target == 10
 
 
+def test_explicit_count_never_schedules_padding_beyond_source_opportunities():
+    plan = resolve_count("Create exactly 20 source-grounded records.", _document(6), 100)
+    assert plan.mode == "explicit" and plan.requested == 20
+    assert plan.target == 12 and plan.supported_count == 12
+
+
 def test_jsonl_is_one_record_per_parseable_line_and_json_is_readable(tmp_path):
     spec = {"dataset_type": "custom", "fields": [{"name": "question"}]}
     dataset = CarterCanonicalDataset(spec, tuple({"question": f"Q{index}", "evidence": []} for index in range(25)), {})

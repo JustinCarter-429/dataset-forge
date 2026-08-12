@@ -107,7 +107,7 @@ def get_file(file_id: str):
     return {"file": stored.record.model_dump(by_alias=True)}
 
 
-def _run_job(job_id: str, request: GenerationRequest):
+def _run_job(job_id: str, request: GenerationRequest, resume: bool = False):
     stored = job_store.get_file(request.file_id or "")
     if not stored: return
     settings = get_settings()
@@ -116,14 +116,23 @@ def _run_job(job_id: str, request: GenerationRequest):
         job_store.update_job(job_id, status=name, stage=name, progress={"percent": percent, "currentStage": current_stage or name})
     try:
         if job_store.is_cancelled(job_id): return
-        stored.record = stored.record.model_copy(update={"status": "extracting"})
-        stage("extracting", 15)
-        stored_files, extracted = _combined_document(request)
-        stage("analyzing", 30)
-        analysis = analyze_extraction(extracted)
-        job_store.update_job(job_id, extraction=extracted, analysis=analysis)
-        job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "ready"}))
-        stage("planning", 35, "planning")
+        existing = job_store.get_job(job_id)
+        checkpoint = existing.checkpoint if resume and existing else None
+        if checkpoint and existing and existing.extraction:
+            extracted = existing.extraction
+            stored_files = [stored]
+            documents = [extracted]
+            stage("generating", int(existing.progress.get("percent", 55)), "generating")
+        else:
+            stored.record = stored.record.model_copy(update={"status": "extracting"})
+            stage("extracting", 15)
+            stored_files, extracted = _combined_document(request)
+            stage("analyzing", 30)
+            analysis = analyze_extraction(extracted)
+            job_store.update_job(job_id, extraction=extracted, analysis=analysis)
+            job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "ready"}))
+            stage("planning", 35, "planning")
+            documents = [item.extraction for item in stored_files if item.extraction]
         config = provider_config_from_env()
         runtime = request.runtime
         if runtime not in {"runpod", "local_lm_studio"}: raise ValueError("Unsupported Carter runtime.")
@@ -157,11 +166,25 @@ def _run_job(job_id: str, request: GenerationRequest):
             changes = {"status": phase, "stage": phase, "progress": {"percent": percent, "currentStage": phase}, "provider": {"name": runtime, "model": availability.get("model"), "state": "running"}}
             if batch: changes["batch"] = BatchProgress(**batch)
             job_store.update_job(job_id, **changes)
-        documents = [item.extraction for item in stored_files if item.extraction]
         package = CarterPromptPackage.load()
-        generation_service = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id), generation_batch_size=settings.carter_generation_batch_size, generation_no_content_retries=settings.carter_generation_no_content_retries)
+        def save_checkpoint(snapshot):
+            snapshot = dict(snapshot)
+            snapshot["request"] = request.model_dump(by_alias=True)
+            snapshot["job_id"] = job_id
+            snapshot["runtime"] = runtime
+            snapshot["model"] = availability.get("model")
+            snapshot["prompt_version"] = package.package_version
+            snapshot["schema_version"] = "carter-1.0"
+            snapshot["resume_round_count"] = (job_store.get_job(job_id).resume_round_count if job_store.get_job(job_id) else 0)
+            snapshot["eligible_opportunity_ids"] = list(snapshot["opportunity_state"])
+            snapshot["covered_opportunity_ids"] = [key for key, value in snapshot["opportunity_state"].items() if value.get("state") == "accepted"]
+            snapshot["remaining_opportunity_ids"] = [key for key, value in snapshot["opportunity_state"].items() if value.get("state") in {"uncovered", "assigned"}]
+            snapshot["failed_batch"] = None
+            snapshot["stop_reason"] = None
+            job_store.update_job(job_id, checkpoint=snapshot, recoverable=False, resume_available=False)
+        generation_service = CarterDatasetGenerationService(package, provider, knowledge_path=settings.carter_knowledge_database.parent / f"{job_id}.sqlite3", on_phase=on_phase, cancelled=lambda: job_store.is_cancelled(job_id), generation_batch_size=settings.carter_generation_batch_size, generation_no_content_retries=settings.carter_generation_no_content_retries, on_checkpoint=save_checkpoint)
         generation_service.auto_max_records = settings.carter_auto_max_records
-        result = generation_service.generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents)
+        result = generation_service.generate(runtime=runtime, user_request=request.dataset_prompt.strip(), output_format=request.output_format.value, documents=documents, checkpoint=checkpoint)
         if job_store.is_cancelled(job_id): return
         stage("validating", 90)
         allowed_refs = {element.element_id for document in documents for element in document.elements if element.text.strip()}
@@ -174,14 +197,14 @@ def _run_job(job_id: str, request: GenerationRequest):
         {"jsonl": export_canonical_jsonl, "json": export_canonical_json, "csv": export_canonical_csv}[request.output_format.value](export_dataset, output)
         quality_payload = quality.as_dict()
         plan = result.count_plan
-        manifest = GenerationManifest(job_id=job_id, source_file=extracted.source_filename, requested_format=request.output_format, record_count=len(export_dataset.records), phase="carter_1_0", generator="carter_1_0", provider=runtime, model=str(availability.get("model") or "unknown"), prompt_version=package.package_version, schema_version="carter-1.0", validation_status=quality_payload["status"], quality_review_status=result.review["recommendation"], recordCountMode=plan.mode if plan else "explicit", requestedRecordCount=plan.requested if plan else None, recommendedRecordCount=plan.recommended if plan else None, estimatedRecordCountMin=plan.minimum if plan else None, estimatedRecordCountMax=plan.maximum if plan else None, generatedCandidateCount=len(result.dataset.records), acceptedRecordCount=len(export_dataset.records), exportedRecordCount=len(export_dataset.records), autoStopReason=result.auto_stop_reason)
+        manifest = GenerationManifest(job_id=job_id, source_file=extracted.source_filename, requested_format=request.output_format, record_count=len(export_dataset.records), phase="carter_1_0", generator="carter_1_0", provider=runtime, model=str(availability.get("model") or "unknown"), prompt_version=package.package_version, schema_version="carter-1.0", validation_status=quality_payload["status"], quality_review_status=result.review["recommendation"], recordCountMode=plan.mode if plan else "explicit", requestedRecordCount=plan.requested if plan else None, recommendedRecordCount=plan.recommended if plan else None, estimatedRecordCountMin=plan.minimum if plan else None, estimatedRecordCountMax=plan.maximum if plan else None, initialGenerationTarget=plan.target if plan else len(result.dataset.records), generatedCandidateCount=len(result.dataset.records), acceptedRecordCount=len(export_dataset.records), quarantinedRecordCount=quality.quarantined_records, rejectedRecordCount=quality.rejected_records, exportedRecordCount=len(export_dataset.records), generationBatchCount=sum(1 for _ in range(0, plan.target if plan else len(result.dataset.records), settings.carter_generation_batch_size)), generationProviderAttemptCount=result.calls["generator"] + result.calls["tool_continuation"], reviewExecuted=True, reviewBatchCount=len(generation_service.review_batch_sizes), reviewFindingCount=len(result.review["issues"]), verifiedReviewFindingCount=len(result.review.get("verifiedIssues", [])), unverifiedReviewFindingCount=len(result.review.get("unverifiedAdvisoryFindings", [])), revisionRoundCount=result.revisions, revisionRecordCount=sum(len(issue.get("affected_record_refs", [])) for issue in result.review.get("verifiedIssues", [])) if result.revisions else 0, groundingEvaluated=True, groundedRecordCount=quality.accepted_records, groundingFailureCount=quality.grounding_failures, duplicateCount=quality.duplicate_records, autoStopReason=result.auto_stop_reason)
         ZipDatasetPackager().package(output, manifest, archive, validation_report=quality_payload, quality_review=result.review, dataset_spec=result.specification)
         validation = ValidationSummary(schemaValid=quality.schema_failures == 0, totalRecords=quality.total_records, validRecords=quality.accepted_records, invalidRecords=quality.rejected_records + quality.quarantined_records, groundingStatus="passed" if quality.grounding_failures == 0 else "failed", groundedRecords=quality.accepted_records, totalEvidenceItems=sum(len(record["evidence"]) for record in export_dataset.records), verifiedEvidenceItems=sum(len(record["evidence"]) for record in export_dataset.records), qualityStatus="passed" if not quality.findings else "passed_with_warnings", exactDuplicatesRemoved=quality.duplicate_records)
         stage("packaging", 96)
         review_summary = ReviewSummary(status=result.review["recommendation"], issueCount=len(result.review["issues"]), blockingIssueCount=sum(issue["severity"] == "major" for issue in result.review["issues"]), warningCount=sum(issue["severity"] == "warning" for issue in result.review["issues"]), revisionAttempted=bool(result.revisions), revisionSucceeded=bool(result.revisions), revisionAttempts=result.revisions, reviewAttempts=result.calls["review"], providerJobs=sum(result.calls.values()))
         revision_telemetry = result.revision_telemetry
         post_generation_telemetry = generation_service.post_generation_telemetry
-        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(export_dataset.records), "finalRecordCount": len(export_dataset.records), "sizeBytes": archive.stat().st_size, "qualitySummary": quality_payload, "recordCountMode": plan.mode if plan else "explicit", "requestedRecordCount": plan.requested if plan else None, "recommendedRecordCount": plan.recommended if plan else None, "estimatedRecordCountMin": plan.minimum if plan else None, "estimatedRecordCountMax": plan.maximum if plan else None, "autoStopReason": result.auto_stop_reason}, validation=validation, review=review_summary, package_ready=True, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed, "reviewRecordMap": result.review_record_map, "revisionTelemetry": revision_telemetry, "postGenerationTelemetry": post_generation_telemetry, "telemetryHistory": locals().get("telemetry_history", []), **_provider_diagnostics(transport), "telemetry": _safe_provider_telemetry(transport)}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
+        job_store.update_job(job_id, status="completed", stage="completed", progress={"percent": 100, "currentStage": "completed"}, output={"requestedFormat": request.output_format.value, "recordCount": len(export_dataset.records), "finalRecordCount": len(export_dataset.records), "sizeBytes": archive.stat().st_size, "qualitySummary": quality_payload, "recordCountMode": plan.mode if plan else "explicit", "requestedRecordCount": plan.requested if plan else None, "recommendedRecordCount": plan.recommended if plan else None, "estimatedRecordCountMin": plan.minimum if plan else None, "estimatedRecordCountMax": plan.maximum if plan else None, "autoStopReason": result.auto_stop_reason}, validation=validation, review=review_summary, package_ready=True, recoverable=False, resume_available=False, provider={"name": runtime, "model": availability.get("model"), "state": "completed", "carterCalls": result.calls, "tools": result.tools_executed, "reviewRecordMap": result.review_record_map, "revisionTelemetry": revision_telemetry, "postGenerationTelemetry": post_generation_telemetry, "telemetryHistory": locals().get("telemetry_history", []), **_provider_diagnostics(transport), "telemetry": _safe_provider_telemetry(transport)}, capabilities={"extraction": "docling_pdf_docx_or_plain_text", "generation": "carter_1_0", "groundingValidation": "carter_dynamic_evidence", "qualityReview": "carter_bounded_review"})
     except ExtractionError as exc:
         logger.warning("Extraction failed for job %s: %s", job_id, exc.code)
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
@@ -193,7 +216,14 @@ def _run_job(job_id: str, request: GenerationRequest):
         if job_store.is_cancelled(job_id): return
         safe_code = _failure_code(exc.code)
         current = job_store.get_job(job_id)
-        job_store.update_job(job_id, status="failed", stage="validating" if review_code else (current.stage if current else "generating"), progress=(current.progress if current else {"percent": 35, "currentStage": "generating"}), provider={"name": runtime if 'runtime' in locals() else "runpod", "state": "failed", "telemetryHistory": locals().get("telemetry_history", []), **_provider_diagnostics(getattr(provider, "provider", provider)), "telemetry": _safe_provider_telemetry(getattr(provider, "provider", provider))}, error=_safe_error(safe_code, "Dataset quality review could not be completed safely." if review_code else exc.message))
+        recoverable = bool(current and current.checkpoint and not review_code and safe_code in {"PROVIDER_NO_FINAL_CONTENT", "STRUCTURED_OUTPUT_INVALID", "DYNAMIC_SCHEMA_INVALID"})
+        if recoverable and current and current.checkpoint:
+            saved_checkpoint = dict(current.checkpoint)
+            saved_checkpoint["failed_batch"] = current.batch.current_batch if current.batch else None
+            saved_checkpoint["stop_reason"] = "provider_failure"
+            job_store.update_job(job_id, checkpoint=saved_checkpoint)
+        message = "Generation paused after %s records. Carter couldn't complete the next batch after three attempts, but your completed work has been preserved. Resume to continue from where it stopped." % (current.batch.records_generated if current and current.batch else 0) if recoverable else ("Dataset quality review could not be completed safely." if review_code else exc.message)
+        job_store.update_job(job_id, status="failed", stage="validating" if review_code else (current.stage if current else "generating"), progress=(current.progress if current else {"percent": 35, "currentStage": "generating"}), recoverable=recoverable, resume_available=recoverable, provider={"name": runtime if 'runtime' in locals() else "runpod", "state": "failed", "telemetryHistory": locals().get("telemetry_history", []), **_provider_diagnostics(getattr(provider, "provider", provider)), "telemetry": _safe_provider_telemetry(getattr(provider, "provider", provider))}, error=_safe_error(safe_code, message))
     except CarterPromptPackageError as exc:
         logger.warning("Carter contract failed for job %s", job_id)
         job_store.update_file(request.file_id or "", record=stored.record.model_copy(update={"status": "failed"}))
@@ -254,6 +284,34 @@ def cancel_generation(generation_id: str):
         try: provider.cancel(str(external_id))
         except ProviderError: logger.warning("Provider cancellation failed for job %s", generation_id)
     return (job or current).model_dump(by_alias=True)
+
+
+@router.post("/generations/{generation_id}/resume")
+def resume_generation(generation_id: str, background_tasks: BackgroundTasks):
+    """Explicit, same-process recovery from a saved successful-batch checkpoint."""
+    current = job_store.get_job(generation_id)
+    if not current: raise HTTPException(404, "Generation not found.")
+    if not current.resume_available or not current.recoverable or not current.checkpoint:
+        raise HTTPException(409, "This generation cannot be resumed safely.")
+    maximum_rounds = 3
+    if current.resume_round_count >= maximum_rounds:
+        job_store.update_job(generation_id, resume_available=False)
+        raise HTTPException(409, "The maximum number of explicit resume attempts has been reached.")
+    if not job_store.try_acquire_generation():
+        # A concurrent click returns the existing state and never starts another provider execution.
+        return current.model_dump(by_alias=True)
+    raw_request = current.checkpoint.get("request")
+    try:
+        request = GenerationRequest.model_validate(raw_request)
+    except Exception:
+        job_store.release_generation()
+        job_store.update_job(generation_id, recoverable=False, resume_available=False)
+        raise HTTPException(409, "The saved generation checkpoint is incomplete.")
+    job_store.update_job(generation_id, status="generating", stage="generating", recoverable=False,
+                         resume_available=False, resume_round_count=current.resume_round_count + 1,
+                         error=None)
+    background_tasks.add_task(_run_job, generation_id, request, True)
+    return job_store.get_job(generation_id).model_dump(by_alias=True)
 
 
 @router.get("/generations/{generation_id}")

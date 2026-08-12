@@ -154,6 +154,21 @@ class GenerationManifest(BaseModel):
     generated_candidate_count: int = Field(0, alias="generatedCandidateCount")
     accepted_record_count: int = Field(0, alias="acceptedRecordCount")
     exported_record_count: int = Field(0, alias="exportedRecordCount")
+    quarantined_record_count: int = Field(0, alias="quarantinedRecordCount")
+    rejected_record_count: int = Field(0, alias="rejectedRecordCount")
+    initial_generation_target: int = Field(0, alias="initialGenerationTarget")
+    generation_provider_attempt_count: int = Field(0, alias="generationProviderAttemptCount")
+    review_executed: bool = Field(False, alias="reviewExecuted")
+    review_batch_count: int = Field(0, alias="reviewBatchCount")
+    review_finding_count: int = Field(0, alias="reviewFindingCount")
+    verified_review_finding_count: int = Field(0, alias="verifiedReviewFindingCount")
+    unverified_review_finding_count: int = Field(0, alias="unverifiedReviewFindingCount")
+    revision_round_count: int = Field(0, alias="revisionRoundCount")
+    revision_record_count: int = Field(0, alias="revisionRecordCount")
+    grounding_evaluated: bool = Field(False, alias="groundingEvaluated")
+    grounded_record_count: int = Field(0, alias="groundedRecordCount")
+    grounding_failure_count: int = Field(0, alias="groundingFailureCount")
+    duplicate_count: int = Field(0, alias="duplicateCount")
     auto_stop_reason: str | None = Field(None, alias="autoStopReason")
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -250,6 +265,14 @@ class GenerationJob(BaseModel):
     runtime: str | None = None
     batch: BatchProgress | None = None
     error: dict[str, str] | None = None
+    checkpoint: dict[str, object] | None = None
+    recoverable: bool = False
+    resume_available: bool = Field(False, alias="resumeAvailable")
+    resume_round_count: int = Field(0, alias="resumeRoundCount")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), alias="createdAt")
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), alias="updatedAt")
+    last_progress_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), alias="lastProgressAt")
+    current_stage_started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), alias="currentStageStartedAt")
 
     model_config = {"populate_by_name": True}
 

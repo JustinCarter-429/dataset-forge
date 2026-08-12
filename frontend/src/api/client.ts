@@ -26,6 +26,7 @@ export async function createGeneration(fileId: string, datasetPrompt: string, ou
 
 export function getGeneration(id: string) { return request<GenerationJob>(`/generations/${encodeURIComponent(id)}`) }
 export function cancelGeneration(id: string) { return request<GenerationJob>(`/generations/${encodeURIComponent(id)}/cancel`, { method: 'POST' }) }
+export function resumeGeneration(id: string) { return request<GenerationJob>(`/generations/${encodeURIComponent(id)}/resume`, { method: 'POST' }) }
 
 export function downloadUrl(jobId: string) { return `${baseUrl}/download/${encodeURIComponent(jobId)}` }
 export function generationDownloadUrl(id: string) { return `${baseUrl}/generations/${encodeURIComponent(id)}/download` }

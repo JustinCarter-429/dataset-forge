@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
+from datetime import datetime, timezone
 from ..domain.models import GenerationJob, UploadedFile
 from ..domain.extraction_models import CanonicalExtractedDocument
 
@@ -72,6 +73,12 @@ class InMemoryJobStore:
             if not current: return None
             if job_id in self._cancel_requested and changes.get("status") not in {"cancelled"}:
                 return current
+            now = datetime.now(timezone.utc)
+            changes.setdefault("updated_at", now)
+            if any(key in changes for key in ("status", "stage", "progress", "batch")):
+                changes.setdefault("last_progress_at", now)
+            if "stage" in changes and changes["stage"] != current.stage:
+                changes.setdefault("current_stage_started_at", now)
             updated = current.model_copy(update=changes)
             self._jobs[job_id] = updated
             return updated

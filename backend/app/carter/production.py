@@ -34,6 +34,7 @@ class CarterRunResult:
     count_plan: CountPlan | None = None
     auto_stop_reason: str | None = None
     review_record_map: list[dict[str, str]] = field(default_factory=list)
+    opportunity_state: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 class CarterDatasetGenerationService:
@@ -43,18 +44,24 @@ class CarterDatasetGenerationService:
     MAX_DYNAMIC_SCHEMA_REGENERATIONS = 2
     MAX_POST_GENERATION_PROVIDER_ATTEMPTS = 3
     def __init__(self, package: CarterPromptPackage, provider: CarterProvider, *, knowledge_path: Path,
-                 on_phase: Callable[[str, dict[str, int] | None], None] | None = None, cancelled: Callable[[], bool] | None = None,
-                 generation_batch_size: int = 5, generation_no_content_retries: int = 2):
+                  on_phase: Callable[[str, dict[str, int] | None], None] | None = None, cancelled: Callable[[], bool] | None = None,
+                  generation_batch_size: int = 5, generation_no_content_retries: int = 2,
+                  on_checkpoint: Callable[[dict[str, Any]], None] | None = None):
         self.package, self.provider = package, provider
         if not 1 <= generation_batch_size <= 20: raise ValueError("generation_batch_size must be between 1 and 20")
         if not 0 <= generation_no_content_retries <= 2: raise ValueError("generation_no_content_retries must be between 0 and 2")
         self.knowledge_path, self.on_phase, self.generation_batch_size, self.generation_no_content_retries = knowledge_path, on_phase or (lambda _phase, _batch=None: None), generation_batch_size, generation_no_content_retries
         self.cancelled = cancelled or (lambda: False)
         self.auto_max_records = 100
+        self.quality_review_batch_size = 20
         self.calls: dict[str, int] = {name: 0 for name in ("planner", "generator", "tool_continuation", "review", "revision", "revision_repair")}
         self.invocation_ledger: list[dict[str, str]] = []
         self.revision_telemetry: list[dict[str, Any]] = []
         self.post_generation_telemetry: list[dict[str, Any]] = []
+        self.review_batch_sizes: list[int] = []
+        self.auto_novelty_patience = 2
+        self.opportunity_state: dict[str, dict[str, str]] = {}
+        self.on_checkpoint = on_checkpoint or (lambda _checkpoint: None)
 
     def _phase(self, name: str, batch: dict[str, int] | None = None) -> None:
         try:
@@ -218,7 +225,7 @@ class CarterDatasetGenerationService:
                           candidate: CarterCanonicalDataset, review: dict[str, Any], user_request: str,
                           document_ids: set[str], source_units: list[dict[str, Any]], allowed_refs: set[str],
                           runtime: str, repair_errors: list[str] | None = None) -> Any:
-        """Build a full-dataset revision request from the same authoritative DatasetSpec."""
+        """Build a bounded targeted revision request from the DatasetSpec."""
         inputs: dict[str, Any] = {
             "dataset_spec": specification,
             "user_request": user_request,
@@ -233,9 +240,9 @@ class CarterDatasetGenerationService:
             "candidate_records": list(candidate.records),
             "review": review,
             "revision_contract": {
-                "mode": "full_canonical_dataset",
+                "mode": "targeted_records_only",
                 "required_record_count": requested_records,
-                "instruction": "Return only the complete canonical dataset object. Preserve DatasetSpec field names, types, evidence, and record count.",
+                "instruction": "Return only replacements for the supplied affected records. Preserve DatasetSpec field names, types, evidence, and record count.",
             },
         }
         if repair_errors:
@@ -252,7 +259,7 @@ class CarterDatasetGenerationService:
         if not isinstance(records, list):
             raise CarterPromptPackageError("Revision did not return a records array.")
         if len(records) != requested_records:
-            raise CarterPromptPackageError("Revision returned an incorrect full-dataset record count.")
+            raise CarterPromptPackageError("Revision returned an incorrect targeted record count.")
         return validate_canonical_dataset(self.package, specification, records,
                                           allowed_source_refs=allowed_refs,
                                           batch_count=requested_records)
@@ -289,7 +296,7 @@ class CarterDatasetGenerationService:
         return value
 
     def generate(self, *, runtime: str, user_request: str, output_format: str,
-                 documents: list[CanonicalExtractedDocument]) -> CarterRunResult:
+                  documents: list[CanonicalExtractedDocument], checkpoint: dict[str, Any] | None = None) -> CarterRunResult:
         # Loading here, before any provider invocation, keeps package corruption fail-closed.
         if not self.package.package_version.startswith("1.0"):
             raise CarterPromptPackageError("Unsupported Carter package version.")
@@ -302,37 +309,60 @@ class CarterDatasetGenerationService:
         if not allowed_refs:
             raise CarterPromptPackageError("No usable source units are available.")
 
-        self._phase("planning")
-        planner = self.package.resolve_operation("dataset_planning")
         logical_runtime = "cloud" if runtime == "runpod" else "local"
-        plan_request = self.package.render(planner, {"user_request": user_request,
-            "requested_output_format": output_format, "application_limits": {"maximum_dataset_records": self.auto_max_records},
-            "selected_document_metadata": [{"document_id": d.document_id, "name": d.source_filename} for d in documents]}, runtime=logical_runtime)
-        specification = self._json(self._infer(plan_request, "planner").content, "Planner returned malformed JSON.")
-        try:
-            self.package.validate(planner.output_schema, specification)
-        except CarterPromptPackageError as exc:
-            raise ProviderError("DYNAMIC_SCHEMA_INVALID", "Planner result did not match the application schema.") from exc
+        if checkpoint:
+            specification = dict(checkpoint["specification"])
+            count_plan = CountPlan(**checkpoint["count_plan"])
+            batch_targets = list(checkpoint["batch_targets"])
+            requested_records = count_plan.target
+            merged_records = list(checkpoint["records"])
+            self.opportunity_state = dict(checkpoint["opportunity_state"])
+            novelty_failures = int(checkpoint.get("novelty_failures", 0))
+            start_batch = int(checkpoint["next_batch"])
+            tools_executed: list[str] = list(checkpoint.get("tools_executed", []))
+        else:
+            self._phase("planning")
+            planner = self.package.resolve_operation("dataset_planning")
+            plan_request = self.package.render(planner, {"user_request": user_request,
+                "requested_output_format": output_format, "application_limits": {"maximum_dataset_records": self.auto_max_records},
+                "selected_document_metadata": [{"document_id": d.document_id, "name": d.source_filename} for d in documents]}, runtime=logical_runtime)
+            specification = self._json(self._infer(plan_request, "planner").content, "Planner returned malformed JSON.")
+            try:
+                self.package.validate(planner.output_schema, specification)
+            except CarterPromptPackageError as exc:
+                raise ProviderError("DYNAMIC_SCHEMA_INVALID", "Planner result did not match the application schema.") from exc
         # Carter 1.0's planner contract has a frozen fallback.  Count policy is
         # deliberately applied after validating that contract, so no silent
         # default can determine production generation.
-        combined = documents[0].model_copy(update={"elements": [element for document in documents for element in document.elements]})
-        count_plan = resolve_count(user_request, combined, self.auto_max_records)
+        if not checkpoint:
+            combined = documents[0].model_copy(update={"elements": [element for document in documents for element in document.elements]})
+            count_plan = resolve_count(user_request, combined, self.auto_max_records)
         # Old internal callers used terse non-dataset commands such as "Use
         # source". They are retained only as a compatibility shim; ordinary
         # natural-language dataset requests always enter auto mode.
-        if count_plan.mode == "auto" and not any(word in user_request.lower() for word in ("dataset", "record", "example", "question", "answer", "classification", "scenario", "instruction")):
-            count_plan = CountPlan("explicit", specification["effective_record_count"], None, None, None, specification["effective_record_count"], False)
-        specification = dict(specification)
-        specification["requested_record_count"] = count_plan.requested
-        specification["effective_record_count"] = count_plan.target
-        requested_records = count_plan.target
-        batch_targets = [min(self.generation_batch_size, requested_records - offset) for offset in range(0, requested_records, self.generation_batch_size)]
+        legacy_compat = not checkpoint and count_plan.mode == "auto" and not any(word in user_request.lower() for word in ("dataset", "record", "example", "question", "answer", "classification", "scenario", "instruction"))
+        if legacy_compat:
+            count_plan = CountPlan("explicit", specification["effective_record_count"], None, None, None,
+                                   specification["effective_record_count"], False,
+                                   specification["effective_record_count"])
+        if not checkpoint:
+            specification = dict(specification)
+            specification["requested_record_count"] = count_plan.requested
+            specification["effective_record_count"] = count_plan.target
+            requested_records = count_plan.target
+            batch_targets = [min(self.generation_batch_size, requested_records - offset) for offset in range(0, requested_records, self.generation_batch_size)]
+            merged_records: list[dict[str, Any]] = []
+            self.opportunity_state = {f"opportunity_{index:06d}": {"state": "uncovered"} for index in range(1, count_plan.supported_count + 1)}
+            novelty_failures = 0
+            start_batch = 1
+            tools_executed: list[str] = []
 
         registry = CarterToolRegistry(self.package, build_knowledge_tool_handlers(store, document_ids, allowed_refs))
-        tools_executed: list[str] = []
-        merged_records: list[dict[str, Any]] = []
         for batch_index, target in enumerate(batch_targets, 1):
+            if batch_index < start_batch:
+                continue
+            opportunity_ids = list(self.opportunity_state)[len(merged_records):len(merged_records) + target]
+            for opportunity_id in opportunity_ids: self.opportunity_state[opportunity_id]["state"] = "assigned"
             batch = {"currentBatch": batch_index, "totalBatches": len(batch_targets), "recordsGenerated": len(merged_records), "recordsRequested": requested_records, "currentBatchTarget": target}
             batch_header = self._batch_execution_header(requested_records=requested_records, batch_number=batch_index,
                                                         total_batches=len(batch_targets), records_completed=len(merged_records),
@@ -420,11 +450,32 @@ class CarterDatasetGenerationService:
                         validated = validate_canonical_dataset(self.package, specification, records, allowed_source_refs=allowed_refs, batch_count=target)
                     except CarterPromptPackageError as exc:
                         raise ProviderError("DYNAMIC_SCHEMA_INVALID", "Generated records did not match the DatasetSpec schema.") from exc
-                    merged_records.extend(validated.records); break
+                    before = {hashlib.sha256(json.dumps(record, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest() for record in merged_records}
+                    new_records = []
+                    for offset, record in enumerate(validated.records):
+                        fingerprint = hashlib.sha256(json.dumps(record, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+                        opportunity_id = opportunity_ids[offset] if offset < len(opportunity_ids) else None
+                        if count_plan.mode == "auto" and fingerprint in before:
+                            if opportunity_id: self.opportunity_state[opportunity_id]["state"] = "duplicate"
+                            continue
+                        before.add(fingerprint); new_records.append(record)
+                        if opportunity_id: self.opportunity_state[opportunity_id]["state"] = "accepted"
+                    if count_plan.mode == "auto" and not new_records:
+                        novelty_failures += 1
+                    else:
+                        novelty_failures = 0
+                    merged_records.extend(new_records); break
                 self._phase("tool_use", batch); call = action["tool_call"]; result = registry.execute(call["name"], call["arguments"])
                 batch_tools.append(call["name"]); tools_executed.append(call["name"]); messages.append({"role": "tool", "name": call["name"], "content": json.dumps(result, separators=(",", ":"))})
             batch["recordsGenerated"] = len(merged_records); self._phase("generating", batch)
-        candidate = validate_canonical_dataset(self.package, specification, merged_records, allowed_source_refs=allowed_refs, batch_count=requested_records)
+            self.on_checkpoint({"specification": specification, "count_plan": count_plan.__dict__, "batch_targets": batch_targets,
+                                "records": merged_records, "record_hashes": [hashlib.sha256(json.dumps(record, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest() for record in merged_records],
+                                "opportunity_state": self.opportunity_state, "next_batch": batch_index + 1,
+                                "successful_batches": list(range(1, batch_index + 1)), "novelty_failures": novelty_failures,
+                                "tools_executed": tools_executed})
+            if count_plan.mode == "auto" and novelty_failures >= self.auto_novelty_patience:
+                break
+        candidate = validate_canonical_dataset(self.package, specification, merged_records, allowed_source_refs=allowed_refs, batch_count=len(merged_records))
 
         self._phase("reviewing")
         review_op = self.package.resolve_operation("quality_review")
@@ -434,26 +485,52 @@ class CarterDatasetGenerationService:
             review_map.append({"review_ref": f"review_record_{index:06d}", "canonical_index": str(index), "normalized_hash": normalized_hash})
         refs = {item["review_ref"] for item in review_map}
         review_lookup = {item["review_ref"]: item for item in review_map}
-        review_request = self.package.render(review_op, {"dataset_spec": specification, "user_request": user_request,
-            "records": [{"record_ref": item["review_ref"], "canonical_index": item["canonical_index"], "normalized_hash": item["normalized_hash"], "record": record} for item, record in zip(review_map, candidate.records)]}, runtime=logical_runtime)
-        review = self._review_with_retries(review_request, refs=refs,
-                                            fields={field["name"] for field in specification["fields"]})
+        review_batches = [list(zip(review_map[index:index + self.quality_review_batch_size], candidate.records[index:index + self.quality_review_batch_size])) for index in range(0, len(candidate.records), self.quality_review_batch_size)]
+        review_results = []
+        for review_batch in review_batches:
+            self.review_batch_sizes.append(len(review_batch))
+            batch_refs = {item["review_ref"] for item, _record in review_batch}
+            review_request = self.package.render(review_op, {"dataset_spec": specification, "user_request": user_request,
+                "records": [{"record_ref": item["review_ref"], "canonical_index": item["canonical_index"], "normalized_hash": item["normalized_hash"], "record": record} for item, record in review_batch]}, runtime=logical_runtime)
+            review_results.append(self._review_with_retries(review_request, refs=batch_refs,
+                fields={field["name"] for field in specification["fields"]}))
+        issues = []
+        seen_issues = set()
+        for result in review_results:
+            for issue in result["issues"]:
+                key = json.dumps(issue, sort_keys=True, separators=(",", ":"))
+                if key not in seen_issues:
+                    seen_issues.add(key); issues.append(issue)
+        review = {"status": "completed", "recommendation": "revise_recommended" if any(result["recommendation"] == "revise_recommended" for result in review_results) else "accept", "summary": " ".join(result["summary"] for result in review_results)[:500], "issues": issues, "reviewBatchCount": len(review_batches)}
         review = self._verified_review(review, review_lookup)
         revisions = 0
         if review["recommendation"] == "revise_recommended":
             authorize_revision(revisions, True); revisions = 1
             self._phase("revising")
-            # Revision always returns the complete candidate set, so it must not
-            # reuse the final generation batch's (possibly smaller) schema.
-            revision_schema = self.package.compile_generation_schema(specification, requested_records)
+            affected_refs = {ref for issue in review.get("verifiedIssues", []) for ref in issue.get("affected_record_refs", [])}
+            affected_positions = [index for index, item in enumerate(review_map) if item["review_ref"] in affected_refs]
+            if not affected_positions:
+                review["recommendation"] = "accept"; review["revisionSkipReason"] = "unverified_ai_finding"
+                revisions = 0
+                return CarterRunResult(candidate, specification, review, dict(self.calls), tools_executed, revisions, self.revision_telemetry, count_plan, "source_coverage_complete", review_map, self.opportunity_state)
+            affected_records = [candidate.records[index] for index in affected_positions]
+            # Retain the frozen-contract compatibility path for terse legacy
+            # callers. New Dataset Forge requests always receive a targeted
+            # revision payload.
+            revision_records = list(candidate.records) if legacy_compat else affected_records
+            revision_positions = list(range(len(candidate.records))) if legacy_compat else affected_positions
+            revision_schema = self.package.compile_generation_schema(specification, len(revision_records))
             revision_generator = self.package.resolve_operation("dataset_generation", revision_schema)
             revision_request = self._revision_request(generator=revision_generator, specification=specification,
-                requested_records=requested_records, candidate=candidate, review=review, user_request=user_request,
+                requested_records=len(revision_records), candidate=CarterCanonicalDataset(candidate.specification, tuple(revision_records), candidate.compiled_schema), review=review, user_request=user_request,
                 document_ids=document_ids, source_units=source_units, allowed_refs=allowed_refs, runtime=logical_runtime)
             response = self._infer(revision_request, "revision")
             try:
-                candidate = self._validate_revision(content=response.content, specification=specification,
-                    requested_records=requested_records, allowed_refs=allowed_refs)
+                replacements = self._validate_revision(content=response.content, specification=specification,
+                    requested_records=len(revision_records), allowed_refs=allowed_refs)
+                revised_records = list(candidate.records)
+                for index, replacement in zip(revision_positions, replacements.records): revised_records[index] = replacement
+                candidate = CarterCanonicalDataset(candidate.specification, tuple(revised_records), candidate.compiled_schema)
                 self.revision_telemetry.append(self._revision_snapshot(phase="revision", attempt=1, response=response,
                     json_parse="PASS", schema="PASS", record_count=len(candidate.records)))
             except CarterPromptPackageError as exc:
@@ -462,18 +539,24 @@ class CarterDatasetGenerationService:
                 # One bounded structural repair is distinct from the one
                 # application-authorized quality revision and never regenerates batches.
                 repair_request = self._revision_request(generator=revision_generator, specification=specification,
-                    requested_records=requested_records, candidate=candidate, review=review, user_request=user_request,
+                    requested_records=len(revision_records), candidate=CarterCanonicalDataset(candidate.specification, tuple(revision_records), candidate.compiled_schema), review=review, user_request=user_request,
                     document_ids=document_ids, source_units=source_units, allowed_refs=allowed_refs, runtime=logical_runtime,
                     repair_errors=[exc.detail])
                 repair = self._infer(repair_request, "revision_repair")
                 try:
-                    candidate = self._validate_revision(content=repair.content, specification=specification,
-                        requested_records=requested_records, allowed_refs=allowed_refs)
+                    replacements = self._validate_revision(content=repair.content, specification=specification,
+                        requested_records=len(revision_records), allowed_refs=allowed_refs)
+                    revised_records = list(candidate.records)
+                    for index, replacement in zip(revision_positions, replacements.records): revised_records[index] = replacement
+                    candidate = CarterCanonicalDataset(candidate.specification, tuple(revised_records), candidate.compiled_schema)
                     self.revision_telemetry.append(self._revision_snapshot(phase="revision_repair", attempt=1, response=repair,
                         json_parse="PASS", schema="PASS", record_count=len(candidate.records)))
                 except CarterPromptPackageError:
                     self.revision_telemetry.append(self._revision_snapshot(phase="revision_repair", attempt=1, response=repair,
                         json_parse="PASS", schema="FAIL", safe_error_code="DYNAMIC_SCHEMA_INVALID"))
                     raise
-        stop = "explicit_target_reached" if count_plan.mode == "explicit" else ("hard_cap_reached" if count_plan.hard_cap_limited else "source_coverage_complete")
-        return CarterRunResult(candidate, specification, review, dict(self.calls), tools_executed, revisions, self.revision_telemetry, count_plan, stop, review_map)
+        if count_plan.mode == "explicit":
+            stop = "source_insufficient" if count_plan.requested and requested_records < count_plan.requested else "explicit_target_reached"
+        else:
+            stop = "novelty_saturated" if novelty_failures >= self.auto_novelty_patience else ("hard_cap_reached" if count_plan.hard_cap_limited else "source_coverage_complete")
+        return CarterRunResult(candidate, specification, review, dict(self.calls), tools_executed, revisions, self.revision_telemetry, count_plan, stop, review_map, self.opportunity_state)

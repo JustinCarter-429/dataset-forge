@@ -113,8 +113,49 @@ class DoclingExtractor:
         return _build_document(source_file_id, source_filename, mime_type, "docling", version, elements, page_count)
 
 
+class FastPdfExtractor:
+    """Local text-first PDF extraction for responsive interactive planning.
+
+    Docling's layout pipeline can spend minutes initializing/processing a
+    modest PDF even with OCR and table structure disabled.  This bounded
+    extractor uses PyMuPDF blocks plus pdfplumber's deterministic table finder,
+    retaining page and table structure without model inference.
+    """
+    def supports(self, extension: str) -> bool: return extension.lower() == "pdf"
+
+    def extract(self, file_path: Path, source_file_id: str, source_filename: str, mime_type: str) -> CanonicalExtractedDocument:
+        try:
+            import fitz
+            import pdfplumber
+            pdf = fitz.open(file_path)
+            elements: list[ExtractionElement] = []; section_path: list[str] = []; order = 0
+            for page_number, page in enumerate(pdf, 1):
+                for block in page.get_text("blocks"):
+                    text = str(block[4]).strip()
+                    if not text: continue
+                    order += 1
+                    lines = [line.strip() for line in text.splitlines() if line.strip()]
+                    # A short, title-cased or all-caps first line is a useful
+                    # deterministic heading signal; no sentence decomposition.
+                    heading = len(lines) == 1 and len(text) <= 140 and (text.isupper() or not text.endswith((".", "!", "?")))
+                    kind = ExtractionElementType.HEADING if heading else ExtractionElementType.PARAGRAPH
+                    if heading: section_path = [text]
+                    elements.append(ExtractionElement(elementId=_element_id(source_file_id, order, kind.value, text, page_number), type=kind, text=text, order=order, pageNumber=page_number, sectionPath=section_path.copy(), sourceLocation=SourceLocation(pageNumber=page_number, locator=f"pymupdf:{order}")))
+            with pdfplumber.open(file_path) as table_pdf:
+                for page_number, page in enumerate(table_pdf.pages, 1):
+                    for table in page.extract_tables() or []:
+                        rows = [[str(cell or "").strip() for cell in row] for row in table]
+                        text = "\n".join(" | ".join(row) for row in rows).strip()
+                        if not text: continue
+                        order += 1
+                        elements.append(ExtractionElement(elementId=_element_id(source_file_id, order, "table", text, page_number), type=ExtractionElementType.TABLE, text=text, order=order, pageNumber=page_number, sectionPath=section_path.copy(), rows=rows, sourceLocation=SourceLocation(pageNumber=page_number, locator=f"pdfplumber:{order}")))
+            return _build_document(source_file_id, source_filename, mime_type, "pymupdf_pdfplumber", None, elements, len(pdf))
+        except Exception as exc:
+            raise ExtractionError("CORRUPT_DOCUMENT", "PDF could not be parsed safely.") from exc
+
+
 class ExtractionService:
-    def __init__(self, extractors: list[DocumentExtractor] | None = None): self.extractors = extractors or [PlainTextExtractor(), DoclingExtractor()]
+    def __init__(self, extractors: list[DocumentExtractor] | None = None): self.extractors = extractors or [PlainTextExtractor(), FastPdfExtractor(), DoclingExtractor()]
     def extract(self, file_path: Path, source_file_id: str, source_filename: str, mime_type: str) -> CanonicalExtractedDocument:
         extension = file_path.suffix.lower().lstrip(".")
         for extractor in self.extractors:

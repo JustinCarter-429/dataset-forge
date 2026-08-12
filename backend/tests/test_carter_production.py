@@ -38,7 +38,8 @@ def test_generation_with_application_source_context_sends_no_native_tools(tmp_pa
 def test_production_orchestrator_generates_three_valid_batches_in_order(tmp_path):
     phases = []
     service = CarterDatasetGenerationService(CarterPromptPackage.load(), DeterministicCarterProvider("runpod"), knowledge_path=tmp_path / "batched.sqlite3", generation_batch_size=5, on_phase=lambda phase, batch=None: phases.append((phase, batch.copy() if batch else None)))
-    run = service.generate(runtime="runpod", user_request="Create exactly 12 records", output_format="json", documents=[document()])
+    source = document().model_copy(update={"elements": [ExtractionElement(elementId=f"source_{index}", type=ExtractionElementType.PARAGRAPH, text=f"Customers can request support topic {index}.", order=index) for index in range(1, 13)]})
+    run = service.generate(runtime="runpod", user_request="Create exactly 12 records", output_format="json", documents=[source])
     assert run.calls["planner"] == 1 and run.calls["generator"] == 3 and len(run.dataset.records) == 12
     completed = {}
     for phase, batch in phases:
@@ -47,6 +48,16 @@ def test_production_orchestrator_generates_three_valid_batches_in_order(tmp_path
     assert [completed[index]["recordsGenerated"] for index in (1, 2, 3)] == [5, 10, 12]
     assert [record["customer_intent"] for record in run.dataset.records] == [f"support request {index}" for index in (1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2)]
     assert not any({"batch", "batch_id", "batch_number", "batch_index", "current_batch"} & set(record) for record in run.dataset.records)
+
+
+def test_large_quality_review_is_batched_with_stable_refs(tmp_path):
+    specification = _spec(); specification["requested_record_count"] = specification["effective_record_count"] = 73
+    provider = ScriptedProvider([CarterInferenceResponse(json.dumps(specification), [])] + [CarterInferenceResponse(json.dumps(_candidate_many(min(5, 73 - index))), []) for index in range(0, 73, 5)] + [CarterInferenceResponse(json.dumps(_review()), []) for _ in range(4)])
+    source = document().model_copy(update={"elements": [ExtractionElement(elementId=f"source_{index}", type=ExtractionElementType.PARAGRAPH, text=f"Source {index}.", order=index) for index in range(1, 74)]})
+    service = CarterDatasetGenerationService(CarterPromptPackage.load(), provider, knowledge_path=tmp_path / "review-batches.sqlite3", generation_batch_size=5)
+    run = service.generate(runtime="runpod", user_request="Create exactly 73 records", output_format="json", documents=[source])
+    assert len(run.dataset.records) == 73 and run.calls["review"] == 4
+    assert service.review_batch_sizes == [20, 20, 20, 13]
 
 
 def test_generation_route_uses_carter_not_legacy_generator():
