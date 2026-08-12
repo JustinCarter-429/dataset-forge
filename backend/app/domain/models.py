@@ -146,6 +146,15 @@ class GenerationManifest(BaseModel):
     schema_version: str = "2.0"
     validation_status: str = "failed"
     quality_review_status: str = Field("not_evaluated", alias="qualityReviewStatus")
+    record_count_mode: str = Field("explicit", alias="recordCountMode")
+    requested_record_count: int | None = Field(None, alias="requestedRecordCount")
+    recommended_record_count: int | None = Field(None, alias="recommendedRecordCount")
+    estimated_record_count_min: int | None = Field(None, alias="estimatedRecordCountMin")
+    estimated_record_count_max: int | None = Field(None, alias="estimatedRecordCountMax")
+    generated_candidate_count: int = Field(0, alias="generatedCandidateCount")
+    accepted_record_count: int = Field(0, alias="acceptedRecordCount")
+    exported_record_count: int = Field(0, alias="exportedRecordCount")
+    auto_stop_reason: str | None = Field(None, alias="autoStopReason")
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True}

@@ -7,6 +7,7 @@ job to the Carter prompt package.  Provider implementations remain below the
 from __future__ import annotations
 
 import json
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -15,6 +16,7 @@ from ..domain.extraction_models import CanonicalExtractedDocument
 from ..services.carter import CarterInferenceRequest as TransportRequest, CarterProvider, KnowledgeStore
 from ..providers.contracts import ProviderError
 from .dynamic_dataset import CarterCanonicalDataset, validate_canonical_dataset
+from .count_policy import CountPlan, resolve_count
 from .runtime import (CarterAgentTurnState, CarterPromptPackage, CarterPromptPackageError,
                       CarterToolRegistry, authorize_revision, build_knowledge_tool_handlers,
                       validate_quality_review)
@@ -29,6 +31,9 @@ class CarterRunResult:
     tools_executed: list[str] = field(default_factory=list)
     revisions: int = 0
     revision_telemetry: list[dict[str, Any]] = field(default_factory=list)
+    count_plan: CountPlan | None = None
+    auto_stop_reason: str | None = None
+    review_record_map: list[dict[str, str]] = field(default_factory=list)
 
 
 class CarterDatasetGenerationService:
@@ -45,6 +50,7 @@ class CarterDatasetGenerationService:
         if not 0 <= generation_no_content_retries <= 2: raise ValueError("generation_no_content_retries must be between 0 and 2")
         self.knowledge_path, self.on_phase, self.generation_batch_size, self.generation_no_content_retries = knowledge_path, on_phase or (lambda _phase, _batch=None: None), generation_batch_size, generation_no_content_retries
         self.cancelled = cancelled or (lambda: False)
+        self.auto_max_records = 100
         self.calls: dict[str, int] = {name: 0 for name in ("planner", "generator", "tool_continuation", "review", "revision", "revision_repair")}
         self.invocation_ledger: list[dict[str, str]] = []
         self.revision_telemetry: list[dict[str, Any]] = []
@@ -104,6 +110,16 @@ class CarterDatasetGenerationService:
                 continue
             try:
                 review = self._json(response.content, "Quality review returned malformed JSON.")
+                # Carter 1.0 examples used three-digit references. Normalize
+                # that legacy spelling only when it identifies an existing
+                # six-digit application-owned reference; all other refs still
+                # fail closed.
+                for issue in review.get("issues", []) if isinstance(review, dict) else []:
+                    if isinstance(issue, dict) and isinstance(issue.get("affected_record_refs"), list):
+                        issue["affected_record_refs"] = [
+                            f"review_record_{ref.rsplit('_', 1)[-1].zfill(6)}" if isinstance(ref, str) and ref.startswith("review_record_") and ref.rsplit("_", 1)[-1].isdigit() and f"review_record_{ref.rsplit('_', 1)[-1].zfill(6)}" in refs else ref
+                            for ref in issue["affected_record_refs"]
+                        ]
             except CarterPromptPackageError as exc:
                 code = "STRUCTURED_OUTPUT_INVALID"
                 self._publish_post_generation_telemetry(action="review", attempt_number=attempt,
@@ -134,6 +150,30 @@ class CarterDatasetGenerationService:
                                                    "result": "PASS"})
             return review
         raise AssertionError("review retry loop exhausted without returning or raising")
+
+    @staticmethod
+    def _verified_review(review: dict[str, Any], record_map: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        """Keep model review advisory unless duplicate claims are reproducible."""
+        verified, advisory = [], []
+        for issue in review.get("issues", []):
+            refs = issue.get("affected_record_refs", [])
+            invalid = len(refs) != len(set(refs)) or any(ref not in record_map for ref in refs)
+            duplicate_claim = issue.get("category") == "semantic_repetition"
+            hashes = [record_map[ref]["normalized_hash"] for ref in refs if ref in record_map]
+            confirmed = not duplicate_claim or (len(hashes) > 1 and len(set(hashes)) < len(hashes))
+            if invalid or not confirmed:
+                advisory.append({**issue, "verification": "unverified_advisory_finding"})
+            else:
+                verified.append({**issue, "verification": "verified"})
+        result = dict(review)
+        result["issues"] = verified + advisory
+        result["verifiedIssues"] = verified
+        result["unverifiedAdvisoryFindings"] = advisory
+        result["reviewFindingVerification"] = "failed" if advisory else "passed"
+        if review.get("recommendation") == "revise_recommended" and not any(item.get("severity") == "major" for item in verified):
+            result["recommendation"] = "accept"
+            result["revisionSkipReason"] = "unverified_ai_finding"
+        return result
 
     @staticmethod
     def _batch_execution_header(*, requested_records: int, batch_number: int, total_batches: int,
@@ -266,15 +306,27 @@ class CarterDatasetGenerationService:
         planner = self.package.resolve_operation("dataset_planning")
         logical_runtime = "cloud" if runtime == "runpod" else "local"
         plan_request = self.package.render(planner, {"user_request": user_request,
-            "requested_output_format": output_format, "application_limits": {"maximum_dataset_records": 100},
+            "requested_output_format": output_format, "application_limits": {"maximum_dataset_records": self.auto_max_records},
             "selected_document_metadata": [{"document_id": d.document_id, "name": d.source_filename} for d in documents]}, runtime=logical_runtime)
         specification = self._json(self._infer(plan_request, "planner").content, "Planner returned malformed JSON.")
         try:
             self.package.validate(planner.output_schema, specification)
         except CarterPromptPackageError as exc:
             raise ProviderError("DYNAMIC_SCHEMA_INVALID", "Planner result did not match the application schema.") from exc
-        # Compile is both semantic validation and the single canonical compiler.
-        requested_records = specification["effective_record_count"]
+        # Carter 1.0's planner contract has a frozen fallback.  Count policy is
+        # deliberately applied after validating that contract, so no silent
+        # default can determine production generation.
+        combined = documents[0].model_copy(update={"elements": [element for document in documents for element in document.elements]})
+        count_plan = resolve_count(user_request, combined, self.auto_max_records)
+        # Old internal callers used terse non-dataset commands such as "Use
+        # source". They are retained only as a compatibility shim; ordinary
+        # natural-language dataset requests always enter auto mode.
+        if count_plan.mode == "auto" and not any(word in user_request.lower() for word in ("dataset", "record", "example", "question", "answer", "classification", "scenario", "instruction")):
+            count_plan = CountPlan("explicit", specification["effective_record_count"], None, None, None, specification["effective_record_count"], False)
+        specification = dict(specification)
+        specification["requested_record_count"] = count_plan.requested
+        specification["effective_record_count"] = count_plan.target
+        requested_records = count_plan.target
         batch_targets = [min(self.generation_batch_size, requested_records - offset) for offset in range(0, requested_records, self.generation_batch_size)]
 
         registry = CarterToolRegistry(self.package, build_knowledge_tool_handlers(store, document_ids, allowed_refs))
@@ -376,11 +428,17 @@ class CarterDatasetGenerationService:
 
         self._phase("reviewing")
         review_op = self.package.resolve_operation("quality_review")
-        refs = {f"review_record_{index:03d}" for index, _ in enumerate(candidate.records, 1)}
+        review_map = []
+        for index, record in enumerate(candidate.records, 1):
+            normalized_hash = hashlib.sha256(json.dumps(record, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+            review_map.append({"review_ref": f"review_record_{index:06d}", "canonical_index": str(index), "normalized_hash": normalized_hash})
+        refs = {item["review_ref"] for item in review_map}
+        review_lookup = {item["review_ref"]: item for item in review_map}
         review_request = self.package.render(review_op, {"dataset_spec": specification, "user_request": user_request,
-            "records": [{"record_ref": ref, "record": record} for ref, record in zip(sorted(refs), candidate.records)]}, runtime=logical_runtime)
+            "records": [{"record_ref": item["review_ref"], "canonical_index": item["canonical_index"], "normalized_hash": item["normalized_hash"], "record": record} for item, record in zip(review_map, candidate.records)]}, runtime=logical_runtime)
         review = self._review_with_retries(review_request, refs=refs,
-                                           fields={field["name"] for field in specification["fields"]})
+                                            fields={field["name"] for field in specification["fields"]})
+        review = self._verified_review(review, review_lookup)
         revisions = 0
         if review["recommendation"] == "revise_recommended":
             authorize_revision(revisions, True); revisions = 1
@@ -417,4 +475,5 @@ class CarterDatasetGenerationService:
                     self.revision_telemetry.append(self._revision_snapshot(phase="revision_repair", attempt=1, response=repair,
                         json_parse="PASS", schema="FAIL", safe_error_code="DYNAMIC_SCHEMA_INVALID"))
                     raise
-        return CarterRunResult(candidate, specification, review, dict(self.calls), tools_executed, revisions, self.revision_telemetry)
+        stop = "explicit_target_reached" if count_plan.mode == "explicit" else ("hard_cap_reached" if count_plan.hard_cap_limited else "source_coverage_complete")
+        return CarterRunResult(candidate, specification, review, dict(self.calls), tools_executed, revisions, self.revision_telemetry, count_plan, stop, review_map)

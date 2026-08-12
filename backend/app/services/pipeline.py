@@ -72,7 +72,7 @@ class PipelineService:
             validation_report = validation_report.model_copy(update={"quality_review": {"status": review_status, "blockingIssues": quality_review.blocking_issues, "warnings": quality_review.warnings, "revisionAttempted": quality_review.revision_attempted, "revisionSucceeded": quality_review.revision_succeeded}})
         if on_state:
             on_state("packaging", 96, "packaging")
-        extension = "json" if request.output_format.value == "json" else "csv"
+        extension = request.output_format.value
         exported = self.exporter.export(dataset, request.output_format, job_directory / f"dataset.{extension}")
         manifest = GenerationManifest(job_id=request.job_id, source_file=request.source_filename, requested_format=request.output_format, record_count=len(dataset.records), model=model, generationBatchCount=getattr(self.generator, "last_run", {}).get("generation_batch_count", 1), validation_status=validation_report.status, qualityReviewStatus=("passed_with_warnings" if quality_review and quality_review.warnings else "passed" if quality_review else "not_evaluated"))
         archive = self.packager.package(exported, manifest, job_directory / "dataset.zip", validation_report=validation_report.model_dump(mode="json"), quality_review=quality_review.model_dump(mode="json", by_alias=True) if quality_review else None)

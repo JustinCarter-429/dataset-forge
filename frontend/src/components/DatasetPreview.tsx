@@ -19,6 +19,8 @@ export function DatasetPreview({ job }: { job: GenerationJob | null }) {
   return <section className="side-card" aria-live="polite">
     <div className="side-card-heading"><div><p className="eyebrow">Backend summary</p><h2>Dataset Preview</h2></div><Database size={19} color="#98a2b3" /></div>
     <div className="metric-grid">{metrics.map(([label, value, note]) => <div className="metric-card" key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>)}</div>
+    {output?.recordCountMode === 'auto' && <div className="extraction-summary"><strong>Auto-sized from source</strong><span>Estimated {output.estimatedRecordCountMin}–{output.estimatedRecordCountMax} high-quality examples{output.autoStopReason ? ` · stopped: ${output.autoStopReason.replace(/_/g, ' ')}` : ''}</span></div>}
+    {output?.recordCountMode === 'explicit' && output.requestedRecordCount != null && <div className="extraction-summary"><strong>Explicit target</strong><span>{output.requestedRecordCount} requested records</span></div>}
     {analysis && <div className="extraction-summary"><strong>Extraction</strong><span>{analysis.sectionCount} sections · {analysis.tableCount} tables · {analysis.contentVolume.toLocaleString()} characters</span></div>}
     {report ? <div className={`validation-summary ${groundingPassed ? 'validation-passed' : 'validation-failed'}`}>
       <div>{groundingPassed ? <CheckCircle2 size={16} /> : <XCircle size={16} />}<strong>{groundingPassed ? 'Source grounding checks passed' : 'Source grounding checks failed'}</strong></div>

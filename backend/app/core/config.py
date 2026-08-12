@@ -23,6 +23,8 @@ class Settings:
     carter_max_tokens: int = int(os.getenv("CARTER_MAX_TOKENS", "4096"))
     carter_generation_batch_size: int = int(os.getenv("CARTER_GENERATION_BATCH_SIZE", "5"))
     carter_generation_no_content_retries: int = int(os.getenv("CARTER_GENERATION_NO_CONTENT_RETRIES", "2"))
+    # A runaway guard for source-driven mode, never a default dataset size.
+    carter_auto_max_records: int = int(os.getenv("CARTER_AUTO_MAX_RECORDS", "100"))
     carter_knowledge_database: Path = Path(os.getenv("CARTER_KNOWLEDGE_DATABASE", "runtime/carter-knowledge.sqlite3"))
     app_test_mode: bool = os.getenv("APP_ENVIRONMENT", "development") == "test" and os.getenv("CARTER_TEST_PROVIDER", "") == "deterministic"
 
@@ -31,6 +33,8 @@ class Settings:
             raise ValueError("CARTER_GENERATION_BATCH_SIZE must be between 1 and 20.")
         if not 0 <= self.carter_generation_no_content_retries <= 2:
             raise ValueError("CARTER_GENERATION_NO_CONTENT_RETRIES must be between 0 and 2.")
+        if not 1 <= self.carter_auto_max_records <= 100:
+            raise ValueError("CARTER_AUTO_MAX_RECORDS must be between 1 and 100 for the Carter 1.0 contract.")
 
 
 @lru_cache

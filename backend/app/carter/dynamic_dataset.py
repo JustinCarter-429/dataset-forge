@@ -112,7 +112,16 @@ def validate_canonical_dataset(package: CarterPromptPackage, specification: dict
 def export_canonical_json(dataset: CarterCanonicalDataset, destination: Path) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     payload = {"dataset_spec": dataset.specification, "records": list(dataset.records)}
-    destination.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    destination.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return destination
+
+
+def export_canonical_jsonl(dataset: CarterCanonicalDataset, destination: Path) -> Path:
+    """Write training rows only: one independently parseable object per line."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("w", encoding="utf-8", newline="\n") as handle:
+        for record in dataset.records:
+            handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
     return destination
 
 

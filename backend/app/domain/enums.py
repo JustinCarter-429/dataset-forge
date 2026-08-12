@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class OutputFormat(str, Enum):
+    JSONL = "jsonl"
     JSON = "json"
     CSV = "csv"
 
