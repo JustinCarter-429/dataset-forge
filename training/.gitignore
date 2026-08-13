@@ -12,6 +12,11 @@ data/curated/*
 !data/curated/.gitkeep
 data/native/*
 !data/native/.gitkeep
+data/rendered/*
+!data/rendered/.gitkeep
+adapter_model.*
+checkpoint-*/
+events.out.tfevents*
 
 # Model and trainer artifacts
 checkpoints/*

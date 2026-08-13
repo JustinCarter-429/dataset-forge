@@ -1,0 +1,20 @@
+model_id: google/gemma-4-E4B-it
+revision: ee0ef6023621cff504d758262d4e04895a5af4a2
+renderer_version: gemma4-critic-render-v1
+push_to_hub: false
+thinking_enabled: false
+max_sequence_length: 4096
+qlora:
+  load_in_4bit: true
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_use_double_quant: true
+  lora_r: 16
+  lora_alpha: 16
+  lora_dropout: 0.05
+  bias: none
+  task_type: CAUSAL_LM
+smoke:
+  max_steps: 10
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 0.0001

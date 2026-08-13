@@ -1,0 +1,13 @@
+{
+  "model_id": "google/gemma-4-E4B-it",
+  "requested_revision": "ee0ef6023621cff504d758262d4e04895a5af4a2",
+  "resolved_commit_sha": "ee0ef6023621cff504d758262d4e04895a5af4a2",
+  "access_status": "public_metadata_and_tokenizer_verified",
+  "license_tag": "apache-2.0",
+  "architecture": "Gemma4ForConditionalGeneration",
+  "model_safetensors_parameters": 7996156490,
+  "tokenizer_class": "GemmaTokenizer",
+  "tokenizer_vocab_size": 262144,
+  "text_only_training_required": true,
+  "push_to_hub": false
+}

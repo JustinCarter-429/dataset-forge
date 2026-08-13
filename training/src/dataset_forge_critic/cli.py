@@ -15,6 +15,7 @@ from .transformation import transform_all
 from .curation import curate
 from .native import generate
 from .native_v2 import build
+from .gemma import preflight
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,6 +36,7 @@ def main(argv: list[str] | None = None) -> int:
         item=subparsers.add_parser(name); item.add_argument("--workspace",type=Path,default=Path(__file__).resolve().parents[3]); item.add_argument("--config",type=Path,default=Path(__file__).resolve().parents[2]/"configs"/"curation.yaml"); item.add_argument("--dry-run",action="store_true"); item.add_argument("--force-rebuild",action="store_true")
     native_parser=subparsers.add_parser('generate-native-rule-corpus'); native_parser.add_argument('--workspace',type=Path,default=Path(__file__).resolve().parents[3]); native_parser.add_argument('--dry-run',action='store_true')
     v2=subparsers.add_parser('build-native-rule-corpus'); v2.add_argument('--workspace',type=Path,default=Path(__file__).resolve().parents[3]); v2.add_argument('--config',type=Path,default=Path(__file__).resolve().parents[2]/'configs'/'native-rule-v2.yaml'); v2.add_argument('--dry-run',action='store_true')
+    subparsers.add_parser('training-preflight')
     args = parser.parse_args(argv)
     try:
         if args.command == "validate-config":
@@ -63,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({result.dataset: result.report["canonical_records"] for result in results}, sort_keys=True))
         elif args.command == 'generate-native-rule-corpus': print(json.dumps(generate(args.workspace,args.dry_run),sort_keys=True))
         elif args.command == 'build-native-rule-corpus': print(json.dumps(build(args.workspace,args.config,args.dry_run),sort_keys=True))
+        elif args.command == 'training-preflight': print(json.dumps(preflight(),sort_keys=True))
         else:
             result=curate(args.workspace,args.config,dry_run=args.dry_run or args.command=="analyze-corpus")
             print(json.dumps(result,sort_keys=True))
