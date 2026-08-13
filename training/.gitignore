@@ -1,0 +1,42 @@
+# Downloaded and transformed data (directory markers remain tracked)
+data/raw/*
+!data/raw/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Model and trainer artifacts
+checkpoints/*
+!checkpoints/.gitkeep
+outputs/*
+!outputs/.gitkeep
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+trainer_state.json
+runs/
+wandb/
+mlruns/
+
+# Local caches, logs, and secrets
+.cache/
+.hf_cache/
+huggingface/
+logs/
+*.log
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+.DS_Store
+Thumbs.db

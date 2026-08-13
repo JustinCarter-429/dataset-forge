@@ -1,0 +1,3 @@
+model_id: google/gemma-4-E4B-it
+role: dataset_forge_critic
+config_version: "1.0.0"
