@@ -1,0 +1,74 @@
+{
+  "attempted": 180,
+  "canonical_valid": 180,
+  "corpus_fingerprint": "da4e381fa64967550b8b8af8986f650c28a1d33309ccd8853c46b99190a76f9e",
+  "corpus_version": "native-rule-v1",
+  "dataset_types": [
+    "question_answer",
+    "instruction_response",
+    "classification",
+    "scenario_expected_result",
+    "custom"
+  ],
+  "decision_distribution": {
+    "ACCEPT": 30,
+    "REJECT": 60,
+    "REVISE": 90
+  },
+  "failed": 0,
+  "mutation_families": [
+    "supported",
+    "numeric_mutation",
+    "partial_support",
+    "duplicate",
+    "difficulty_mismatch",
+    "spec_mismatch"
+  ],
+  "native_train_halubench_parents": 0,
+  "native_train_public_test_parents": 0,
+  "split_counts": {
+    "test": 30,
+    "train": 102,
+    "validation": 48
+  },
+  "split_hashes": {
+    "test": "7f7c6d6a23e2bc5f4d4fca5203f9fd32e8bc728208ae939271ea592c50f5a938",
+    "train": "e779a93f8972fb628100cefd7ce69ce9085ef1c68c5e6076bd9d8bff3dfb0460",
+    "validation": "d4857ef92cf0e0b502c780ace2bd71aa1b39b70fcbf08463378b674386e87cac"
+  },
+  "status": "TRAIN_ELIGIBLE_RULE_DERIVED",
+  "teacher_stage": "TEACHER_STAGE_NOT_RUN",
+  "template_families": [
+    "question_answer-family-0",
+    "question_answer-family-1",
+    "question_answer-family-2",
+    "question_answer-family-3",
+    "question_answer-family-4",
+    "question_answer-family-5",
+    "instruction_response-family-0",
+    "instruction_response-family-1",
+    "instruction_response-family-2",
+    "instruction_response-family-3",
+    "instruction_response-family-4",
+    "instruction_response-family-5",
+    "classification-family-0",
+    "classification-family-1",
+    "classification-family-2",
+    "classification-family-3",
+    "classification-family-4",
+    "classification-family-5",
+    "scenario_expected_result-family-0",
+    "scenario_expected_result-family-1",
+    "scenario_expected_result-family-2",
+    "scenario_expected_result-family-3",
+    "scenario_expected_result-family-4",
+    "scenario_expected_result-family-5",
+    "custom-family-0",
+    "custom-family-1",
+    "custom-family-2",
+    "custom-family-3",
+    "custom-family-4",
+    "custom-family-5"
+  ],
+  "template_family_crossings": 0
+}

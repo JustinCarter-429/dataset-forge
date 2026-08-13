@@ -59,6 +59,9 @@ class CriticScores(BaseModel):
     novelty: NormalizedScore | None = None
     difficulty_fit: NormalizedScore | None = None
     hallucination: NormalizedScore | None = None
+    dataset_spec_adherence: NormalizedScore | None = None
+    coverage_contribution: NormalizedScore | None = None
+    semantic_redundancy: NormalizedScore | None = None
 
 
 class CriticInput(BaseModel):

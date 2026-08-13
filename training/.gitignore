@@ -10,6 +10,8 @@ data/processed/*
 !data/processed/.gitkeep
 data/curated/*
 !data/curated/.gitkeep
+data/native/*
+!data/native/.gitkeep
 
 # Model and trainer artifacts
 checkpoints/*

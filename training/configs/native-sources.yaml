@@ -1,0 +1,10 @@
+sources:
+  - source_id: fictional-rule-packs-v1
+    origin: CONTROLLED_FICTIONAL
+    license_provenance: Authored deterministic fictional source packs; no public or private parent data.
+    allowed_for_train: true
+    allowed_for_validation: true
+    allowed_for_test: true
+    contains_public_benchmark_material: false
+    source_group: fictional-native-v1
+    notes: HaluBench and all WP4 public test records are prohibited parents.
