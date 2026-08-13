@@ -7,7 +7,10 @@ datasets:
     intended_task_family: grounding
     priority: 1
     adapter: facts_grounding
-    license_status: unverified
+    license_status: verified
+    local_availability: available_locally
+    metadata_status: unverified
+    readiness: inspected
     notes: Primary source-grounding candidate; no data is downloaded by WP1.
   - name: openbmb_ultrafeedback
     provider: OpenBMB
@@ -16,7 +19,10 @@ datasets:
     intended_task_family: multidimensional_quality
     priority: 2
     adapter: ultrafeedback
-    license_status: unverified
+    license_status: verified
+    local_availability: available_locally
+    metadata_status: verified
+    readiness: inspected
     notes: General response quality and comparative-judgment candidate.
   - name: nvidia_helpsteer2
     provider: NVIDIA
@@ -25,16 +31,22 @@ datasets:
     intended_task_family: multidimensional_quality
     priority: 3
     adapter: helpsteer2
-    license_status: unverified
+    license_status: verified
+    local_availability: available_locally
+    metadata_status: verified
+    readiness: inspected
     notes: Candidate multidimensional response scores.
   - name: halu_eval
     provider: HaluEval
-    huggingface_id: pminervini/HaluEval
+    huggingface_id: PatronusAI/HaluBench
     enabled: false
     intended_task_family: hallucination_detection
     priority: 4
     adapter: halueval
-    license_status: unverified
+    license_status: verified
+    local_availability: available_locally
+    metadata_status: verified
+    readiness: inspected
     notes: Candidate hallucination-detection supervision source.
   - name: stanford_human_preferences
     provider: Stanford
@@ -44,6 +56,9 @@ datasets:
     priority: 5
     adapter: shp
     license_status: unverified
+    local_availability: not_available_locally
+    metadata_status: unverified
+    readiness: deferred
     notes: Secondary human-preference modeling candidate.
   - name: nectar
     provider: Berkeley AI Research
@@ -53,4 +68,7 @@ datasets:
     priority: 6
     adapter: nectar
     license_status: unverified
+    local_availability: not_available_locally
+    metadata_status: unverified
+    readiness: deferred
     notes: Secondary response-ranking and preference-learning candidate.

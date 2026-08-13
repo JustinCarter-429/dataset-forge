@@ -1,0 +1,105 @@
+{
+  "dataset_key": "google_facts_grounding",
+  "files": [
+    {
+      "classification": "metadata",
+      "format": "unknown",
+      "lfs_pointer": false,
+      "relative_path": ".gitattributes",
+      "sha256": "f83a9f17794c41d2d38ceaa327d429c3eec75387e2fed8b6bcc3ec918937b517",
+      "size_bytes": 2510
+    },
+    {
+      "classification": "metadata",
+      "format": "md",
+      "lfs_pointer": false,
+      "relative_path": "README.md",
+      "sha256": "26cf768602aa701d7a5951dfaad75c57b2db57279c43f180a4cb41c9dc8ded98",
+      "size_bytes": 4109
+    },
+    {
+      "classification": "payload",
+      "format": "csv",
+      "lfs_pointer": false,
+      "relative_path": "evaluation_prompts.csv",
+      "sha256": "43a4bc5083275ca1a3d95eed8b26c0760a50dacac5ee19856af887b36d120069",
+      "size_bytes": 12851
+    },
+    {
+      "classification": "payload",
+      "format": "csv",
+      "lfs_pointer": false,
+      "relative_path": "examples.csv",
+      "sha256": "bbfe3c0c21f08a381ea8a4671b1a655d30bf724e2ed6e3d9ac2d9d23f71eec5b",
+      "size_bytes": 19719340
+    }
+  ],
+  "inspection_version": "1.0.0",
+  "integrity_status": "passed",
+  "lfs_pointer_files": [],
+  "payload_inspections": {
+    "evaluation_prompts.csv": {
+      "field_types": {
+        "evaluation_method": {
+          "str": 8
+        },
+        "evaluation_prompt": {
+          "str": 8
+        }
+      },
+      "format": "csv",
+      "malformed_lines": [],
+      "null_counts": {},
+      "record_count": 8,
+      "record_count_kind": "exact",
+      "samples": [
+        {
+          "evaluation_method": "str",
+          "evaluation_prompt": "str"
+        },
+        {
+          "evaluation_method": "str",
+          "evaluation_prompt": "str"
+        }
+      ]
+    },
+    "examples.csv": {
+      "field_types": {
+        "context_document": {
+          "str": 860
+        },
+        "full_prompt": {
+          "str": 860
+        },
+        "system_instruction": {
+          "str": 860
+        },
+        "user_request": {
+          "str": 860
+        }
+      },
+      "format": "csv",
+      "malformed_lines": [],
+      "null_counts": {},
+      "record_count": 860,
+      "record_count_kind": "exact",
+      "samples": [
+        {
+          "context_document": "str",
+          "full_prompt": "str",
+          "system_instruction": "str",
+          "user_request": "str"
+        },
+        {
+          "context_document": "str",
+          "full_prompt": "str",
+          "system_instruction": "str",
+          "user_request": "str"
+        }
+      ]
+    }
+  },
+  "reused": true,
+  "snapshot_id": "snapshot-189e672d70f48d87",
+  "source_artifact_type": "directory"
+}

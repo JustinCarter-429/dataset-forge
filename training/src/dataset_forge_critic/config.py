@@ -27,6 +27,9 @@ class DatasetRegistryEntry(BaseModel):
     priority: int = Field(ge=1)
     adapter: str = Field(min_length=1)
     license_status: str = Field(pattern=r"^(unverified|unknown|verified)$")
+    local_availability: str = Field(pattern=r"^(available_locally|not_available_locally|unknown)$")
+    metadata_status: str = Field(pattern=r"^(unverified|verified|unknown)$")
+    readiness: str = Field(pattern=r"^(adapter_pending|deferred|inspected)$")
     notes: str = Field(min_length=1)
 
 

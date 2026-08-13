@@ -1,0 +1,78 @@
+{
+  "dataset_key": "halu_eval",
+  "files": [
+    {
+      "classification": "metadata",
+      "format": "unknown",
+      "lfs_pointer": false,
+      "relative_path": ".gitattributes",
+      "sha256": "a2bdf429c1bc3858213bb4b7a748fa36a71536a5a1ff98861281853c3c2be1f2",
+      "size_bytes": 2419
+    },
+    {
+      "classification": "metadata",
+      "format": "md",
+      "lfs_pointer": false,
+      "relative_path": "README.md",
+      "sha256": "73b27f588dcc3bdfd29d796fb068027b09ffc1ba64997def9735fcde9c07b62c",
+      "size_bytes": 1989
+    },
+    {
+      "classification": "payload",
+      "format": "parquet",
+      "lfs_pointer": false,
+      "relative_path": "data/test-00000-of-00001.parquet",
+      "sha256": "b1c4827b1138a1f09ab1c47fb3c740a0afc12dabfa162bc492d74c947db30f44",
+      "size_bytes": 3500858
+    }
+  ],
+  "inspection_version": "1.0.0",
+  "integrity_status": "passed",
+  "lfs_pointer_files": [],
+  "payload_inspections": {
+    "data/test-00000-of-00001.parquet": {
+      "field_types": {
+        "answer": {
+          "string": 10000
+        },
+        "id": {
+          "string": 10000
+        },
+        "label": {
+          "string": 10000
+        },
+        "passage": {
+          "string": 10000
+        },
+        "question": {
+          "string": 10000
+        },
+        "score": {
+          "int64": 10000
+        },
+        "source_ds": {
+          "string": 10000
+        }
+      },
+      "format": "parquet",
+      "malformed_lines": [],
+      "null_counts": {},
+      "record_count": 10000,
+      "record_count_kind": "exact",
+      "samples": [
+        {
+          "answer": "string",
+          "id": "string",
+          "label": "string",
+          "passage": "string",
+          "question": "string",
+          "score": "int64",
+          "source_ds": "string"
+        }
+      ]
+    }
+  },
+  "reused": true,
+  "snapshot_id": "snapshot-29c4c6c6d2d4d532",
+  "source_artifact_type": "directory"
+}

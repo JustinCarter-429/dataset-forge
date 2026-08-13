@@ -35,6 +35,7 @@ def test_malformed_registry_entry_rejected():
 def test_duplicate_dataset_configuration_rejected():
     entry = {"name": "x", "provider": "p", "huggingface_id": "p/x", "enabled": False,
              "intended_task_family": "grounding", "priority": 1, "adapter": "x",
-             "license_status": "unverified", "notes": "x"}
+             "license_status": "unverified", "local_availability": "unknown", "metadata_status": "unverified",
+             "readiness": "adapter_pending", "notes": "x"}
     with pytest.raises(ValidationError, match="duplicate"):
         DatasetRegistry.model_validate({"registry_version": "1.0.0", "datasets": [entry, entry]})
