@@ -17,6 +17,7 @@ from .native import generate
 from .native_v2 import build
 from .gemma import preflight
 from .gpu_bundle import build as build_gpu_bundle, verify as verify_gpu_bundle
+from .vagon_handoff import build as build_vagon_handoff
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser('training-preflight')
     b=subparsers.add_parser('build-gpu-bundle'); b.add_argument('--workspace',type=Path,default=Path(__file__).resolve().parents[3])
     v=subparsers.add_parser('verify-gpu-bundle'); v.add_argument('--bundle-root',type=Path,required=True)
+    h=subparsers.add_parser('build-vagon-handoff'); h.add_argument('--workspace',type=Path,default=Path(__file__).resolve().parents[3]); h.add_argument('--target',type=Path,required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "validate-config":
@@ -71,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == 'training-preflight': print(json.dumps(preflight(),sort_keys=True))
         elif args.command == 'build-gpu-bundle': print(json.dumps(build_gpu_bundle(args.workspace),sort_keys=True))
         elif args.command == 'verify-gpu-bundle': print(json.dumps(verify_gpu_bundle(args.bundle_root),sort_keys=True))
+        elif args.command == 'build-vagon-handoff': print(json.dumps(build_vagon_handoff(args.workspace,args.target),sort_keys=True))
         else:
             result=curate(args.workspace,args.config,dry_run=args.dry_run or args.command=="analyze-corpus")
             print(json.dumps(result,sort_keys=True))
