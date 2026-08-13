@@ -16,6 +16,7 @@ from .curation import curate
 from .native import generate
 from .native_v2 import build
 from .gemma import preflight
+from .gpu_bundle import build as build_gpu_bundle, verify as verify_gpu_bundle
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     native_parser=subparsers.add_parser('generate-native-rule-corpus'); native_parser.add_argument('--workspace',type=Path,default=Path(__file__).resolve().parents[3]); native_parser.add_argument('--dry-run',action='store_true')
     v2=subparsers.add_parser('build-native-rule-corpus'); v2.add_argument('--workspace',type=Path,default=Path(__file__).resolve().parents[3]); v2.add_argument('--config',type=Path,default=Path(__file__).resolve().parents[2]/'configs'/'native-rule-v2.yaml'); v2.add_argument('--dry-run',action='store_true')
     subparsers.add_parser('training-preflight')
+    b=subparsers.add_parser('build-gpu-bundle'); b.add_argument('--workspace',type=Path,default=Path(__file__).resolve().parents[3])
+    v=subparsers.add_parser('verify-gpu-bundle'); v.add_argument('--bundle-root',type=Path,required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "validate-config":
@@ -66,6 +69,8 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == 'generate-native-rule-corpus': print(json.dumps(generate(args.workspace,args.dry_run),sort_keys=True))
         elif args.command == 'build-native-rule-corpus': print(json.dumps(build(args.workspace,args.config,args.dry_run),sort_keys=True))
         elif args.command == 'training-preflight': print(json.dumps(preflight(),sort_keys=True))
+        elif args.command == 'build-gpu-bundle': print(json.dumps(build_gpu_bundle(args.workspace),sort_keys=True))
+        elif args.command == 'verify-gpu-bundle': print(json.dumps(verify_gpu_bundle(args.bundle_root),sort_keys=True))
         else:
             result=curate(args.workspace,args.config,dry_run=args.dry_run or args.command=="analyze-corpus")
             print(json.dumps(result,sort_keys=True))

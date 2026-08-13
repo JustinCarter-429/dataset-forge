@@ -17,6 +17,8 @@ data/rendered/*
 adapter_model.*
 checkpoint-*/
 events.out.tfevents*
+bundles/*
+!bundles/.gitkeep
 
 # Model and trainer artifacts
 checkpoints/*
