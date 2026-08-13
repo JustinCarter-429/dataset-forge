@@ -1,0 +1,81 @@
+{
+  "candidate_text_lengths_whitespace": {
+    "max": 10105,
+    "p50": 1956,
+    "p90": 4045,
+    "p95": 4766,
+    "p99": 6372
+  },
+  "canonical_records": 30487,
+  "dataset": "nvidia_helpsteer2",
+  "duplicate_candidate_fingerprints": 1,
+  "excluded_rows": 23652,
+  "exclusion_or_failure_reasons": {
+    "DISAGREEMENT_NONCONSENSUS_EXCLUDED": 23652
+  },
+  "failed_rows": 0,
+  "processed_version": "processed-11785539e89e524f",
+  "raw_rows": 54139,
+  "reconciliation": {
+    "canonical_records": 30487,
+    "excluded_rows": 23652,
+    "failed_rows": 0,
+    "raw_rows": 54139,
+    "source_rows_accounted": true,
+    "source_rows_with_output": 30487
+  },
+  "score_statistics": {
+    "coherence": {
+      "count": 21362,
+      "max": 4.0,
+      "mean": 3.639265986330868,
+      "median": 4.0,
+      "min": 0.0
+    },
+    "complexity": {
+      "count": 21362,
+      "max": 4.0,
+      "mean": 1.7048497331710515,
+      "median": 2.0,
+      "min": 0.0
+    },
+    "correctness": {
+      "count": 21362,
+      "max": 4.0,
+      "mean": 2.9644228068532907,
+      "median": 3.0,
+      "min": 0.0
+    },
+    "helpfulness": {
+      "count": 21362,
+      "max": 4.0,
+      "mean": 2.8654620353899447,
+      "median": 3.0,
+      "min": 0.0
+    },
+    "verbosity": {
+      "count": 21362,
+      "max": 4.0,
+      "mean": 1.9999063758075086,
+      "median": 2.0,
+      "min": 0.0
+    }
+  },
+  "supervision_target_counts": {
+    "critique": 6361,
+    "preferred_candidate_index": 7118,
+    "scores.coherence": 21362,
+    "scores.complexity": 21362,
+    "scores.correctness": 21362,
+    "scores.helpfulness": 21362,
+    "scores.verbosity": 21362
+  },
+  "task_families": {
+    "multidimensional_quality": 21362,
+    "preference": 9125
+  },
+  "validation": {
+    "canonical_records_invalid": 0,
+    "canonical_records_valid": 30487
+  }
+}

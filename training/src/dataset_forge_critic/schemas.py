@@ -40,10 +40,10 @@ class ScoreProvenance(BaseModel):
 
 
 class NormalizedScore(BaseModel):
-    """A normalized score; zero is a real value, not missing supervision."""
+    """A source-preserved score; zero is a real value, not missing supervision."""
 
     model_config = ConfigDict(extra="forbid")
-    value: float = Field(ge=0.0, le=1.0)
+    value: float
     provenance: ScoreProvenance
 
 
@@ -58,6 +58,7 @@ class CriticScores(BaseModel):
     usefulness: NormalizedScore | None = None
     novelty: NormalizedScore | None = None
     difficulty_fit: NormalizedScore | None = None
+    hallucination: NormalizedScore | None = None
 
 
 class CriticInput(BaseModel):

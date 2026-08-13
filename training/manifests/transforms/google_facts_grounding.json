@@ -1,0 +1,17 @@
+{
+  "adapter_version": "1.0.1",
+  "canonical_jsonl_sha256": "46393bca3b2d276c58ee45ae9015f571beafd96a142130aa108e6340346c1ddf",
+  "canonical_records": 860,
+  "canonical_schema_version": "1.0.0",
+  "dataset": "google_facts_grounding",
+  "excluded_rows": 0,
+  "failed_rows": 0,
+  "manifest_version": "1.0.0",
+  "processed_version": "processed-eacb81040dd1a030",
+  "raw_rows": 860,
+  "reason_counts": {},
+  "source_file_sha256": {
+    "examples.csv": "bbfe3c0c21f08a381ea8a4671b1a655d30bf724e2ed6e3d9ac2d9d23f71eec5b"
+  },
+  "source_snapshot_id": "snapshot-189e672d70f48d87"
+}

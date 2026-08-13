@@ -48,11 +48,10 @@ def test_optional_labels_can_be_absent():
     assert record.target.scores.grounding is None
 
 
-def test_malformed_score_rejected():
+def test_source_scale_score_is_preserved():
     payload = valid_record()
     payload["target"]["scores"]["grounding"]["value"] = 1.5
-    with pytest.raises(ValidationError, match="less than or equal"):
-        CanonicalCriticRecord.model_validate(payload)
+    assert CanonicalCriticRecord.model_validate(payload).target.scores.grounding.value == 1.5
 
 
 def test_provenance_requires_source_dataset_and_versions():

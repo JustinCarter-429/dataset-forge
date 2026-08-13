@@ -13,3 +13,5 @@ WP1 provides no model download, public-dataset download, training, Hugging Face 
 Use Python 3.11 or newer. From this directory, install only the small validation/test dependency set with `python -m pip install -e ".[dev]"`. Then run `python -m dataset_forge_critic.cli validate-config` and `python -m pytest`.
 
 `validate-record path/to/record.json` validates one local canonical JSON record. Neither CLI command makes network calls.
+
+`transform-datasets --all` transforms the four locally ingested WP2 snapshots offline. It writes ignored interim and processed JSONL payloads, then writes portable manifests and statistics reports under `manifests/transforms/` and `reports/transforms/`. Add `--validate-only` to perform transformation and validation without writing outputs.

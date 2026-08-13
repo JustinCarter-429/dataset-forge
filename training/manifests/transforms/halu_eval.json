@@ -1,0 +1,17 @@
+{
+  "adapter_version": "1.0.1",
+  "canonical_jsonl_sha256": "b307d111dee5f2be957d360e4bd9e9073ae734c06737de1f3dc37b4df0d2ceb3",
+  "canonical_records": 10000,
+  "canonical_schema_version": "1.0.0",
+  "dataset": "halu_eval",
+  "excluded_rows": 0,
+  "failed_rows": 0,
+  "manifest_version": "1.0.0",
+  "processed_version": "processed-a5b7d1116e9953bc",
+  "raw_rows": 10000,
+  "reason_counts": {},
+  "source_file_sha256": {
+    "data/test-00000-of-00001.parquet": "b1c4827b1138a1f09ab1c47fb3c740a0afc12dabfa162bc492d74c947db30f44"
+  },
+  "source_snapshot_id": "snapshot-29c4c6c6d2d4d532"
+}

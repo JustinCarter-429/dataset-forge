@@ -1,0 +1,34 @@
+{
+  "candidate_text_lengths_whitespace": {
+    "max": 284106,
+    "p50": 14667,
+    "p90": 24426,
+    "p95": 78129,
+    "p99": 212819
+  },
+  "canonical_records": 860,
+  "dataset": "google_facts_grounding",
+  "duplicate_candidate_fingerprints": 0,
+  "excluded_rows": 0,
+  "exclusion_or_failure_reasons": {},
+  "failed_rows": 0,
+  "processed_version": "processed-eacb81040dd1a030",
+  "raw_rows": 860,
+  "reconciliation": {
+    "canonical_records": 860,
+    "excluded_rows": 0,
+    "failed_rows": 0,
+    "raw_rows": 860,
+    "source_rows_accounted": true,
+    "source_rows_with_output": 860
+  },
+  "score_statistics": {},
+  "supervision_target_counts": {},
+  "task_families": {
+    "grounding": 860
+  },
+  "validation": {
+    "canonical_records_invalid": 0,
+    "canonical_records_valid": 860
+  }
+}

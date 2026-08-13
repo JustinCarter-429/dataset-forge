@@ -1,0 +1,22 @@
+{
+  "adapter_version": "1.0.1",
+  "canonical_jsonl_sha256": "ae4fca68b51a63ae27c96e22e3024e2e449eed417f7773ca79e1bb6d4d529946",
+  "canonical_records": 30487,
+  "canonical_schema_version": "1.0.0",
+  "dataset": "nvidia_helpsteer2",
+  "excluded_rows": 23652,
+  "failed_rows": 0,
+  "manifest_version": "1.0.0",
+  "processed_version": "processed-11785539e89e524f",
+  "raw_rows": 54139,
+  "reason_counts": {
+    "DISAGREEMENT_NONCONSENSUS_EXCLUDED": 23652
+  },
+  "source_file_sha256": {
+    "disagreements/disagreements.jsonl.gz": "53435e0e2926620bf08ce91f278d7368ee6903f416a47764fe8839f3b71b3ab4",
+    "preference/preference.jsonl.gz": "a5cd48600fb7a330cf0ccc8f59051e24e8f236907c379f42eff1ba18da55204b",
+    "train.jsonl.gz": "c0d7e91d738d42e8a08070db26c4c09a9c7631308e1f0fd380ff43d130c9f713",
+    "validation.jsonl.gz": "610eeb5289494d613c4c0f70aade2df8df0b499f3a24e76d232f74e6909d010a"
+  },
+  "source_snapshot_id": "snapshot-ff06772036b8dc1c"
+}

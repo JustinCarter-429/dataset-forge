@@ -1,0 +1,47 @@
+{
+  "candidate_text_lengths_whitespace": {
+    "max": 20592,
+    "p50": 2813,
+    "p90": 5148,
+    "p95": 5970,
+    "p99": 7545
+  },
+  "canonical_records": 255612,
+  "dataset": "openbmb_ultrafeedback",
+  "duplicate_candidate_fingerprints": 0,
+  "excluded_rows": 9,
+  "exclusion_or_failure_reasons": {
+    "NO_CANONICAL_CANDIDATE": 9
+  },
+  "failed_rows": 0,
+  "processed_version": "processed-79ebc1e5fa720d2e",
+  "raw_rows": 63967,
+  "reconciliation": {
+    "canonical_records": 255612,
+    "excluded_rows": 9,
+    "failed_rows": 0,
+    "raw_rows": 63967,
+    "source_rows_accounted": true,
+    "source_rows_with_output": 63958
+  },
+  "score_statistics": {
+    "usefulness": {
+      "count": 255612,
+      "max": 10.0,
+      "mean": 6.443439666369342,
+      "median": 7.0,
+      "min": 1.0
+    }
+  },
+  "supervision_target_counts": {
+    "critique": 255612,
+    "scores.usefulness": 255612
+  },
+  "task_families": {
+    "multidimensional_quality": 255612
+  },
+  "validation": {
+    "canonical_records_invalid": 0,
+    "canonical_records_valid": 255612
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "candidate_text_lengths_whitespace": {
+    "max": 1742,
+    "p50": 522,
+    "p90": 766,
+    "p95": 850,
+    "p99": 1038
+  },
+  "canonical_records": 10000,
+  "dataset": "halu_eval",
+  "duplicate_candidate_fingerprints": 0,
+  "excluded_rows": 0,
+  "exclusion_or_failure_reasons": {},
+  "failed_rows": 0,
+  "processed_version": "processed-a5b7d1116e9953bc",
+  "raw_rows": 10000,
+  "reconciliation": {
+    "canonical_records": 10000,
+    "excluded_rows": 0,
+    "failed_rows": 0,
+    "raw_rows": 10000,
+    "source_rows_accounted": true,
+    "source_rows_with_output": 10000
+  },
+  "score_statistics": {
+    "hallucination": {
+      "count": 10000,
+      "max": 1.0,
+      "mean": 0.499,
+      "median": 0.0,
+      "min": 0.0
+    }
+  },
+  "supervision_target_counts": {
+    "scores.hallucination": 10000
+  },
+  "task_families": {
+    "hallucination_detection": 10000
+  },
+  "validation": {
+    "canonical_records_invalid": 0,
+    "canonical_records_valid": 10000
+  }
+}

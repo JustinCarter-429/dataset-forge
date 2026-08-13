@@ -1,0 +1,24 @@
+{
+  "adapter_version": "1.0.1",
+  "canonical_jsonl_sha256": "caea6f3997a40c781a8143e4f88cec48512575edc8079d70d80277f64b02727b",
+  "canonical_records": 255612,
+  "canonical_schema_version": "1.0.0",
+  "dataset": "openbmb_ultrafeedback",
+  "excluded_rows": 9,
+  "failed_rows": 0,
+  "manifest_version": "1.0.0",
+  "processed_version": "processed-79ebc1e5fa720d2e",
+  "raw_rows": 63967,
+  "reason_counts": {
+    "NO_CANONICAL_CANDIDATE": 9
+  },
+  "source_file_sha256": {
+    "evol_instruct.jsonl": "1845a636816a6e713ca8f508372d4386cb82c8864b047da89c57ed9d1e3fa76a",
+    "false_qa.jsonl": "b6ad211ac4ddef226de715d5e5a7fa4f518dc6498acca75ab810cf9565180901",
+    "flan.jsonl": "6b9208c7f7af7270046814c7a91a65e5bd9eb6b085096712d4d6a0ee8255e490",
+    "sharegpt.jsonl": "f0b7ef2bf54d100acb056646c2993c5f66429ee6d621e2e19105041aa271ef4c",
+    "truthful_qa.jsonl": "e3f3281de0cfe9061d178819ffc4d4cbd0104fcf817d73b6ee7331fd56fff3de",
+    "ultrachat.jsonl": "1955e9268ae30eeb414068c2fe482def21a76cbfa6b0a63f4319a8ab19f900ff"
+  },
+  "source_snapshot_id": "snapshot-8fc47deccbd27dbc"
+}
