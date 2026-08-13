@@ -1,0 +1,65 @@
+{
+  "atomic_source_family_crossings": 0,
+  "attempted": 12600,
+  "canonical_valid": 12600,
+  "corpus_fingerprint": "b3c753e19a2ef7a977b77583627b84dbb31516c6bb3ef6b4fbfcd7112b0fca64",
+  "corpus_version": "native-rule-v2",
+  "dataset_type_counts": {
+    "classification": 2520,
+    "custom": 2520,
+    "instruction_response": 2520,
+    "question_answer": 2520,
+    "scenario_expected_result": 2520
+  },
+  "decision_distribution": {
+    "ACCEPT": 3150,
+    "REJECT": 5250,
+    "REVISE": 4200
+  },
+  "exact_train_test_duplicates": 0,
+  "excluded": 0,
+  "failed": 0,
+  "manifest_sha256": "906a92269320e2cc033f589e04815a4245e589b1a20d714b6295ce3ca8932cdd",
+  "mutation_families": [
+    "supported",
+    "numeric_conflict",
+    "partial_answer",
+    "redundant",
+    "difficulty_low",
+    "constraint_miss",
+    "scope_flip",
+    "novel_angle",
+    "overbroad",
+    "wrong_concept",
+    "subtle_condition",
+    "hard_complete"
+  ],
+  "native_train_halubench_parents": 0,
+  "native_train_public_test_duplicates": 0,
+  "native_validation_halubench_parents": 0,
+  "private_user_data_parents": 0,
+  "promoted": 12600,
+  "quarantined": 0,
+  "renderer_families": 3,
+  "rule_proof_failures": 0,
+  "source_domains": [
+    "policy",
+    "api",
+    "operations",
+    "security",
+    "governance"
+  ],
+  "source_families": 350,
+  "split_counts": {
+    "test": 1944,
+    "train": 8496,
+    "validation": 2160
+  },
+  "split_hashes": {
+    "test": "ff3c61cd119df41247f143d3739f657ecc186491db31b4c91c878b374406df9a",
+    "train": "545f0985837b188f6df7424268c86040da8118ab8a7b7026fb0d958f1b4a8d84",
+    "validation": "2568b423acf1c023b161bb4d8e6397c9da54d5b8e5cd551d9b4c4194b40effea"
+  },
+  "teacher_stage": "TEACHER_STAGE_NOT_RUN",
+  "template_family_crossings": 0
+}

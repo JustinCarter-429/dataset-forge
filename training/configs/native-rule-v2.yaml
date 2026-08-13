@@ -1,0 +1,7 @@
+corpus_version: native-rule-v2
+seed: dataset-forge-native-rule-v2
+source_domains: [policy, api, operations, security, governance]
+source_families_per_domain: 70
+renderers_per_family: 3
+split_policy: family_hash_70_15_15
+teacher_stage: TEACHER_STAGE_NOT_RUN
