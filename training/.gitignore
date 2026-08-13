@@ -8,6 +8,8 @@ data/interim/*
 !data/interim/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+data/curated/*
+!data/curated/.gitkeep
 
 # Model and trainer artifacts
 checkpoints/*

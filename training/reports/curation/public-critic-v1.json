@@ -1,0 +1,45 @@
+{
+  "atomic_group_crossings": 0,
+  "canonical_invalid": 0,
+  "canonical_valid": 131019,
+  "config_sha256": "334e3e4ba74764e3d9f41c2b94574170cf71f64c977e3efc85308b62dba2f3be",
+  "corpus_fingerprint": "abee1a68b6de19a4f88aa3b18e132c3f1e891440c90cf9b61c6437cda2d491f2",
+  "corpus_version": "public-critic-v1",
+  "exact_cross_split_duplicates": 0,
+  "input_counts": {
+    "google_facts_grounding": 860,
+    "halu_eval": 10000,
+    "nvidia_helpsteer2": 30487,
+    "openbmb_ultrafeedback": 255612
+  },
+  "near_duplicate_groups_analysis_only": 72211,
+  "per_source_selected": {
+    "halu_eval": 10000,
+    "nvidia_helpsteer2": 28468,
+    "openbmb_ultrafeedback": 92551
+  },
+  "per_task_selected": {
+    "hallucination_classification": 10000,
+    "multidimensional_quality": 113901,
+    "preference": 7118
+  },
+  "quarantine_reasons": {
+    "CONTRADICTORY_DUPLICATE": 10,
+    "EMPTY_SUPERVISION": 2867,
+    "EXACT_FULL_DUPLICATE": 2,
+    "SOURCE_CAP_ULTRAFEEDBACK": 163061
+  },
+  "quarantined": 165940,
+  "split_counts": {
+    "test": 16049,
+    "train": 107989,
+    "validation": 6981
+  },
+  "split_hashes": {
+    "test": "2edce21bc0f427675c14525a7eef1628c76a40a26c4500a9cb88280aa281bbaf",
+    "train": "c1cb8c941ca3058e10144485a1eee9b28651c8fb073d2345871c83fa2a157a23",
+    "validation": "96d2a34b717b3655b41fc940241f6a05669ecad1a1e98b7cdd3ba5bfba481d1b"
+  },
+  "status": "PUBLIC_CRITIC_BASE_CORPUS",
+  "usable_supervised": 131019
+}

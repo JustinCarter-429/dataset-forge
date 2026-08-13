@@ -12,6 +12,7 @@ from .config import load_dataset_registry, load_model_configuration
 from .validation import validate_record
 from .ingestion import inspect_local_datasets
 from .transformation import transform_all
+from .curation import curate
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     transform_parser.add_argument("--dataset", action="append", choices=["google_facts_grounding", "halu_eval", "nvidia_helpsteer2", "openbmb_ultrafeedback"])
     transform_parser.add_argument("--workspace", type=Path, default=Path(__file__).resolve().parents[3])
     transform_parser.add_argument("--validate-only", action="store_true")
+    for name in ("analyze-corpus", "curate-corpus", "validate-curated-corpus"):
+        item=subparsers.add_parser(name); item.add_argument("--workspace",type=Path,default=Path(__file__).resolve().parents[3]); item.add_argument("--config",type=Path,default=Path(__file__).resolve().parents[2]/"configs"/"curation.yaml"); item.add_argument("--dry-run",action="store_true"); item.add_argument("--force-rebuild",action="store_true")
     args = parser.parse_args(argv)
     try:
         if args.command == "validate-config":
@@ -41,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "inspect-local-datasets":
             results = inspect_local_datasets(args.source_root, Path(__file__).resolve().parents[2])
             print(json.dumps({key: value.get("snapshot_id") or value["status"] for key, value in results.items()}, sort_keys=True))
-        else:
+        elif args.command == "transform-datasets":
             if not args.all and not args.dataset:
                 parser.error("transform-datasets requires --all or --dataset")
             results = transform_all(args.workspace, args.dataset if not args.all else None, validate_only=args.validate_only)
@@ -54,6 +57,9 @@ def main(argv: list[str] | None = None) -> int:
                     (report_root / f"{result.dataset}.json").write_text(json.dumps(result.report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
                     (manifest_root / f"{result.dataset}.json").write_text(json.dumps(result.manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
             print(json.dumps({result.dataset: result.report["canonical_records"] for result in results}, sort_keys=True))
+        else:
+            result=curate(args.workspace,args.config,dry_run=args.dry_run or args.command=="analyze-corpus")
+            print(json.dumps(result,sort_keys=True))
     except (ValueError, ValidationError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
     return 0

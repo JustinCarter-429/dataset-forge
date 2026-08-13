@@ -1,0 +1,18 @@
+corpus_version: public-critic-v1
+seed: dataset-forge-public-critic-v1
+status: PUBLIC_CRITIC_BASE_CORPUS
+split_policy:
+  grouped_hash_ratios: {train: 90, validation: 5, test: 5}
+  preserve_helpsteer2_validation: true
+  preserve_halubench_test: true
+source_caps:
+  ultrafeedback_groups_per_subset: 5000
+length_policy:
+  max_characters: 100000
+duplicate_policy:
+  exact: quarantine_conflicting_and_deduplicate_identical
+  near_duplicate: normalized_whitespace_fingerprint_analysis_only
+normalization:
+  version: 1.0.0
+  helpsteer2_0_4: min_max_0_1
+  ultrafeedback_1_10: min_max_0_1
