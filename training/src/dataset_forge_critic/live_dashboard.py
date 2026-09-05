@@ -9,11 +9,15 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-def _read_json(path: Path) -> dict[str, Any]:
+def _read_json(path: Path, warnings: list[str] | None = None) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
         return value if isinstance(value, dict) else {}
-    except (OSError, json.JSONDecodeError):
+    except FileNotFoundError:
+        return {}
+    except (OSError, json.JSONDecodeError) as exc:
+        if warnings is not None:
+            warnings.append(f"Unable to read {path.name}: {type(exc).__name__}")
         return {}
 
 
@@ -21,7 +25,7 @@ def _process_alive(pid: int) -> bool:
     try:
         if pid <= 0: return False
         os.kill(pid, 0); return True
-    except OSError: return False
+    except (OSError, SystemError): return False
 
 
 def _event_scalars(run_dir: Path) -> tuple[dict[str, list[dict[str, float]]], list[str]]:
@@ -37,6 +41,9 @@ def _event_scalars(run_dir: Path) -> tuple[dict[str, list[dict[str, float]]], li
                 target = series.setdefault(tag, {})
                 for event in reader.Scalars(tag):
                     point = {"step": int(event.step), "value": float(event.value), "wall_time": float(event.wall_time)}
+                    if not math.isfinite(point["value"]) or not math.isfinite(point["wall_time"]):
+                        errors.append(f"Ignored non-finite {tag} value at step {point['step']} in {file.name}.")
+                        continue
                     if int(event.step) not in target or point["wall_time"] >= target[int(event.step)]["wall_time"]: target[int(event.step)] = point
         except Exception as exc: errors.append(f"Delayed/unreadable event file {file.name}: {type(exc).__name__}")
     return {tag: [points[step] for step in sorted(points)] for tag, points in series.items()}, errors
@@ -87,6 +94,18 @@ def _rate(points: list[dict[str,float]], step: int, elapsed: float|None):
     return None,None,chart,None
 
 
+def _timestamp(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            return None
+
+
 def _iso(value: float|None): return datetime.fromtimestamp(value).astimezone().isoformat(timespec="seconds") if value is not None else None
 
 
@@ -99,9 +118,10 @@ def _trend(values: list[float]) -> str:
 def build_snapshot(run_dir: Path, total_steps: int, *, now: float|None=None) -> dict[str,Any]:
     """Read only the selected run; never writes or signals the trainer."""
     run_dir=run_dir.resolve(); now=time.time() if now is None else now
-    status_path=run_dir/"status.json"; status=_read_json(status_path); result=_read_json(run_dir/"result.json")
-    lock=_read_json(run_dir/"run.lock"); checkpoint=_read_json(run_dir/"latest-checkpoint.json"); manifest=_read_json(run_dir/"run-manifest.json")
-    scalars,warnings=_event_scalars(run_dir); loss,loss_source=_pick(scalars,"train/loss","loss"); lr,lr_source=_pick(scalars,"train/learning_rate","learning_rate")
+    warnings: list[str] = []
+    status_path=run_dir/"status.json"; status=_read_json(status_path,warnings); result=_read_json(run_dir/"result.json",warnings)
+    lock=_read_json(run_dir/"run.lock",warnings); checkpoint=_read_json(run_dir/"latest-checkpoint.json",warnings); manifest=_read_json(run_dir/"run-manifest.json",warnings)
+    scalars,event_warnings=_event_scalars(run_dir); warnings.extend(event_warnings); loss,loss_source=_pick(scalars,"train/loss","loss"); lr,lr_source=_pick(scalars,"train/learning_rate","learning_rate")
     supervised,supervised_source=_pick(scalars,"throughput/supervised_tokens_per_second"); timing=loss or lr
     event_step=max((int(p["step"]) for p in timing),default=0); step=max(int(status.get("step",0) or 0),int(result.get("step",0) or 0),event_step)
     remaining=max(total_steps-step,0); percent=min(max(100*step/total_steps,0),100) if total_steps>0 else 0
@@ -119,7 +139,7 @@ def build_snapshot(run_dir: Path, total_steps: int, *, now: float|None=None) -> 
     elif pid and _process_alive(pid): process="running"
     elif result_status: process="failed"
     else: process="stopped"
-    freshness=last_event or status_mtime; metric_age=max(now-freshness,0) if freshness else None; stale_after=max(120,min(900,5*seconds_per_step)) if seconds_per_step else 300
+    freshness=max((value for value in (last_event,status_mtime) if value is not None),default=None); metric_age=max(now-freshness,0) if freshness else None; stale_after=max(120,min(900,5*seconds_per_step)) if seconds_per_step else 300
     data_status="Awaiting metrics" if freshness is None else "Awaiting new metrics" if metric_age>stale_after and process=="running" else "Metrics stale" if metric_age>stale_after else "Metrics updating"
     if loss: current_loss=loss[-1]["value"]
     elif status.get("loss") is not None: current_loss=float(status["loss"]); loss_source="status.json loss"
@@ -128,18 +148,27 @@ def build_snapshot(run_dir: Path, total_steps: int, *, now: float|None=None) -> 
     if lr: learning_rate=lr[-1]["value"]
     elif status.get("learning_rate") is not None: learning_rate=float(status["learning_rate"]); lr_source="status.json learning_rate"
     else: learning_rate=None
-    checkpoint_path=checkpoint.get("path"); checkpoint_name=Path(str(checkpoint_path)).name if checkpoint_path else None; checkpoint_time=checkpoint.get("saved_at") or checkpoint.get("timestamp")
+    checkpoint_path=checkpoint.get("path"); checkpoint_name=Path(str(checkpoint_path)).name if checkpoint_path else None; checkpoint_time=_timestamp(checkpoint.get("saved_at") or checkpoint.get("timestamp"))
     if checkpoint_path and checkpoint_time is None:
         try: checkpoint_time=Path(str(checkpoint_path)).stat().st_mtime
         except OSError: checkpoint_time=None
-    try: checkpoint_time=float(checkpoint_time) if checkpoint_time is not None else None
-    except (TypeError,ValueError): checkpoint_time=None
+    checkpoint_step=checkpoint.get("step")
+    if checkpoint_step is None and checkpoint_name:
+        try: checkpoint_step=int(checkpoint_name.rsplit("-",1)[-1])
+        except ValueError: checkpoint_step=None
     config=manifest.get("config") if isinstance(manifest.get("config"),dict) else {}; limits=config.get("limits") if isinstance(config.get("limits"),dict) else {}; model_config=config.get("model") if isinstance(config.get("model"),dict) else {}
     model=manifest.get("model_id") or model_config.get("model_id"); missing=[]
     for label,value in (("Training loss",current_loss),("Learning rate",learning_rate),("Recent step rate",per_min),("Latest checkpoint",checkpoint_path)):
         if value is None: missing.append(f"{label}: not present in the selected run yet.")
-    sources={"Current loss":loss_source or "Unavailable","Smoothed loss":f"20-point mean of {loss_source}" if loss_source else "Unavailable","Learning rate":lr_source or "Unavailable","Step rate and ETA":basis or "Unavailable","Progress":"Maximum of status.json, result.json, and selected TensorBoard step","Process status":"run.lock PID probe and result.json","Checkpoint":"latest-checkpoint.json"}
-    return {"run_dir":str(run_dir),"run_name":run_dir.name,"model":model,"config_digest":manifest.get("config_digest"),"max_examples":limits.get("max_examples"),"current_step":step,"total_steps":total_steps,"remaining_steps":remaining,"completion_percent":percent,"started_at":_iso(started),"elapsed_seconds":elapsed,"eta_seconds":eta,"eta_basis":basis,"estimated_completion":_iso(now+eta) if eta is not None else None,"current_loss":current_loss,"smoothed_loss":smooth,"recent_low_loss":recent_low,"loss_trend":_trend(loss_values),"learning_rate":learning_rate,"steps_per_minute":per_min,"latest_checkpoint":checkpoint_path,"latest_checkpoint_name":checkpoint_name,"checkpoint_timestamp":_iso(checkpoint_time),"checkpoint_age_seconds":max(now-checkpoint_time,0) if checkpoint_time else None,"process_status":process,"data_status":data_status,"pid":pid or None,"last_event_timestamp":_iso(last_event),"metric_age_seconds":metric_age,"metric_sources":sources,"missing_metrics":missing,"charts":{"loss":_loss_chart(loss),"learning_rate":_downsample(lr),"step_rate":_downsample(rate_points),"supervised_throughput":_downsample(supervised)},"supervised_throughput_source":supervised_source,"warnings":warnings,"refreshed_at":_iso(now)}
+    progress_source="Maximum of status.json, result.json, and selected TensorBoard step"
+    sources={
+        "Current step":progress_source,"Total steps":"--total-steps CLI argument","Remaining steps":"Total steps minus current step","Completion percentage":"Current step divided by total steps",
+        "Elapsed time":"run.lock started_at cross-checked with status.json elapsed_seconds","Estimated remaining":f"Remaining steps × {basis}" if basis else "Unavailable","Estimated completion":"Refresh time plus estimated remaining","Current loss":loss_source or "Unavailable",
+        "Smoothed loss":f"20-point moving mean of {loss_source}" if loss_source else "Unavailable","Recent low loss":f"Minimum of the latest 100 {loss_source} points" if loss_source else "Unavailable","Loss trend":f"Comparison of two recent 20-point windows from {loss_source}" if loss_source else "Unavailable",
+        "Learning rate":lr_source or "Unavailable","Steps per minute":basis or "Unavailable","Latest checkpoint":"latest-checkpoint.json","Checkpoint age":"latest-checkpoint.json timestamp or checkpoint directory mtime","Process status":"run.lock PID probe and result.json","Data status":"Latest TensorBoard event/status timestamp versus adaptive stale threshold",
+        "Supervised-token throughput":supervised_source or "Unavailable","Model and configuration":"run-manifest.json",
+    }
+    return {"run_dir":str(run_dir),"run_name":run_dir.name,"model":model,"config_digest":manifest.get("config_digest"),"max_examples":limits.get("max_examples"),"current_step":step,"total_steps":total_steps,"remaining_steps":remaining,"completion_percent":percent,"started_at":_iso(started),"elapsed_seconds":elapsed,"eta_seconds":eta,"eta_basis":basis,"estimated_completion":_iso(now+eta) if eta is not None else None,"current_loss":current_loss,"smoothed_loss":smooth,"recent_low_loss":recent_low,"loss_trend":_trend(loss_values),"learning_rate":learning_rate,"steps_per_minute":per_min,"latest_checkpoint":checkpoint_path,"latest_checkpoint_name":checkpoint_name,"latest_checkpoint_step":checkpoint_step,"checkpoint_timestamp":_iso(checkpoint_time),"checkpoint_age_seconds":max(now-checkpoint_time,0) if checkpoint_time else None,"process_status":process,"data_status":data_status,"pid":pid or None,"last_event_timestamp":_iso(last_event),"metric_age_seconds":metric_age,"metric_sources":sources,"missing_metrics":missing,"charts":{"loss":_loss_chart(loss),"learning_rate":_downsample(lr),"step_rate":_downsample(rate_points),"supervised_throughput":_downsample(supervised)},"supervised_throughput_source":supervised_source,"warnings":warnings,"refreshed_at":_iso(now)}
 
 
 HTML=r'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dataset Forge Critic — Live Training Monitor</title><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script><style>
@@ -160,8 +189,75 @@ function render(d){latest=d;text('runName',d.run_name||'—');text('model',d.mod
 
 HTML = HTML.replace(
     "</style>",
-    ".top{align-items:flex-start}.top>div:first-child{min-width:0;flex:1}"
-    ".controls{max-width:560px;flex:0 1 auto}</style>",
+    r"""
+.top{align-items:flex-start}.top>div:first-child{min-width:0;flex:1}.controls{max-width:610px;flex:0 1 auto}
+body{font-size:15px;line-height:1.45;background:#070c14}.shell{max-width:1720px;padding:28px 32px 44px}
+.panel{background:#0d1624;border-color:#223149;box-shadow:0 14px 36px rgba(0,0,0,.12)}
+.mark{width:42px;height:42px;border-radius:11px;background:#092131;font-size:15px}.eyebrow{font-size:12px}h1{font-size:28px;letter-spacing:-.025em}
+.chip{min-height:34px;padding:7px 11px;background:#0a1320}.controls label{display:flex;align-items:center;gap:7px;min-height:36px;padding:0 10px;border:1px solid transparent;border-radius:8px;color:#b8c5d7;white-space:nowrap}
+button,select{min-height:36px;transition:border-color .15s ease,background-color .15s ease}button:hover,select:hover{border-color:#3e587a;background:#152237}button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.notice{gap:16px;align-items:center;flex-wrap:wrap;padding:11px 14px}.notice span:last-child{margin-left:auto;color:#89a6ba}
+.progress{position:relative;overflow:hidden;padding:26px 28px}.progress:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--cyan)}.progress-grid{grid-template-columns:minmax(0,1.45fr) minmax(470px,.9fr);gap:48px}.big{font-size:54px}.percent{font-size:34px}.track{height:14px}.progress-stats{padding-left:28px;border-left:1px solid var(--line)}.progress-stats .value{font-size:22px}.helper{font-size:13px}
+.kpis{gap:12px}.kpi{position:relative;min-height:116px;padding:17px 18px;overflow:hidden}.kpi:before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:#29405e}.kpi:nth-child(1):before,.kpi:nth-child(2):before,.kpi:nth-child(3):before{background:#2da9d2}.kpi:nth-child(4):before{background:var(--purple)}.kpi:nth-child(10):before{background:var(--green)}.kpi .value{font-size:24px}.kpi .sub{font-size:12px;white-space:normal;line-height:1.35;min-height:16px}.kpi button{min-height:30px;padding:4px 9px;font-size:12px;margin-top:-2px}
+.chart-panel{padding:20px 22px;min-width:0}.panelhead{min-height:38px}.panelhead h2{font-size:19px;letter-spacing:-.01em}.panelhead>div:last-child{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.trend{font-weight:700}.chartbox{height:430px;min-width:0;overflow:hidden}.chartbox canvas{max-width:100%!important}.secondary{gap:14px}.secondary>*{min-width:0}.secondary .chartbox{height:270px}.secondary .chart-panel{margin-bottom:0}.details{gap:18px 24px}.detail-value{font-size:14px}.source{padding:6px 0;border-bottom:1px solid rgba(34,48,71,.55)}.footer{font-size:13px}
+@media(max-width:1280px){.progress-grid{grid-template-columns:1fr;gap:25px}.progress-stats{padding-left:0;border-left:0;border-top:1px solid var(--line);padding-top:20px}.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:980px){.top{display:block}.controls{max-width:none;justify-content:flex-start;margin-top:16px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.secondary{grid-template-columns:1fr}.details{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.shell{padding:16px 14px 32px}.controls{gap:7px}.controls .chip{width:100%}.notice span:last-child{margin-left:0}.progress{padding:22px 20px}.big{font-size:40px}.percent{font-size:28px}.progress-stats{grid-template-columns:1fr 1fr;gap:16px}.kpis{grid-template-columns:1fr}.chart-panel{padding:17px 14px}.chartbox{height:350px}.details{grid-template-columns:1fr}.panelhead>div:last-child{justify-content:flex-start}.footer{display:block}.footer span{display:block;margin-top:5px}}
+</style>""",
+    1,
+)
+HTML = HTML.replace('<div class="error" id="error">', '<div class="error" id="error" role="alert" aria-live="polite">', 1)
+HTML = HTML.replace('<section class="kpis" id="kpis">', '<section class="kpis" id="kpis" aria-label="Training metrics">', 1)
+HTML = HTML.replace('</title><script', '</title><link rel="icon" href="data:,"><script', 1)
+
+HTML = HTML.replace(
+    "const $=id=>document.getElementById(id),text=(id,v)=>$(id).textContent=v;let latest,charts={},paused=false,timer;const fmt=(v,n=5)=>v==null?'—':Number(v).toLocaleString(undefined,{maximumFractionDigits:n}),",
+    "const $=id=>document.getElementById(id),text=(id,v)=>$(id).textContent=v;let latest,charts={},paused=false,timer;const fmt=(v,n=5)=>v==null?'—':Number(v).toLocaleString(undefined,{maximumFractionDigits:n}),sup=n=>String(n).replace(/-/g,'⁻').replace(/0/g,'⁰').replace(/1/g,'¹').replace(/2/g,'²').replace(/3/g,'³').replace(/4/g,'⁴').replace(/5/g,'⁵').replace(/6/g,'⁶').replace(/7/g,'⁷').replace(/8/g,'⁸').replace(/9/g,'⁹'),sci=v=>{if(v==null)return'—';let [m,e]=Number(v).toExponential(2).split('e');return m+' × 10'+sup(Number(e))},cap=v=>v?String(v).charAt(0).toUpperCase()+String(v).slice(1):'—',",
+    1,
+)
+HTML = HTML.replace(
+    "const axis=title=>({title:{display:true,text:title,color:'#8fa0b7'},ticks:{color:'#8191a7',maxTicksLimit:8},grid:{color:'rgba(111,132,160,.13)'},border:{color:'#32425a'}});function makeChart",
+    "if(window.Chart){Chart.defaults.color='#91a3bb';Chart.defaults.font.family='Inter,system-ui,sans-serif';Chart.defaults.font.size=13}const axis=title=>({title:{display:true,text:title,color:'#a5b4c8',font:{size:13,weight:'600'},padding:10},ticks:{color:'#91a3bb',maxTicksLimit:9,padding:8},grid:{color:'rgba(130,151,180,.16)'},border:{color:'#354963'}});function makeChart",
+    1,
+)
+HTML = HTML.replace(
+    "text('data',d.data_status);",
+    "text('data',d.data_status+(d.metric_age_seconds==null?'':' · '+dur(d.metric_age_seconds)+' ago'));",
+    1,
+)
+HTML = HTML.replace(
+    "text('pHead',d.process_status);",
+    "text('pHead',cap(d.process_status));",
+    1,
+)
+HTML = HTML.replace(
+    "['Current loss',fmt(d.current_loss,7),d.metric_sources['Current loss']],['Smoothed loss',fmt(d.smoothed_loss,7),'20-point moving mean'],['Recent low loss',fmt(d.recent_low_loss,7),'Lowest of last 100 points'],['Learning rate',d.learning_rate==null?'—':Number(d.learning_rate).toExponential(3),d.metric_sources['Learning rate']],",
+    "['Current loss',fmt(d.current_loss,7),'Latest raw train/loss scalar'],['Smoothed loss',fmt(d.smoothed_loss,7),'20-step moving mean'],['Recent low loss',fmt(d.recent_low_loss,7),'Lowest raw loss in last 100 points'],['Learning rate',sci(d.learning_rate),d.metric_sources['Learning rate']],",
+    1,
+)
+HTML = HTML.replace(
+    "['Latest checkpoint',d.latest_checkpoint_name||'None yet','Copy full path'],",
+    "['Latest checkpoint',d.latest_checkpoint_name||'None yet',d.latest_checkpoint_step==null?'Copy full path':'Optimizer step '+Number(d.latest_checkpoint_step).toLocaleString()],",
+    1,
+)
+HTML = HTML.replace(
+    "['Process status',d.process_status,d.data_status]",
+    "['Process status',cap(d.process_status),d.data_status]",
+    1,
+)
+HTML = HTML.replace(
+    "btn.onclick=async()=>{if(d.latest_checkpoint){await navigator.clipboard.writeText(d.latest_checkpoint);btn.textContent='Copied'}};",
+    "btn.title=d.latest_checkpoint||'No checkpoint path available';btn.onclick=async()=>{if(!d.latest_checkpoint)return;try{await navigator.clipboard.writeText(d.latest_checkpoint);btn.textContent='Copied'}catch{btn.textContent='Copy unavailable'}setTimeout(()=>btn.textContent='Copy full path',1600)};",
+    1,
+)
+HTML = HTML.replace(
+    "text('lrNow','Current '+(d.learning_rate==null?'—':Number(d.learning_rate).toExponential(3)));",
+    "text('lrNow','Current '+sci(d.learning_rate));",
+    1,
+)
+HTML = HTML.replace(
+    "$('expand').onclick=()=>document.fullscreenElement?document.exitFullscreen():$('lossPanel').requestFullscreen();refresh();schedule();",
+    "$('expand').onclick=()=>document.fullscreenElement?document.exitFullscreen():$('lossPanel').requestFullscreen();document.addEventListener('fullscreenchange',()=>text('expand',document.fullscreenElement?'Exit full screen':'Expand'));refresh();schedule();",
     1,
 )
 
