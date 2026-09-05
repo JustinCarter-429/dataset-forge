@@ -17,7 +17,12 @@ LEGACY_SHA256 = "39f30dc45c339b926c487a827757a4c261753082f1a6f302418657d273487e9
 
 
 def _copy_tree(source: Path, destination: Path) -> None:
-    shutil.copytree(source, destination, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest*", ".venv*"))
+    shutil.copytree(
+        source,
+        destination,
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest*", ".venv*", "*.egg-info"),
+    )
 
 
 def build_handoff(workspace: Path) -> dict[str, Any]:
