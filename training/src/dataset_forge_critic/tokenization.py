@@ -1,0 +1,87 @@
+"""Chat-template application and completion-only label construction."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from .gemma import render
+
+
+class TokenizationExclusion(ValueError):
+    """An explicit, reportable reason an example cannot be trained."""
+
+
+@dataclass(frozen=True)
+class TokenizedExample:
+    record_id: str
+    input_ids: list[int]
+    attention_mask: list[int]
+    labels: list[int]
+    prompt_tokens: int
+    completion_tokens: int
+    supervised_tokens: int
+
+
+def _messages(rendered: dict[str, Any], *, completion: str | None = None) -> list[dict[str, Any]]:
+    # Gemma's official instruction template is user/assistant based.  Preserve the
+    # critic system text as prompt content without inventing an unsupported role.
+    messages = [
+        {"role": "user", "content": [{"type": "text", "text": rendered["system_prompt"] + "\n\n" + rendered["user_payload"]}]},
+    ]
+    if completion is not None:
+        messages.append({"role": "assistant", "content": [{"type": "text", "text": completion}]})
+    return messages
+
+
+def _templated(processor: Any, messages: list[dict[str, Any]]) -> tuple[list[int], list[int]]:
+    value = processor.apply_chat_template(
+        messages,
+        tokenize=True,
+        add_generation_prompt=False,
+        return_dict=True,
+        return_assistant_tokens_mask=True,
+    )
+    if not isinstance(value, dict):
+        raise TokenizationExclusion("CHAT_TEMPLATE_ASSISTANT_MASK_UNAVAILABLE")
+    ids = value["input_ids"]
+    mask = value.get("assistant_masks", value.get("assistant_tokens_mask"))
+    if mask is None:
+        raise TokenizationExclusion("CHAT_TEMPLATE_ASSISTANT_MASK_UNAVAILABLE")
+    if ids and isinstance(ids[0], list):
+        if len(ids) != 1 or not mask or len(mask) != 1:
+            raise TokenizationExclusion("TOKENIZER_RETURNED_UNEXPECTED_BATCH")
+        ids, mask = ids[0], mask[0]
+    if len(ids) != len(mask):
+        raise TokenizationExclusion("CHAT_TEMPLATE_ASSISTANT_MASK_LENGTH_MISMATCH")
+    return [int(item) for item in ids], [int(item) for item in mask]
+
+
+def tokenize_record(record: dict[str, Any], layer: str, processor: Any, max_length: int) -> TokenizedExample:
+    """Render once, apply the official template, and mask everything before the assistant answer."""
+    rendered = render(record, layer)
+    full_ids, assistant_mask = _templated(processor, _messages(rendered, completion=rendered["completion"]))
+    if len(full_ids) > max_length:
+        raise TokenizationExclusion(f"SEQUENCE_TOO_LONG:{len(full_ids)}>{max_length}")
+    supervised = sum(assistant_mask)
+    if supervised <= 0:
+        raise TokenizationExclusion("NO_SUPERVISED_TOKENS")
+    first_supervised = next(index for index, active in enumerate(assistant_mask) if active)
+    if any(assistant_mask[:first_supervised]) or any(not active for active in assistant_mask[first_supervised:]):
+        raise TokenizationExclusion("NONCONTIGUOUS_ASSISTANT_MASK")
+    labels = [token if active else -100 for token, active in zip(full_ids, assistant_mask, strict=True)]
+    return TokenizedExample(
+        record_id=rendered["record_id"], input_ids=full_ids, attention_mask=[1] * len(full_ids),
+        labels=labels, prompt_tokens=first_supervised, completion_tokens=supervised,
+        supervised_tokens=sum(value != -100 for value in labels),
+    )
+
+
+def pad_batch(items: list[TokenizedExample], pad_token_id: int) -> dict[str, list[list[int]]]:
+    if not items:
+        raise ValueError("EMPTY_BATCH")
+    width = max(len(item.input_ids) for item in items)
+    return {
+        "input_ids": [item.input_ids + [pad_token_id] * (width - len(item.input_ids)) for item in items],
+        "attention_mask": [item.attention_mask + [0] * (width - len(item.input_ids)) for item in items],
+        "labels": [item.labels + [-100] * (width - len(item.labels)) for item in items],
+    }

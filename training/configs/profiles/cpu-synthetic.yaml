@@ -1,0 +1,31 @@
+config_version: "2.0.0"
+profile: cpu_synthetic
+seed: 42
+output_root: ../../outputs
+max_sequence_length: 1024
+packing: false
+data: &data
+  public_train: ../../data/curated/public-critic-v1/train.jsonl
+  native_train: ../../data/native/native-rule-v2/train.jsonl
+  public_validation: ../../data/curated/public-critic-v1/validation.jsonl
+  native_validation: ../../data/native/native-rule-v2/validation.jsonl
+mixture: {public_probability: 0.5, native_probability: 0.5, with_replacement: true}
+model:
+  model_id: google/gemma-4-E4B-it
+  revision: ee0ef6023621cff504d758262d4e04895a5af4a2
+  architecture: Gemma4ForConditionalGeneration
+  renderer_version: gemma4-critic-render-v1
+  require_bf16: false
+  load_in_4bit: false
+  quant_type: nf4
+  double_quant: true
+  gradient_checkpointing: false
+  lora_rank: 16
+  lora_alpha: 16
+  lora_dropout: 0.05
+  lora_target_regex: '(^|\.)(language_model|text_model)(\.|$)'
+optimization: {micro_batch_size: 1, gradient_accumulation_steps: 1, learning_rate: 0.001, weight_decay: 0.0, optimizer: adamw_torch, scheduler: linear, warmup_ratio: 0.0, max_grad_norm: 1.0}
+limits: {max_optimizer_steps: 20, max_examples: 20, max_total_tokens: null, max_wall_seconds: 60, min_free_disk_gb: 1, estimated_process_cost_usd: 0}
+checkpoint: {every_steps: 5, keep_latest: 2, keep_best: 1, selection_metric: validation_loss}
+evaluation: {every_steps: 5, frequent_public_count: 8, frequent_native_count: 8, broad_public_count: 16, broad_native_count: 16}
+upload: {destination: null, visibility: null, retries: 3}

@@ -1,0 +1,31 @@
+config_version: "2.0.0"
+profile: gpu_smoke
+seed: 42
+output_root: ../../outputs
+max_sequence_length: 2048
+packing: false
+model: &model
+  model_id: google/gemma-4-E4B-it
+  revision: ee0ef6023621cff504d758262d4e04895a5af4a2
+  architecture: Gemma4ForConditionalGeneration
+  renderer_version: gemma4-critic-render-v1
+  require_bf16: true
+  load_in_4bit: true
+  quant_type: nf4
+  double_quant: true
+  gradient_checkpointing: true
+  lora_rank: 16
+  lora_alpha: 16
+  lora_dropout: 0.05
+  lora_target_regex: '(^|\.)(language_model|text_model)(\.|$)'
+data: &data
+  public_train: ../../data/curated/public-critic-v1/train.jsonl
+  native_train: ../../data/native/native-rule-v2/train.jsonl
+  public_validation: ../../data/curated/public-critic-v1/validation.jsonl
+  native_validation: ../../data/native/native-rule-v2/validation.jsonl
+mixture: &mixture {public_probability: 0.5, native_probability: 0.5, with_replacement: true}
+optimization: &opt {micro_batch_size: 1, gradient_accumulation_steps: 8, learning_rate: 0.0001, weight_decay: 0.0, optimizer: paged_adamw_8bit, scheduler: cosine, warmup_ratio: 0.03, max_grad_norm: 1.0}
+limits: {max_optimizer_steps: 8, max_examples: 64, max_total_tokens: null, max_wall_seconds: 1800, min_free_disk_gb: 30, estimated_process_cost_usd: null}
+checkpoint: &checkpoint {every_steps: 4, keep_latest: 3, keep_best: 1, selection_metric: native_macro_f1}
+evaluation: &evaluation {every_steps: 5, frequent_public_count: 64, frequent_native_count: 64, broad_public_count: 256, broad_native_count: 256}
+upload: {destination: null, visibility: null, retries: 3}
