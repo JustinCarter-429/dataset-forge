@@ -46,10 +46,12 @@ def build_handoff(workspace: Path) -> dict[str, Any]:
         shutil.copy2(training / file, root / "training" / file)
     subprocess.run(["git", "bundle", "create", str(root / "source.bundle"), "HEAD"], cwd=workspace, check=True)
     files = []
-    forbidden = (".env", "id_rsa", "id_ed25519", "vast_datasetforge", "credentials", "token")
+    forbidden_names = {".env", "id_rsa", "id_ed25519", "vast_datasetforge", "credentials", "credentials.json", "token"}
     for path in sorted(item for item in root.rglob("*") if item.is_file()):
         relative = path.relative_to(root).as_posix()
-        if any(marker in relative.casefold() for marker in forbidden): raise ValueError(f"SECRET_LIKE_PATH:{relative}")
+        parts = {part.casefold() for part in Path(relative).parts}
+        if any(part in forbidden_names or part.startswith(".env.") for part in parts):
+            raise ValueError(f"SECRET_LIKE_PATH:{relative}")
         files.append({"path": relative, "size": path.stat().st_size, "sha256": sha256_file(path)})
     payload = hashlib.sha256(json.dumps(files, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     manifest = {"handoff_version": "critic-gpu-v2", "source_git_commit": commit, "source_bundle": "source.bundle",
