@@ -21,6 +21,7 @@ from .gpu_bundle import build as build_gpu_bundle, verify as verify_gpu_bundle
 from .handoff import build_handoff, verify_handoff
 from .ingestion import inspect_local_datasets
 from .integrity import derive_jsonl
+from .live_dashboard import serve as serve_live_dashboard
 from .modeling import load_processor
 from .native import generate
 from .native_v2 import build
@@ -86,6 +87,7 @@ def _parser() -> argparse.ArgumentParser:
     item = commands.add_parser("export-adapter"); item.add_argument("--config", type=Path, required=True); item.add_argument("--checkpoint", type=Path, required=True); item.add_argument("--destination", type=Path, required=True)
     item = commands.add_parser("export"); item.add_argument("--config", type=Path, required=True); item.add_argument("--checkpoint", type=Path, required=True); item.add_argument("--destination", type=Path, required=True)
     item = commands.add_parser("launch-monitor"); item.add_argument("--root", type=Path, default=ROOT); item.add_argument("--jupyter-port", type=int, default=8888); item.add_argument("--tensorboard-port", type=int, default=6006)
+    item = commands.add_parser("live-dashboard"); item.add_argument("--run-dir", type=Path, required=True); item.add_argument("--host", default="127.0.0.1"); item.add_argument("--port", type=int, default=7007); item.add_argument("--total-steps", type=int, required=True)
     item = commands.add_parser("sync-artifacts"); item.add_argument("--source", type=Path, required=True); item.add_argument("--destination", required=True); item.add_argument("--visibility", choices=["private", "public"]); item.add_argument("--retries", type=int, default=3)
     item = commands.add_parser("build-gpu-bundle"); item.add_argument("--workspace", type=Path, default=WORKSPACE)
     item = commands.add_parser("verify-gpu-bundle"); item.add_argument("--bundle-root", type=Path, required=True)
@@ -148,6 +150,9 @@ def main(argv: list[str] | None = None) -> int:
             output = {"status": "MONITORS_LAUNCHED", "jupyter_pid": jupyter.pid, "tensorboard_pid": tensorboard.pid,
                       "jupyter_url": f"http://127.0.0.1:{args.jupyter_port}", "tensorboard_url": f"http://127.0.0.1:{args.tensorboard_port}",
                       "ssh_forward": f"ssh -L {args.jupyter_port}:127.0.0.1:{args.jupyter_port} -L {args.tensorboard_port}:127.0.0.1:{args.tensorboard_port} <gpu-host>"}
+        elif args.command == "live-dashboard":
+            serve_live_dashboard(args.run_dir, args.host, args.port, args.total_steps)
+            return 0
         elif args.command == "sync-artifacts": output = sync_artifacts(args.source, args.destination, visibility=args.visibility, retries=args.retries)
         elif args.command == "build-gpu-bundle": output = build_gpu_bundle(args.workspace)
         elif args.command == "verify-gpu-bundle": output = verify_gpu_bundle(args.bundle_root)
