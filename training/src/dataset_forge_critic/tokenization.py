@@ -33,45 +33,46 @@ def _messages(rendered: dict[str, Any], *, completion: str | None = None) -> lis
     return messages
 
 
-def _templated(processor: Any, messages: list[dict[str, Any]]) -> tuple[list[int], list[int]]:
+def _templated(processor: Any, messages: list[dict[str, Any]], *, add_generation_prompt: bool) -> list[int]:
     value = processor.apply_chat_template(
         messages,
         tokenize=True,
-        add_generation_prompt=False,
+        add_generation_prompt=add_generation_prompt,
         return_dict=True,
-        return_assistant_tokens_mask=True,
     )
-    if not isinstance(value, dict):
-        raise TokenizationExclusion("CHAT_TEMPLATE_ASSISTANT_MASK_UNAVAILABLE")
-    ids = value["input_ids"]
-    mask = value.get("assistant_masks", value.get("assistant_tokens_mask"))
-    if mask is None:
-        raise TokenizationExclusion("CHAT_TEMPLATE_ASSISTANT_MASK_UNAVAILABLE")
+    try:
+        ids = value["input_ids"]
+    except (KeyError, TypeError) as exc:
+        raise TokenizationExclusion("CHAT_TEMPLATE_INPUT_IDS_UNAVAILABLE") from exc
+    if hasattr(ids, "tolist"):
+        ids = ids.tolist()
     if ids and isinstance(ids[0], list):
-        if len(ids) != 1 or not mask or len(mask) != 1:
+        if len(ids) != 1:
             raise TokenizationExclusion("TOKENIZER_RETURNED_UNEXPECTED_BATCH")
-        ids, mask = ids[0], mask[0]
-    if len(ids) != len(mask):
-        raise TokenizationExclusion("CHAT_TEMPLATE_ASSISTANT_MASK_LENGTH_MISMATCH")
-    return [int(item) for item in ids], [int(item) for item in mask]
+        ids = ids[0]
+    return [int(item) for item in ids]
 
 
 def tokenize_record(record: dict[str, Any], layer: str, processor: Any, max_length: int) -> TokenizedExample:
-    """Render once, apply the official template, and mask everything before the assistant answer."""
+    """Render the prompt and full conversation separately, then supervise only their suffix."""
     rendered = render(record, layer)
-    full_ids, assistant_mask = _templated(processor, _messages(rendered, completion=rendered["completion"]))
+    prompt_ids = _templated(processor, _messages(rendered), add_generation_prompt=True)
+    full_ids = _templated(
+        processor,
+        _messages(rendered, completion=rendered["completion"]),
+        add_generation_prompt=False,
+    )
     if len(full_ids) > max_length:
         raise TokenizationExclusion(f"SEQUENCE_TOO_LONG:{len(full_ids)}>{max_length}")
-    supervised = sum(assistant_mask)
-    if supervised <= 0:
+    if len(prompt_ids) >= len(full_ids):
         raise TokenizationExclusion("NO_SUPERVISED_TOKENS")
-    first_supervised = next(index for index, active in enumerate(assistant_mask) if active)
-    if any(assistant_mask[:first_supervised]) or any(not active for active in assistant_mask[first_supervised:]):
-        raise TokenizationExclusion("NONCONTIGUOUS_ASSISTANT_MASK")
-    labels = [token if active else -100 for token, active in zip(full_ids, assistant_mask, strict=True)]
+    if full_ids[: len(prompt_ids)] != prompt_ids:
+        raise TokenizationExclusion("CHAT_TEMPLATE_PROMPT_PREFIX_MISMATCH")
+    labels = [-100] * len(prompt_ids) + full_ids[len(prompt_ids) :]
+    supervised = len(full_ids) - len(prompt_ids)
     return TokenizedExample(
         record_id=rendered["record_id"], input_ids=full_ids, attention_mask=[1] * len(full_ids),
-        labels=labels, prompt_tokens=first_supervised, completion_tokens=supervised,
+        labels=labels, prompt_tokens=len(prompt_ids), completion_tokens=supervised,
         supervised_tokens=sum(value != -100 for value in labels),
     )
 

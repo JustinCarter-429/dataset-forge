@@ -28,14 +28,17 @@ ROOT = Path(__file__).resolve().parents[1]
 class FakeProcessor:
     tokenizer = SimpleNamespace(pad_token_id=0)
 
-    def apply_chat_template(self, messages, *, tokenize, add_generation_prompt, return_dict, return_assistant_tokens_mask):
+    def apply_chat_template(self, messages, *, tokenize, add_generation_prompt, return_dict):
         assert tokenize and return_dict
-        assert return_assistant_tokens_mask and not add_generation_prompt
         prompt = messages[0]["content"][0]["text"]
-        completion = messages[-1]["content"][0]["text"]
         prefix = [1] + [10 + ord(char) for char in prompt] + [99]
+        if len(messages) == 1:
+            assert add_generation_prompt
+            return {"input_ids": prefix}
+        assert not add_generation_prompt
+        completion = messages[-1]["content"][0]["text"]
         answer = [1000 + ord(char) for char in completion] + [2]
-        return {"input_ids": prefix + answer, "assistant_masks": [0] * len(prefix) + [1] * len(answer)}
+        return {"input_ids": prefix + answer}
 
     def decode(self, values, skip_special_tokens=True):
         return ""
@@ -47,6 +50,7 @@ def _write_rows(path: Path, values):
 
 def test_completion_mask_and_padding_are_exact():
     tokenized = tokenize_record(valid_record(), "public", FakeProcessor(), 4096)
+    assert tokenized.supervised_tokens > 0
     assert all(value == -100 for value in tokenized.labels[:tokenized.prompt_tokens])
     assert tokenized.labels[tokenized.prompt_tokens:] == tokenized.input_ids[tokenized.prompt_tokens:]
     padded = pad_batch([tokenized], 0)
