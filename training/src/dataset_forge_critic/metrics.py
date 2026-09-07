@@ -7,7 +7,7 @@ from typing import Any, Iterable
 
 from .gemma import parse_response
 
-DECISIONS = ("ACCEPT", "REVISE", "REJECT")
+DECISIONS = ("accept", "revise", "reject")
 
 
 def _division(numerator: int | float, denominator: int | float) -> float | None:
@@ -36,7 +36,8 @@ def evaluate_predictions(rows: Iterable[tuple[str, dict[str, Any], str]]) -> dic
         available = set(record["supervision"]["available_targets"])
         target = record.get("target", {})
         if "decision" in available:
-            truth = target.get("decision")
+            raw_truth = target.get("decision")
+            truth = raw_truth.casefold() if isinstance(raw_truth, str) else raw_truth
             guess = prediction.get("decision")
             if truth in DECISIONS:
                 lossless[truth][guess if guess in DECISIONS else "INVALID"] += 1
@@ -67,15 +68,15 @@ def evaluate_predictions(rows: Iterable[tuple[str, dict[str, Any], str]]) -> dic
         f1 = None if precision is None or recall is None or precision + recall == 0 else 2 * precision * recall / (precision + recall)
         if f1 is not None: f1_values.append(f1)
         per_class[label] = {"precision": precision, "recall": recall, "f1": f1, "support": sum(lossless[label].values())}
-    reject_total = sum(lossless["REJECT"].values())
-    accept_total = sum(lossless["ACCEPT"].values())
+    reject_total = sum(lossless["reject"].values())
+    accept_total = sum(lossless["accept"].values())
     return {
         "sample_count": counts["examples"], "json_parse_validity": _division(counts["json_valid"], counts["examples"]),
         "schema_validity": _division(counts["schema_valid"], counts["examples"]),
         "by_corpus": {key: {"sample_count": value["examples"], "validity": _division(value["valid"], value["examples"])} for key, value in by_corpus.items()},
         "native": {"confusion_matrix": matrix, "per_class": per_class, "macro_f1": sum(f1_values) / len(f1_values) if f1_values else None,
-                   "false_acceptance_of_reject": _division(lossless["REJECT"]["ACCEPT"], reject_total),
-                   "unnecessary_rejection_of_accept": _division(lossless["ACCEPT"]["REJECT"], accept_total)},
+                   "false_acceptance_of_reject": _division(lossless["reject"]["accept"], reject_total),
+                   "unnecessary_rejection_of_accept": _division(lossless["accept"]["reject"], accept_total)},
         "score_mae": {key: sum(values) / len(values) for key, values in score_errors.items()},
         "preference_accuracy": _division(preference["correct"], preference["count"]),
         "issue_codes": {"precision": _division(issues["tp"], issues["tp"] + issues["fp"]), "recall": _division(issues["tp"], issues["tp"] + issues["fn"]), "support": issues["tp"] + issues["fn"]},

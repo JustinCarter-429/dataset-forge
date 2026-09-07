@@ -38,7 +38,7 @@ def build(workspace:Path)->dict[str,Any]:
   rel=p.relative_to(root).as_posix()
   if any(token in rel.lower() for token in ('.env','id_rsa','token')):raise ValueError('BUNDLE_BUILD_FAIL_SECRET_PATH')
   files.append({'path':rel,'size':p.stat().st_size,'sha256':sha(p)})
- manifest={'bundle_version':'wp5a-gpu-v1','source_git_commit':__import__('subprocess').check_output(['git','rev-parse','HEAD'],cwd=workspace,text=True).strip(),'public_corpus_fingerprint':PUBLIC,'native_corpus_fingerprint':NATIVE,'model_id':'google/gemma-4-E4B-it','model_revision':'ee0ef6023621cff504d758262d4e04895a5af4a2','renderer_version':'gemma4-critic-render-v1','system_prompt_version':'critic-system-v1','counts':counts,'protected_test_record_count':0,'halubench_record_count':0,'files':files}
+ manifest={'bundle_version':'wp5a-gpu-v2','source_git_commit':__import__('subprocess').check_output(['git','rev-parse','HEAD'],cwd=workspace,text=True).strip(),'public_corpus_fingerprint':PUBLIC,'native_corpus_fingerprint':NATIVE,'model_id':'google/gemma-4-E4B-it','model_revision':'ee0ef6023621cff504d758262d4e04895a5af4a2','renderer_version':'gemma4-critic-render-v2','system_prompt_version':'critic-system-v2','counts':counts,'protected_test_record_count':0,'halubench_record_count':0,'files':files}
  manifest['bundle_payload_sha256']=hashlib.sha256(json.dumps(files,sort_keys=True,separators=(',',':')).encode()).hexdigest(); (root/'bundle-manifest.json').write_text(json.dumps(manifest,sort_keys=True,indent=2)+'\n'); (root/'SHA256SUMS').write_text(''.join(f"{x['sha256']}  {x['path']}\n" for x in files))
  archive=t/'bundles'/f"gemma4-e4b-wp5a-{manifest['bundle_payload_sha256'][:16]}.tar.gz"
  with tarfile.open(archive,'w:gz',format=tarfile.PAX_FORMAT) as out:

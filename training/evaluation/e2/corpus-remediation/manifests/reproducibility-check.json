@@ -1,0 +1,17 @@
+{
+  "schema_version": "phase-e2.1-byte-rebuild-check-v1",
+  "status": "PASS",
+  "all_byte_identical": true,
+  "scope": "Required corpus, quarantine, audit report, pretraining report, and reproducibility-manifest outputs; package is refreshed after embedding this attestation.",
+  "build_command": "python training/evaluation/e2/corpus-remediation/build.py --output training/evaluation/e2/corpus-remediation/repro-check-real-templates",
+  "exit_code": 0,
+  "log_path": "training/evaluation/e2/corpus-remediation/logs/reproducibility-real-templates.log",
+  "files": {
+    "train/corpus.jsonl": "a7485d598825573e557a982dd4e86f7ba5868a9ee8d71c0306616b625b524ce8",
+    "validation/corpus.jsonl": "4b991d36e2d179161293e96b81dbda1abff948fbb27ee7ad9e2634744cc31e47",
+    "quarantine/groups.jsonl": "22cbd830eb9f284f9a2052fa1a51359f5ff91aa919712a0f5bc50e6fca9e022a",
+    "reports/audit.json": "ec3e29ed0bb2fdff729604dba9604ccdb7b8d65cc0f794f2873c15bbd576c97c",
+    "reports/pretraining-report.md": "60ed5fcef23ec30d85ed27cda5911d6fe4770559c9dd99ae6667d6a848e36366",
+    "manifests/reproducibility-manifest.json": "f9303e2b73e6c316da63c51b8a28b2581d8850eaf1fe281b193768a602ff8f48"
+  }
+}

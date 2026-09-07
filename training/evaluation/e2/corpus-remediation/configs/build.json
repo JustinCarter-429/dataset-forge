@@ -1,0 +1,9 @@
+{
+  "builder_version": "phase-e2.1-builder-v1",
+  "canonicalization_version": "e2.1-nfc-json-v1",
+  "jaccard_threshold": 0.85,
+  "seeds": {"train": 210000, "validation": 910000},
+  "train_new_counts": {"benign": 1200, "repairable": 1200, "malicious": 936},
+  "validation_new_counts": {"benign": 250, "repairable": 250, "malicious": 250},
+  "confidence_semantics": "UNCALIBRATED_LABEL_AUTHORITY_PLACEHOLDER"
+}

@@ -53,6 +53,43 @@ def _templated(processor: Any, messages: list[dict[str, Any]], *, add_generation
     return [int(item) for item in ids]
 
 
+def _token_text(processor: Any, token_id: int) -> str:
+    return str(processor.tokenizer.decode([token_id], skip_special_tokens=False))
+
+
+def _with_supervised_eos(ids: list[int], prompt_length: int, processor: Any) -> list[int]:
+    """Remove template-only trailing whitespace and terminate with explicit EOS."""
+    eos = processor.tokenizer.eos_token_id
+    if eos is None:
+        raise TokenizationExclusion("TOKENIZER_EOS_REQUIRED")
+    values = list(ids)
+    while len(values) > prompt_length and values[-1] != eos and not _token_text(processor, values[-1]).strip():
+        values.pop()
+    if not values or values[-1] != eos:
+        values.append(int(eos))
+    return values
+
+
+def generation_terminator_ids(processor: Any) -> list[int]:
+    """Return EOS plus the non-whitespace assistant turn terminator, if present."""
+    eos = processor.tokenizer.eos_token_id
+    if eos is None:
+        raise TokenizationExclusion("TOKENIZER_EOS_REQUIRED")
+    rendered = {"system_prompt": "system", "user_payload": "{}"}
+    prompt = _templated(processor, _messages(rendered), add_generation_prompt=True)
+    full = _templated(processor, _messages(rendered, completion=""), add_generation_prompt=False)
+    suffix = full[len(prompt):] if full[:len(prompt)] == prompt else []
+    terminators = [int(eos)]
+    for token_id in reversed(suffix):
+        text = _token_text(processor, token_id)
+        if not text.strip():
+            continue
+        if token_id != eos:
+            terminators.append(int(token_id))
+        break
+    return list(dict.fromkeys(terminators))
+
+
 def tokenize_record(record: dict[str, Any], layer: str, processor: Any, max_length: int) -> TokenizedExample:
     """Render the prompt and full conversation separately, then supervise only their suffix."""
     rendered = render(record, layer)
@@ -62,6 +99,7 @@ def tokenize_record(record: dict[str, Any], layer: str, processor: Any, max_leng
         _messages(rendered, completion=rendered["completion"]),
         add_generation_prompt=False,
     )
+    full_ids = _with_supervised_eos(full_ids, len(prompt_ids), processor)
     if len(full_ids) > max_length:
         raise TokenizationExclusion(f"SEQUENCE_TOO_LONG:{len(full_ids)}>{max_length}")
     if len(prompt_ids) >= len(full_ids):

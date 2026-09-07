@@ -4,7 +4,7 @@ seed: 42
 output_root: ../../outputs
 max_sequence_length: 2048
 packing: false
-model: {model_id: google/gemma-4-E4B-it, revision: ee0ef6023621cff504d758262d4e04895a5af4a2, architecture: Gemma4ForConditionalGeneration, renderer_version: gemma4-critic-render-v1, require_bf16: true, load_in_4bit: true, quant_type: nf4, double_quant: true, gradient_checkpointing: true, lora_rank: 16, lora_alpha: 16, lora_dropout: 0.05, lora_target_regex: '(^|\.)(language_model|text_model)(\.|$)'}
+model: {model_id: google/gemma-4-E4B-it, revision: ee0ef6023621cff504d758262d4e04895a5af4a2, architecture: Gemma4ForConditionalGeneration, renderer_version: gemma4-critic-render-v2, require_bf16: true, load_in_4bit: true, quant_type: nf4, double_quant: true, gradient_checkpointing: true, lora_rank: 16, lora_alpha: 16, lora_dropout: 0.05, lora_target_regex: '(^|\.)(language_model|text_model)(\.|$)'}
 data: {public_train: ../../data/curated/public-critic-v1/train.jsonl, native_train: ../../data/native/native-rule-v2/train.jsonl, public_validation: ../../data/curated/public-critic-v1/validation.jsonl, native_validation: ../../data/native/native-rule-v2/validation.jsonl}
 mixture: {public_probability: 0.5, native_probability: 0.5, with_replacement: true}
 optimization: {micro_batch_size: 1, gradient_accumulation_steps: 8, learning_rate: 0.0001, weight_decay: 0.0, optimizer: paged_adamw_8bit, scheduler: cosine, warmup_ratio: 0.03, max_grad_norm: 1.0}

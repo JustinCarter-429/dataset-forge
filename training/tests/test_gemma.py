@@ -1,12 +1,9 @@
 import json
 import pytest
-from dataset_forge_critic.gemma import SCORE_FIELDS, parse_response, response_envelope
-
-def test_response_envelope_keeps_zero_and_null_distinct():
-    value=response_envelope({'scores':{'grounding':{'value':0}},'decision':'REJECT'},['decision','scores.grounding'])
-    assert value['decision']=='REJECT' and value['scores']['grounding']['value']==0 and value['scores']['novelty'] is None
+from dataset_forge_critic.gemma import parse_response
 
 def test_strict_response_parser_rejects_prose_and_unknown_fields():
-    payload={'decision':'ACCEPT','preferred_candidate_index':None,'scores':{x:None for x in SCORE_FIELDS},'issue_codes':[],'critique':None,'revision_directive':None}
-    assert parse_response(json.dumps(payload))['decision']=='ACCEPT'
+    payload={'decision':'accept','confidence':1.0,'reason_codes':[],'feedback':None,'model_version':'dataset-forge-critic-v1'}
+    assert parse_response(json.dumps(payload,separators=(',',':')))['decision']=='accept'
     with pytest.raises(ValueError): parse_response('```json {} ```')
+    with pytest.raises(ValueError): parse_response(json.dumps({**payload,'extra':1},separators=(',',':')))

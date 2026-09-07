@@ -35,6 +35,8 @@ class ModelSpec(StrictModel):
     def identity_is_pinned(self) -> "ModelSpec":
         if self.model_id != MODEL_ID or self.revision != REVISION:
             raise ValueError("MODEL_IDENTITY_MISMATCH: model id and revision are immutable")
+        if self.renderer_version != RENDERER:
+            raise ValueError("RENDERER_IDENTITY_MISMATCH: training and inference must use the same renderer")
         return self
 
 

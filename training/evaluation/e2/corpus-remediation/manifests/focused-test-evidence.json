@@ -1,0 +1,35 @@
+{
+  "schema_version": "phase-e2.1-focused-test-evidence-v1",
+  "status": "PASS",
+  "total_tests": 32,
+  "batches": [
+    {
+      "batch": "canonical-conflicts",
+      "command": "python -m pytest training/evaluation/e2/corpus-remediation/tests/test_canonical_conflicts.py -q --disable-warnings",
+      "exit_code": 0,
+      "log_path": "training/evaluation/e2/corpus-remediation/logs/tests-01-canonical-conflicts.log",
+      "test_ids": ["test_canonical_conflicts.py::test_canonicalization_stability", "test_canonical_conflicts.py::test_meaning_preserving_canonicalization", "test_canonical_conflicts.py::test_fingerprint_is_key_order_independent", "test_canonical_conflicts.py::test_conflict_group_quarantine", "test_canonical_conflicts.py::test_exact_duplicate_removal", "test_canonical_conflicts.py::test_differing_target_quarantine", "test_canonical_conflicts.py::test_same_target_deterministic_retention", "test_canonical_conflicts.py::test_whitespace_and_order_equivalence_retained", "test_canonical_conflicts.py::test_missing_provenance_quarantined", "test_canonical_conflicts.py::test_empty_corpus_behavior", "test_canonical_conflicts.py::test_quarantine_report_is_non_sensitive_shape"]
+    },
+    {
+      "batch": "clustering-splitting",
+      "command": "python -m pytest training/evaluation/e2/corpus-remediation/tests/test_clustering_splitting.py -q --disable-warnings",
+      "exit_code": 0,
+      "log_path": "training/evaluation/e2/corpus-remediation/logs/tests-02-clustering-splitting.log",
+      "test_ids": ["test_clustering_splitting.py::test_near_duplicate_clustering", "test_clustering_splitting.py::test_cluster_atomic_splitting", "test_clustering_splitting.py::test_no_cross_split_cluster_leakage", "test_clustering_splitting.py::test_overlap_scanner_detects_near_pair"]
+    },
+    {
+      "batch": "injection-contract",
+      "command": "python -m pytest training/evaluation/e2/corpus-remediation/tests/test_injection_contract.py -q --disable-warnings",
+      "exit_code": 0,
+      "log_path": "training/evaluation/e2/corpus-remediation/logs/tests-03-injection-contract-final.log",
+      "test_ids": ["test_injection_contract.py::test_prompt_injection_reject_construction", "test_injection_contract.py::test_repairable_injection_revise_construction", "test_injection_contract.py::test_benign_discussion_accept_construction", "test_injection_contract.py::test_all_five_dataset_types", "test_injection_contract.py::test_decision_balancing", "test_injection_contract.py::test_dataset_type_balancing", "test_injection_contract.py::test_template_family_caps", "test_injection_contract.py::test_strict_target_schema", "test_injection_contract.py::test_confidence_placeholder_value", "test_injection_contract.py::test_deterministic_reruns"]
+    },
+    {
+      "batch": "final-evidence",
+      "command": "python -m pytest training/evaluation/e2/corpus-remediation/tests/test_final_evidence.py -q --disable-warnings",
+      "exit_code": 0,
+      "log_path": "training/evaluation/e2/corpus-remediation/logs/tests-04-final-evidence.log",
+      "test_ids": ["test_final_evidence.py::test_closing_brace_supervision", "test_final_evidence.py::test_turn_terminator_supervision", "test_final_evidence.py::test_eos_supervision", "test_final_evidence.py::test_phase_e1_overlap_prevention", "test_final_evidence.py::test_controlled_overfit_overlap_prevention", "test_final_evidence.py::test_final_cross_split_gate", "test_final_evidence.py::test_secret_and_path_redaction"]
+    }
+  ]
+}

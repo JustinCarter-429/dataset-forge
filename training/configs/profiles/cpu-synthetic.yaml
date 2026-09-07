@@ -14,7 +14,7 @@ model:
   model_id: google/gemma-4-E4B-it
   revision: ee0ef6023621cff504d758262d4e04895a5af4a2
   architecture: Gemma4ForConditionalGeneration
-  renderer_version: gemma4-critic-render-v1
+  renderer_version: gemma4-critic-render-v2
   require_bf16: false
   load_in_4bit: false
   quant_type: nf4

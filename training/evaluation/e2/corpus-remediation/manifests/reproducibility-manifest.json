@@ -1,0 +1,42 @@
+{
+  "builder_version": "phase-e2.1-builder-v1",
+  "canonicalization_version": "e2.1-nfc-json-v1",
+  "confidence_notice": "UNCALIBRATED_LABEL_AUTHORITY_PLACEHOLDER",
+  "fixed_seeds": {
+    "train": 210000,
+    "validation": 910000
+  },
+  "jaccard_threshold": 0.85,
+  "outputs": {
+    "quarantine/groups.jsonl": {
+      "bytes": 1955982,
+      "sha256": "22cbd830eb9f284f9a2052fa1a51359f5ff91aa919712a0f5bc50e6fca9e022a"
+    },
+    "reports/audit.json": {
+      "bytes": 49684,
+      "sha256": "ec3e29ed0bb2fdff729604dba9604ccdb7b8d65cc0f794f2873c15bbd576c97c"
+    },
+    "train/corpus.jsonl": {
+      "bytes": 15355084,
+      "sha256": "a7485d598825573e557a982dd4e86f7ba5868a9ee8d71c0306616b625b524ce8"
+    },
+    "validation/corpus.jsonl": {
+      "bytes": 2261501,
+      "sha256": "4b991d36e2d179161293e96b81dbda1abff948fbb27ee7ad9e2634744cc31e47"
+    }
+  },
+  "phase_e1_immutable": true,
+  "schema_version": "phase-e2.1-reproducibility-manifest-v1",
+  "source_files": {
+    "training/data/native/native-rule-v2/train.jsonl": "e4d06e875ecc2dcfc246e301aa474abe953b5f8cbc9e3011352697d1bba53afd",
+    "training/data/native/native-rule-v2/validation.jsonl": "c4667f41179fab7f0b50820ed9842ce45c2a68c81bff8bb4547acda0aff15b6c"
+  },
+  "target_contract_fields": [
+    "decision",
+    "confidence",
+    "reason_codes",
+    "feedback",
+    "model_version"
+  ],
+  "test_split_accessed": false
+}

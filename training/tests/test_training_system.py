@@ -26,7 +26,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FakeProcessor:
-    tokenizer = SimpleNamespace(pad_token_id=0)
+    class Tokenizer:
+        pad_token_id = 0
+        eos_token_id = 1
+
+        @staticmethod
+        def decode(values, skip_special_tokens=True):
+            token = values[0]
+            return {1: "<eos>", 106: "<turn|>", 107: "\n"}.get(token, chr(token - 1000) if token >= 1000 else "x")
+
+    tokenizer = Tokenizer()
 
     def apply_chat_template(self, messages, *, tokenize, add_generation_prompt, return_dict):
         assert tokenize and return_dict
@@ -37,11 +46,18 @@ class FakeProcessor:
             return {"input_ids": prefix}
         assert not add_generation_prompt
         completion = messages[-1]["content"][0]["text"]
-        answer = [1000 + ord(char) for char in completion] + [2]
+        answer = [1000 + ord(char) for char in completion] + [106, 107]
         return {"input_ids": prefix + answer}
 
     def decode(self, values, skip_special_tokens=True):
         return ""
+
+
+def decision_record():
+    record = valid_record()
+    record["target"].update({"decision": "REJECT", "issue_codes": ["GROUNDING_CONTRADICTION"], "critique": "The answer conflicts with the source."})
+    record["supervision"]["available_targets"].extend(["decision", "issue_codes", "critique"])
+    return record
 
 
 def _write_rows(path: Path, values):
@@ -49,17 +65,18 @@ def _write_rows(path: Path, values):
 
 
 def test_completion_mask_and_padding_are_exact():
-    tokenized = tokenize_record(valid_record(), "public", FakeProcessor(), 4096)
+    tokenized = tokenize_record(decision_record(), "public", FakeProcessor(), 4096)
     assert tokenized.supervised_tokens > 0
     assert all(value == -100 for value in tokenized.labels[:tokenized.prompt_tokens])
     assert tokenized.labels[tokenized.prompt_tokens:] == tokenized.input_ids[tokenized.prompt_tokens:]
+    assert tokenized.input_ids[-2:] == [106, 1]
     padded = pad_batch([tokenized], 0)
     assert padded["labels"][0] == tokenized.labels
 
 
 def test_truncation_is_rejected_not_silent():
     with pytest.raises(TokenizationExclusion, match="SEQUENCE_TOO_LONG"):
-        tokenize_record(valid_record(), "public", FakeProcessor(), 2)
+        tokenize_record(decision_record(), "public", FakeProcessor(), 2)
 
 
 def test_sampler_is_reproducible_and_resume_exact(tmp_path):
@@ -96,7 +113,7 @@ def test_lora_discovery_only_matches_text_modules():
 
 def test_metrics_known_native_answers_and_missing_labels():
     target = valid_record(); target["task_family"] = "dataset_forge_native"; target["target"] = {"decision": "REJECT", "scores": {}, "issue_codes": []}; target["supervision"] = {"available_targets": ["decision"]}
-    envelope = {"decision": "ACCEPT", "preferred_candidate_index": None, "scores": {name: None for name in __import__("dataset_forge_critic.gemma", fromlist=["SCORE_FIELDS"]).SCORE_FIELDS}, "issue_codes": [], "critique": None, "revision_directive": None}
+    envelope = {"decision": "accept", "confidence": 1.0, "reason_codes": [], "feedback": None, "model_version": "dataset-forge-critic-v1"}
     result = evaluate_predictions([("native", target, json.dumps(envelope, separators=(",", ":")))])
     assert result["native"]["false_acceptance_of_reject"] == 1.0
     assert result["preference_accuracy"] is None and result["score_mae"] == {}

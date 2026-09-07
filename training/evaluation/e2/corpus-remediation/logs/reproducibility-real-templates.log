@@ -1,0 +1,2062 @@
+{
+  "builder_version": "phase-e2.1-builder-v1",
+  "canonicalization_version": "e2.1-nfc-json-v1",
+  "confidence_notice": "UNCALIBRATED_LABEL_AUTHORITY_PLACEHOLDER",
+  "controlled_overfit_overlap": {
+    "canonical_inputs": 0,
+    "record_ids": 0
+  },
+  "fixed_seeds": {
+    "train": 210000,
+    "validation": 910000
+  },
+  "gate": {
+    "checks": {
+      "all_dataset_types_both_splits": true,
+      "all_decisions_both_splits": true,
+      "canonical_cross_split_overlap_zero": true,
+      "closing_brace_retention_100_percent": true,
+      "controlled_overfit_overlap_zero": true,
+      "dataset_type_floor_10_percent": true,
+      "decision_floor_20_percent": true,
+      "eligible_conflicting_groups_zero": true,
+      "exact_cross_split_overlap_zero": true,
+      "focused_tests_pass": true,
+      "fully_masked_completions_zero": true,
+      "injection_train_at_least_300": true,
+      "injection_validation_at_least_100": true,
+      "near_cross_split_overlap_zero": true,
+      "phase_e1_overlap_zero": true,
+      "reproducible_rebuild_byte_identical": true,
+      "source_family_overlap_zero": true,
+      "strict_target_validity_100_percent": true,
+      "template_family_cap_5_percent": true,
+      "template_family_overlap_zero": true,
+      "termination_boundary_retention_100_percent": true,
+      "train_unique_inputs_at_least_6000": true,
+      "validation_unique_inputs_at_least_750": true
+    },
+    "conflicting_groups": 0,
+    "status": "PASS",
+    "train": {
+      "dataset_types": {
+        "classification": {
+          "count": 1180,
+          "fraction": 0.19666666666666666
+        },
+        "custom": {
+          "count": 1243,
+          "fraction": 0.20716666666666667
+        },
+        "instruction_response": {
+          "count": 1216,
+          "fraction": 0.20266666666666666
+        },
+        "question_answer": {
+          "count": 1172,
+          "fraction": 0.19533333333333333
+        },
+        "scenario_expected_result": {
+          "count": 1189,
+          "fraction": 0.19816666666666666
+        }
+      },
+      "decisions": {
+        "accept": {
+          "count": 1200,
+          "fraction": 0.2
+        },
+        "reject": {
+          "count": 3600,
+          "fraction": 0.6
+        },
+        "revise": {
+          "count": 1200,
+          "fraction": 0.2
+        }
+      },
+      "defect_categories": {
+        "append_operational_attempt:citation_fabrication": {
+          "count": 70,
+          "fraction": 0.011666666666666667
+        },
+        "append_operational_attempt:contract_override": {
+          "count": 75,
+          "fraction": 0.0125
+        },
+        "append_operational_attempt:forbidden_field": {
+          "count": 70,
+          "fraction": 0.011666666666666667
+        },
+        "append_operational_attempt:grounding_override": {
+          "count": 70,
+          "fraction": 0.011666666666666667
+        },
+        "append_operational_attempt:hidden_prompt_exfiltration": {
+          "count": 75,
+          "fraction": 0.0125
+        },
+        "append_operational_attempt:model_version_override": {
+          "count": 70,
+          "fraction": 0.011666666666666667
+        },
+        "append_operational_attempt:multiple_objects": {
+          "count": 70,
+          "fraction": 0.011666666666666667
+        },
+        "append_operational_attempt:policy_override": {
+          "count": 71,
+          "fraction": 0.011833333333333333
+        },
+        "append_operational_attempt:priority_confusion": {
+          "count": 75,
+          "fraction": 0.0125
+        },
+        "append_operational_attempt:prose_override": {
+          "count": 70,
+          "fraction": 0.011666666666666667
+        },
+        "append_operational_attempt:secret_exfiltration": {
+          "count": 75,
+          "fraction": 0.0125
+        },
+        "append_operational_attempt:tool_execution": {
+          "count": 75,
+          "fraction": 0.0125
+        },
+        "append_operational_attempt:validation_disable": {
+          "count": 70,
+          "fraction": 0.011666666666666667
+        },
+        "append_removable_attempt:citation_fabrication": {
+          "count": 95,
+          "fraction": 0.015833333333333335
+        },
+        "append_removable_attempt:contract_override": {
+          "count": 90,
+          "fraction": 0.015
+        },
+        "append_removable_attempt:forbidden_field": {
+          "count": 95,
+          "fraction": 0.015833333333333335
+        },
+        "append_removable_attempt:grounding_override": {
+          "count": 90,
+          "fraction": 0.015
+        },
+        "append_removable_attempt:hidden_prompt_exfiltration": {
+          "count": 90,
+          "fraction": 0.015
+        },
+        "append_removable_attempt:model_version_override": {
+          "count": 95,
+          "fraction": 0.015833333333333335
+        },
+        "append_removable_attempt:multiple_objects": {
+          "count": 95,
+          "fraction": 0.015833333333333335
+        },
+        "append_removable_attempt:policy_override": {
+          "count": 90,
+          "fraction": 0.015
+        },
+        "append_removable_attempt:priority_confusion": {
+          "count": 90,
+          "fraction": 0.015
+        },
+        "append_removable_attempt:prose_override": {
+          "count": 95,
+          "fraction": 0.015833333333333335
+        },
+        "append_removable_attempt:secret_exfiltration": {
+          "count": 90,
+          "fraction": 0.015
+        },
+        "append_removable_attempt:tool_execution": {
+          "count": 90,
+          "fraction": 0.015
+        },
+        "append_removable_attempt:validation_disable": {
+          "count": 95,
+          "fraction": 0.015833333333333335
+        },
+        "benign_security_discussion": {
+          "count": 1200,
+          "fraction": 0.2
+        },
+        "redundant": {
+          "count": 888,
+          "fraction": 0.148
+        },
+        "scope_flip": {
+          "count": 888,
+          "fraction": 0.148
+        },
+        "wrong_concept": {
+          "count": 888,
+          "fraction": 0.148
+        }
+      },
+      "prompt_injection": {
+        "benign": {
+          "count": 1200,
+          "fraction": 0.2
+        },
+        "malicious": {
+          "count": 936,
+          "fraction": 0.156
+        },
+        "repairable": {
+          "count": 1200,
+          "fraction": 0.2
+        }
+      },
+      "records": 6000,
+      "template_families": {
+        "api-000": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-001": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-002": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-003": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-004": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-005": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-006": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-007": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-008": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-009": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-011": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-012": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-013": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-014": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-015": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-016": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-017": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-019": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-020": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-021": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-022": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-023": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-024": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-025": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-026": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-027": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-028": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-029": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-030": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-031": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-032": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-033": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-034": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-035": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-036": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-037": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-039": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-040": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-042": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-044": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-045": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-046": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-047": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-048": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-049": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-050": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-051": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-052": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-053": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-054": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-055": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-056": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-057": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-058": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-059": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-060": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-061": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-062": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-063": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-064": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-065": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-066": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-068": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "api-069": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "e2i-tr-template-000": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-001": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-002": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-003": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-004": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-005": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-006": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-007": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-008": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-009": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-010": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-011": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-012": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-013": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-014": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-015": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-016": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-017": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-018": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-019": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-020": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-021": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-022": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-023": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-024": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-025": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-026": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-027": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-028": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-029": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-030": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-031": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-032": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-033": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-034": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-035": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-036": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-037": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-038": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-039": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-040": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-041": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-042": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-043": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-044": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-045": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-046": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-047": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-048": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-049": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-050": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-051": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-052": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-053": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-054": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-055": {
+          "count": 42,
+          "fraction": 0.007
+        },
+        "e2i-tr-template-056": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-057": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-058": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-059": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-060": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-061": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-062": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-063": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-064": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-065": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-066": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-067": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-068": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-069": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-070": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-071": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-072": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-073": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-074": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-075": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-076": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-077": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-078": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "e2i-tr-template-079": {
+          "count": 41,
+          "fraction": 0.006833333333333334
+        },
+        "governance-002": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-003": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-006": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-007": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-008": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-009": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-010": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-011": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-012": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-013": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-014": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-016": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-017": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-019": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-020": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-021": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-023": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-024": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-025": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-026": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-027": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-028": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-031": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-032": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-033": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-034": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-035": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-036": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-037": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-038": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-039": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-041": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-044": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-046": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-047": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-048": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-049": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-050": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-051": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-052": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-053": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-054": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-055": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-056": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-058": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-059": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-060": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-061": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-062": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-063": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-064": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-065": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-066": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-067": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-068": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "governance-069": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-000": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-001": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-003": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-004": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-005": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-006": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-007": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-009": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-010": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-011": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-012": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-014": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-015": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-016": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-018": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-019": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-020": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-021": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-022": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-023": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-024": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-027": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-028": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-029": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-030": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-033": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-034": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-035": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-036": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-037": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-038": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-039": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-041": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-044": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-045": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-046": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-047": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-048": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-049": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-050": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-051": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-052": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-053": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-054": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-055": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-056": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-057": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-058": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-059": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-060": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-061": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-063": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-064": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-065": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-066": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "operations-067": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-000": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-001": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-002": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-003": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-004": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-005": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-006": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-007": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-008": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-009": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-011": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-012": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-013": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-014": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-015": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-018": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-019": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-021": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-022": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-024": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-025": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-026": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-027": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-028": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-029": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-030": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-031": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-032": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-033": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-034": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-035": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-037": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-039": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-040": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-041": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-042": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-043": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-044": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-046": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-047": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-048": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-049": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-050": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-051": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-052": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-053": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-055": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-056": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-057": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-058": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-059": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-060": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-061": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-062": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-063": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-064": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-065": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-066": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-067": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-068": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "policy-069": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-000": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-001": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-002": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-003": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-004": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-006": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-007": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-008": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-009": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-010": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-011": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-013": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-014": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-015": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-016": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-017": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-018": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-019": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-020": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-021": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-023": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-024": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-025": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-026": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-027": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-029": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-030": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-032": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-033": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-034": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-035": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-036": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-037": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-038": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-040": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-042": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-043": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-044": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-045": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-046": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-047": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-048": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-049": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-050": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-051": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-052": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-053": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-054": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-057": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-058": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-059": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-060": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-061": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-063": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-065": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-066": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-067": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-068": {
+          "count": 9,
+          "fraction": 0.0015
+        },
+        "security-069": {
+          "count": 9,
+          "fraction": 0.0015
+        }
+      }
+    },
+    "validation": {
+      "dataset_types": {
+        "classification": {
+          "count": 150,
+          "fraction": 0.2
+        },
+        "custom": {
+          "count": 150,
+          "fraction": 0.2
+        },
+        "instruction_response": {
+          "count": 150,
+          "fraction": 0.2
+        },
+        "question_answer": {
+          "count": 150,
+          "fraction": 0.2
+        },
+        "scenario_expected_result": {
+          "count": 150,
+          "fraction": 0.2
+        }
+      },
+      "decisions": {
+        "accept": {
+          "count": 250,
+          "fraction": 0.3333333333333333
+        },
+        "reject": {
+          "count": 250,
+          "fraction": 0.3333333333333333
+        },
+        "revise": {
+          "count": 250,
+          "fraction": 0.3333333333333333
+        }
+      },
+      "defect_categories": {
+        "append_operational_attempt:citation_fabrication": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:contract_override": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:forbidden_field": {
+          "count": 15,
+          "fraction": 0.02
+        },
+        "append_operational_attempt:grounding_override": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:hidden_prompt_exfiltration": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:model_version_override": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:multiple_objects": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:policy_override": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:priority_confusion": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:prose_override": {
+          "count": 15,
+          "fraction": 0.02
+        },
+        "append_operational_attempt:secret_exfiltration": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:tool_execution": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_operational_attempt:validation_disable": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:citation_fabrication": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:contract_override": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:forbidden_field": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:grounding_override": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:hidden_prompt_exfiltration": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:model_version_override": {
+          "count": 15,
+          "fraction": 0.02
+        },
+        "append_removable_attempt:multiple_objects": {
+          "count": 15,
+          "fraction": 0.02
+        },
+        "append_removable_attempt:policy_override": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:priority_confusion": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:prose_override": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:secret_exfiltration": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:tool_execution": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "append_removable_attempt:validation_disable": {
+          "count": 20,
+          "fraction": 0.02666666666666667
+        },
+        "benign_security_discussion": {
+          "count": 250,
+          "fraction": 0.3333333333333333
+        }
+      },
+      "prompt_injection": {
+        "benign": {
+          "count": 250,
+          "fraction": 0.3333333333333333
+        },
+        "malicious": {
+          "count": 250,
+          "fraction": 0.3333333333333333
+        },
+        "repairable": {
+          "count": 250,
+          "fraction": 0.3333333333333333
+        }
+      },
+      "records": 750,
+      "template_families": {
+        "e2i-dv-template-000": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-001": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-002": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-003": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-004": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-005": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-006": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-007": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-008": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-009": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-010": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-011": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-012": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-013": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-014": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-015": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-016": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-017": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-018": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-019": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-020": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-021": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-022": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-023": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-024": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-025": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-026": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-027": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-028": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        },
+        "e2i-dv-template-029": {
+          "count": 25,
+          "fraction": 0.03333333333333333
+        }
+      }
+    }
+  },
+  "new_deterministic_records": 4086,
+  "overlap": {
+    "candidate_pairs_compared_after_length_bound": 3642328,
+    "canonical_input_overlap": 0,
+    "exact_record_id_overlap": 0,
+    "jaccard_threshold": 0.85,
+    "near_duplicate_examples": [],
+    "near_duplicate_pairs": 0,
+    "source_family_overlap": 0,
+    "template_family_overlap": 0
+  },
+  "package": {
+    "bytes": 1417150,
+    "path": "training/evaluation/e2/corpus-remediation/repro-check-real-templates/package/phase-e2.1-clean-corpus-v1.tar.gz",
+    "sha256": "b4db8dbd7c7768cf1147b7b56dd40e5b492b8a5780c32dc6bcdcceb309227ac7"
+  },
+  "phase_e1_overlap": {
+    "canonical_inputs": 0,
+    "record_ids": 0
+  },
+  "quarantine": {
+    "conflicting_groups": 1776,
+    "conflicting_records": 7992,
+    "differing_target_groups": 0,
+    "differing_target_records": 0,
+    "exact_duplicate_groups": 0,
+    "exact_duplicate_records": 0,
+    "groups": 1776,
+    "records": 7992
+  },
+  "remaining_defensible_native_records": 2664,
+  "reproducibility": {
+    "byte_identical": true,
+    "status": "PASS"
+  },
+  "schema_version": "phase-e2.1-audit-v1",
+  "starting_records": 10656,
+  "test_split_accessed": false,
+  "tests": {
+    "status": "PASS",
+    "total": 32
+  },
+  "tokenization": {
+    "chat_template_sha256": "0a2c8073c878ab1da004bee933a998606537bbb62016310352c7285c3f01c5b5",
+    "fully_masked_completions": 0,
+    "max_sequence_tokens": 459,
+    "records": 6750,
+    "strict_target": 6750,
+    "supervised_closing_brace": 6750,
+    "supervised_eos": 6750,
+    "supervised_turn_terminator": 6750,
+    "tokenizer_json_sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f"
+  }
+}
+EXIT_CODE=0
