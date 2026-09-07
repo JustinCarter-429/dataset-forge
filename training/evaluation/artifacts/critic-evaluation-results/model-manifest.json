@@ -1,0 +1,36 @@
+{
+  "schema_version": "phase-e1-model-manifest-v1",
+  "model_id": "google/gemma-4-E4B-it",
+  "revision": "ee0ef6023621cff504d758262d4e04895a5af4a2",
+  "architecture": "Gemma4ForConditionalGeneration",
+  "checkpoint_sha256": "cbb96f85c252273eda5beccbcd1bf622964deb11a85241b1d952884a1751906a",
+  "checkpoint_step": 14561,
+  "checkpoint_config_digest": "325388b333e9242fcef75a3551f4fffe8d66de0e5cc457f735b0f5a04a8f3de7",
+  "checkpoint_contents": {
+    "adapter_weights": true,
+    "trainer_state": true,
+    "optimizer_state": false,
+    "complete_model": false,
+    "tokenizer_files": false
+  },
+  "adapter": {
+    "peft_type": "LORA",
+    "rank": 16,
+    "alpha": 16,
+    "dropout": 0.05,
+    "task_type": "CAUSAL_LM",
+    "bias": "none",
+    "inference_mode": true
+  },
+  "tokenizer": {
+    "class": "GemmaTokenizer",
+    "config_sha256": "9f4fec4b1dc6ecddf8f4a92e9caea5971c0e67d81309f3f9066a2bee8c362633",
+    "tokenizer_sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+    "chat_template_sha256": "0a2c8073c878ab1da004bee933a998606537bbb62016310352c7285c3f01c5b5"
+  },
+  "precision": "bfloat16 compute",
+  "quantization": "4-bit NF4 double quantization",
+  "seed": 42,
+  "max_new_tokens": 256,
+  "corpus_sha256": "d9b046ebc9a73f39860c241329417f6606976939e03ac53e4f7ae4599ada2500"
+}

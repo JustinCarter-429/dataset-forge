@@ -1,0 +1,33 @@
+{
+  "method": "canonical candidate SHA-256 equality plus case-folded alphanumeric-token Jaccard >= 0.90",
+  "sources": [
+    {
+      "name": "train.jsonl",
+      "status": "checked",
+      "records": 107989
+    },
+    {
+      "name": "validation.jsonl",
+      "status": "checked",
+      "records": 6981
+    },
+    {
+      "name": "train.jsonl",
+      "status": "checked",
+      "records": 8496
+    },
+    {
+      "name": "validation.jsonl",
+      "status": "checked",
+      "records": 2160
+    }
+  ],
+  "records_scanned": 125626,
+  "heldout_cases": 105,
+  "exact_overlap_count": 0,
+  "near_overlap_count": 0,
+  "exact_overlaps": [],
+  "near_overlaps": [],
+  "test_splits_accessed": false,
+  "scope_limitation": "Only locally available training and validation corpora were checkable."
+}

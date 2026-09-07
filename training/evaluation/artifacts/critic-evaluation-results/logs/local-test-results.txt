@@ -1,0 +1,49 @@
+Phase E1 durable local verification tests
+Started UTC: 2026-09-07T06:18:15.1149068Z
+PYTHONPATH: training/src
+Repository-owned base temp: training/.pytest-e1-verification-durable-final-v2
+Optional exclusion: tests/test_live_dashboard.py
+Exclusion reason: optional TensorBoard dependency is unavailable in the local test environment
+
+=== Focused Phase E1 tests ===
+============================= test session starts =============================
+platform win32 -- Python 3.11.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: [REPOSITORY]\training
+configfile: pyproject.toml
+plugins: Faker-40.36.0, anyio-4.13.0, cov-7.1.0
+collected 8 items
+
+tests\test_e1_pipeline.py ........                                       [100%]
+
+============================== 8 passed in 0.69s ==============================
+Focused exit code: 0
+
+=== Relevant training suite (excluding only optional live-dashboard module) ===
+============================= test session starts =============================
+platform win32 -- Python 3.11.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: [REPOSITORY]\training
+configfile: pyproject.toml
+testpaths: tests
+plugins: Faker-40.36.0, anyio-4.13.0, cov-7.1.0
+collected 55 items
+
+tests\test_adapter_contract.py .                                         [  1%]
+tests\test_config.py .....                                               [ 10%]
+tests\test_curation.py ...                                               [ 16%]
+tests\test_e1_pipeline.py ........                                       [ 30%]
+tests\test_gemma.py ..                                                   [ 34%]
+tests\test_gpu_bundle.py .                                               [ 36%]
+tests\test_ingestion.py ...                                              [ 41%]
+tests\test_schemas.py ..........                                         [ 60%]
+tests\test_training_system.py ..............                             [ 85%]
+Finished UTC: 2026-09-07T06:18:37.1043865Z
+
+=== Direct final relevant-suite run after background-host reap ===
+Started UTC: 2026-09-07T06:19:24.0488335Z
+Excluded module: tests/test_live_dashboard.py
+Reason: optional TensorBoard dependency unavailable
+.......................................................                  [100%]
+55 passed in 12.82s
+
+Recovered pytest exit code: 0 (successful terminal summary persisted before shell interruption)
+Finished-evidence UTC: 2026-09-07T06:21:10.8232763Z

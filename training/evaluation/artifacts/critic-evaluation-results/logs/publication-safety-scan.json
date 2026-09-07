@@ -1,0 +1,87 @@
+{
+  "findings": [],
+  "heldout_source_fragments_checked": 105,
+  "png_files_checked": [
+    {
+      "file": "screenshots/base-versus-fine-tuned.png",
+      "height": 493,
+      "metadata_keys": [],
+      "width": 709
+    },
+    {
+      "file": "screenshots/certification-summary.png",
+      "height": 115,
+      "metadata_keys": [],
+      "width": 1436
+    },
+    {
+      "file": "screenshots/comparison.png",
+      "height": 900,
+      "metadata_keys": [],
+      "width": 1440
+    },
+    {
+      "file": "screenshots/confusion-matrix.png",
+      "height": 493,
+      "metadata_keys": [],
+      "width": 709
+    },
+    {
+      "file": "screenshots/confusion.png",
+      "height": 900,
+      "metadata_keys": [],
+      "width": 1440
+    },
+    {
+      "file": "screenshots/dashboard-desktop.png",
+      "height": 7758,
+      "metadata_keys": [],
+      "width": 1920
+    },
+    {
+      "file": "screenshots/dashboard-mobile.png",
+      "height": 11165,
+      "metadata_keys": [],
+      "width": 390
+    },
+    {
+      "file": "screenshots/dataset.png",
+      "height": 900,
+      "metadata_keys": [],
+      "width": 1440
+    },
+    {
+      "file": "screenshots/defects.png",
+      "height": 900,
+      "metadata_keys": [],
+      "width": 1440
+    },
+    {
+      "file": "screenshots/per-dataset-type.png",
+      "height": 493,
+      "metadata_keys": [],
+      "width": 1436
+    }
+  ],
+  "schema_version": "phase-e1-publication-safety-scan-v1",
+  "status": "passed",
+  "text_files_checked": [
+    "certification-report.md",
+    "evaluation-results.csv",
+    "evaluation-results.json",
+    "index.html",
+    "logs/artifact-sha256s.txt",
+    "logs/local-test-complete.txt",
+    "logs/local-test-exit-code.txt",
+    "logs/local-test-results.txt",
+    "logs/progress.json",
+    "logs/raw-response-audit.json",
+    "logs/redaction-check.json",
+    "logs/runtime-environment.json",
+    "logs/visual-verification.json",
+    "model-manifest.json",
+    "reproducibility/critic-system-v1.txt",
+    "reproducibility/overlap-report.json",
+    "reproducibility/thresholds.json"
+  ]
+}

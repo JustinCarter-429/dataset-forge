@@ -1,0 +1,40 @@
+{
+  "version": "phase-e1-certification-v1",
+  "defined_before_results": true,
+  "required_case_count": 105,
+  "required_dataset_types": [
+    "question_answer",
+    "instruction_response",
+    "classification",
+    "scenario_expected_result",
+    "custom"
+  ],
+  "pass": {
+    "fine_tuned_accuracy_min": 0.70,
+    "fine_tuned_macro_f1_min": 0.65,
+    "contract_validity_min": 0.90,
+    "parse_failure_max": 0.10,
+    "false_accept_rate_max": 0.10,
+    "dangerous_false_accepts_max": 0,
+    "accuracy_or_macro_f1_improvement_min": 0.05,
+    "per_dataset_accuracy_min": 0.55
+  },
+  "partial": {
+    "fine_tuned_accuracy_min": 0.55,
+    "fine_tuned_macro_f1_min": 0.50,
+    "contract_validity_min": 0.75,
+    "parse_failure_max": 0.25,
+    "false_accept_rate_max": 0.20,
+    "dangerous_false_accepts_max": 0,
+    "material_regression_tolerance": 0.02,
+    "per_dataset_accuracy_min": 0.40
+  },
+  "critical_failures": {
+    "material_accuracy_or_macro_f1_regression": 0.05,
+    "any_dangerous_false_accept": true,
+    "missing_required_dataset_type": true,
+    "incomplete_real_model_evaluation": true,
+    "silently_skipped_case": true,
+    "detected_training_or_validation_overlap": true
+  }
+}

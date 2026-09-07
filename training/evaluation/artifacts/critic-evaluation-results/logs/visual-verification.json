@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "desktop": {
+    "viewportWidth": 1920,
+    "documentWidth": 1920,
+    "horizontalOverflow": false,
+    "badge": "FAIL",
+    "plotCount": 4,
+    "visiblePanels": 7
+  },
+  "mobile": {
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "horizontalOverflow": false,
+    "plotCount": 4
+  },
+  "consoleErrors": [],
+  "screenshots": [
+    "screenshots/dashboard-desktop.png",
+    "screenshots/dashboard-mobile.png",
+    "screenshots/certification-summary.png",
+    "screenshots/base-versus-fine-tuned.png",
+    "screenshots/confusion-matrix.png",
+    "screenshots/per-dataset-type.png"
+  ]
+}

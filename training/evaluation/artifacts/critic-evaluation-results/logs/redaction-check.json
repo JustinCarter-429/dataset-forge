@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "files_checked": [
+    "index.html",
+    "evaluation-results.json",
+    "evaluation-results.csv",
+    "certification-report.md",
+    "model-manifest.json"
+  ],
+  "checks": [
+    "windows_user_path",
+    "remote_workspace_path",
+    "ssh_directory",
+    "remote_root_login"
+  ],
+  "findings": []
+}
