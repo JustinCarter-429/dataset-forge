@@ -1,0 +1,62 @@
+{
+  "schema_version": "phase-e2-full-retraining-v1",
+  "model": {
+    "id": "google/gemma-4-E4B-it",
+    "revision": "ee0ef6023621cff504d758262d4e04895a5af4a2",
+    "architecture": "Gemma4ForConditionalGeneration",
+    "renderer": "gemma4-critic-render-v2",
+    "model_version": "dataset-forge-critic-v1"
+  },
+  "data": {
+    "package_sha256": "0ae841070c050a7ebe8f69fc85ad5d4de3aec146b861422ec72305489d44fe4b",
+    "train_sha256": "a7485d598825573e557a982dd4e86f7ba5868a9ee8d71c0306616b625b524ce8",
+    "validation_sha256": "4b991d36e2d179161293e96b81dbda1abff948fbb27ee7ad9e2634744cc31e47",
+    "train_records": 6000,
+    "validation_records": 750,
+    "public_records": 0,
+    "quarantined_records": 0,
+    "confidence_semantics": "UNCALIBRATED_LABEL_AUTHORITY_PLACEHOLDER"
+  },
+  "optimization": {
+    "seed": 42,
+    "max_sequence_length": 2048,
+    "micro_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "effective_batch_size": 8,
+    "epochs": 3,
+    "max_optimizer_steps": 2250,
+    "approved_step_ceiling": 14561,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0,
+    "optimizer": "paged_adamw_8bit",
+    "scheduler": "cosine",
+    "warmup_ratio": 0.03,
+    "max_grad_norm": 1.0,
+    "precision": "bfloat16",
+    "quantization": "4bit-nf4-double-quant",
+    "packing": false,
+    "completion_only_loss": true,
+    "lora_rank": 16,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "lora_target_regex": "(^|\\.)(language_model|text_model)(\\.|$)"
+  },
+  "smoke": {
+    "optimizer_steps": 8,
+    "training_records": 64,
+    "validation_loss_records": 16,
+    "generation_records": 15
+  },
+  "monitoring": {
+    "checkpoint_every_steps": 250,
+    "validation_every_steps": 250,
+    "validation_loss_records": 128,
+    "generation_records": 30,
+    "max_new_tokens": 256,
+    "eos_token_id": 1,
+    "assistant_turn_terminator_id": 106,
+    "max_wall_seconds": 172800,
+    "min_free_disk_gb": 40,
+    "tmux_session": "e2-retraining"
+  }
+}
