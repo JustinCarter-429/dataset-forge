@@ -1,0 +1,48 @@
+{
+  "archive_member_names_preflighted": true,
+  "archive_members_content_scanned": 42,
+  "categories_checked": [
+    "absolute_windows_path",
+    "authorization_header",
+    "cache_or_virtual_environment",
+    "credential_assignment",
+    "full_checkpoint_path",
+    "huggingface_token",
+    "ipv4_address",
+    "model_or_adapter_weights",
+    "private_key",
+    "private_remote_path",
+    "proprietary_source_content",
+    "raw_private_prompt_field",
+    "signed_url",
+    "ssh_port",
+    "unexpected_binary",
+    "windows_user_path"
+  ],
+  "corpus_records_reviewed": 437,
+  "files_scanned": 50,
+  "image_metadata_files": 0,
+  "resolved_or_cleared_findings": [
+    {
+      "category": "scanner_signature_literals",
+      "file": "training/evaluation/e2/reason-code-remediation/scan_publication.py",
+      "location": "pattern declarations",
+      "remediation_status": "cleared: executable scanner definitions, not credential values"
+    },
+    {
+      "category": "proprietary_source_content",
+      "file": "training/evaluation/e2/reason-code-remediation/smoke/train.jsonl",
+      "location": "all JSONL records",
+      "remediation_status": "cleared: deterministic CC0-only provenance"
+    },
+    {
+      "category": "proprietary_source_content",
+      "file": "training/evaluation/e2/reason-code-remediation/smoke/validation.jsonl",
+      "location": "all JSONL records",
+      "remediation_status": "cleared: deterministic CC0-only provenance"
+    }
+  ],
+  "schema_version": "phase-e2.2-publication-safety-scan-v2",
+  "status": "PASS",
+  "unresolved_findings": []
+}

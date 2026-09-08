@@ -5,6 +5,8 @@ import re
 from collections import Counter, defaultdict
 from typing import Any
 
+from dataset_forge_critic.e2_contract import ContractError, validate_contract
+
 from .canonicalization import fingerprint
 from .clustering import cross_split_near, input_fingerprint
 
@@ -29,13 +31,11 @@ def metadata(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def strict_target(target: Any) -> bool:
-    return (
-        isinstance(target, dict) and set(target) == set(FIELDS) and target["decision"] in DECISIONS
-        and target["confidence"] == 1.0 and not isinstance(target["confidence"], bool)
-        and isinstance(target["reason_codes"], list)
-        and (target["feedback"] is None or isinstance(target["feedback"], str))
-        and target["model_version"] == "dataset-forge-critic-v1"
-    )
+    try:
+        validate_contract(target)
+    except ContractError:
+        return False
+    return target["confidence"] == 1.0 and not isinstance(target["confidence"], bool)
 
 
 def distributions(rows: list[dict[str, Any]]) -> dict[str, Any]:

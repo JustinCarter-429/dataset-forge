@@ -40,7 +40,7 @@ class FakeProcessor:
     def apply_chat_template(self, messages, *, tokenize, add_generation_prompt, return_dict):
         assert tokenize and return_dict
         prompt = messages[0]["content"][0]["text"]
-        prefix = [1] + [10 + ord(char) for char in prompt] + [99]
+        prefix = [1] + [10 + sum(map(ord, prompt[index:index + 8])) % 900 for index in range(0, len(prompt), 8)] + [99]
         if len(messages) == 1:
             assert add_generation_prompt
             return {"input_ids": prefix}

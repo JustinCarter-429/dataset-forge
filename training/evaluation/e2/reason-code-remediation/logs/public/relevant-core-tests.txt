@@ -1,0 +1,20 @@
+COMMAND: python -m pytest training/tests/test_adapter_contract.py training/tests/test_config.py training/tests/test_curation.py training/tests/test_e1_pipeline.py training/tests/test_e2_contract.py training/tests/test_e2_reason_code_remediation.py training/tests/test_gemma.py training/tests/test_gpu_bundle.py training/tests/test_ingestion.py
+============================= test session starts =============================
+platform win32 -- Python 3.11.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: <REPOSITORY_ROOT>\training
+configfile: pyproject.toml
+plugins: Faker-40.36.0, anyio-4.13.0, cov-7.1.0
+collected 57 items
+
+training\tests\test_adapter_contract.py .                                [  1%]
+training\tests\test_config.py .....                                      [ 10%]
+training\tests\test_curation.py ...                                      [ 15%]
+training\tests\test_e1_pipeline.py ........                              [ 29%]
+training\tests\test_e2_contract.py ................                      [ 57%]
+training\tests\test_e2_reason_code_remediation.py ...................    [ 91%]
+training\tests\test_gemma.py .                                           [ 92%]
+training\tests\test_gpu_bundle.py .                                      [ 94%]
+training\tests\test_ingestion.py ...                                     [100%]
+
+- generated xml file: <REPOSITORY_ROOT>\training\evaluation\e2\reason-code-remediation\logs\relevant-core-tests.xml -
+============================= 57 passed in 0.94s ==============================

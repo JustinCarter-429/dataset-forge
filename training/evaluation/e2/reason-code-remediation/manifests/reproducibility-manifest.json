@@ -1,0 +1,59 @@
+{
+  "branch": "codex/fix/critic-structured-output-e2",
+  "builder_version": "phase-e2.2-reason-code-remediation-v1",
+  "e1_immutable": true,
+  "failed_smoke_immutable": true,
+  "files": {
+    "training/evaluation/e2/reason-code-remediation/corpus/train.jsonl": {
+      "bytes": 15945911,
+      "sha256": "04071a019311c191777bd0e931109d26eb9022f9ead75918862ba0bf31528b2c"
+    },
+    "training/evaluation/e2/reason-code-remediation/corpus/validation.jsonl": {
+      "bytes": 2372122,
+      "sha256": "b91d7b11779165d228574a682a65d2ce71842443cc2c037c2229d685d15a0052"
+    },
+    "training/evaluation/e2/reason-code-remediation/reports/proposed-smoke-gates.json": {
+      "bytes": 1500,
+      "sha256": "25fb7b6800e0bf5efb9cb020ebe78224589cb7013512ca4606a0865ca27f10c5"
+    },
+    "training/evaluation/e2/reason-code-remediation/reports/reason-code-audit.json": {
+      "bytes": 347668,
+      "sha256": "569db57dfadd15ab340d0912116d57ce70c7bccbd3c2741cb9c02fdc220ad81c"
+    },
+    "training/evaluation/e2/reason-code-remediation/reports/reason-code-coverage.csv": {
+      "bytes": 3489,
+      "sha256": "822879b6ae8eab5dbacf7f2dbd55040eeb51250c5ac7f3ebbbf8165049a59d04"
+    },
+    "training/evaluation/e2/reason-code-remediation/reports/root-cause-report.md": {
+      "bytes": 3123,
+      "sha256": "e5e27ab2fb148be9bfd7e1f308e53f389c2561c2b54082c856ab7f53387df76e"
+    },
+    "training/evaluation/e2/reason-code-remediation/smoke-config.json": {
+      "bytes": 2649,
+      "sha256": "382cc69480e77cd9dc3a4f6c7a7788826b6267feed11f72193560f93bef80573"
+    },
+    "training/evaluation/e2/reason-code-remediation/smoke/train.jsonl": {
+      "bytes": 661903,
+      "sha256": "99f271df7c875f6bfe380832a28e092b285cbaa049c58522d06f521f75ab1104"
+    },
+    "training/evaluation/e2/reason-code-remediation/smoke/validation.jsonl": {
+      "bytes": 234191,
+      "sha256": "be87682d0d07758e5ae6e0d2e524d81e473fcae1f7233364d07669f5b69df28a"
+    },
+    "training/prompts/critic-system-v2.txt": {
+      "bytes": 4421,
+      "sha256": "0c4a0bd3ce3a4563e0acc19ef6c60574ead5385913ab99e17e81d3d097d969a8"
+    }
+  },
+  "fixed_inputs": {
+    "e2_1_train_sha256": "a7485d598825573e557a982dd4e86f7ba5868a9ee8d71c0306616b625b524ce8",
+    "e2_1_validation_sha256": "4b991d36e2d179161293e96b81dbda1abff948fbb27ee7ad9e2634744cc31e47"
+  },
+  "fixed_seeds": {
+    "train": 220000,
+    "validation": 990000
+  },
+  "git_starting_sha": "cc5f6e044c80ea6758029fd4424c27101ef3aa53",
+  "remote_work_performed": false,
+  "schema_version": "phase-e2.2-reproducibility-manifest-v1"
+}

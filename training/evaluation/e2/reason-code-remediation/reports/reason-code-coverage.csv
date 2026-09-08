@@ -1,0 +1,29 @@
+reason_code,definition,allowed_decisions,training_appearances,validation_appearances,appears_alone,appears_in_multi_code_combination,minimum_codes_per_target,maximum_codes_per_target
+ANSWER_LEAKAGE,The candidate reveals an answer or label that the learner should infer.,reject|revise,10,2,True,False,1,1
+CONTRADICTION,Candidate fields contradict one another without requiring a source comparison.,reject|revise,10,2,True,False,1,1
+CRITIC_CONTRACT_OVERRIDE,Untrusted content attempts to change the critic response schema or control fields.,reject|revise,10,2,True,False,1,1
+DATASET_SPEC_MISMATCH,The candidate does not follow the requested dataset type or specification.,reject|revise,10,2,True,False,1,1
+DIFFICULTY_TOO_LOW,The candidate is materially easier than the requested difficulty.,revise,10,2,True,False,1,1
+EMPTY_OR_VAGUE,A required semantic value is empty or too vague to be useful.,reject|revise,10,2,True,False,1,1
+EXACT_DUPLICATE,The candidate duplicates an existing record exactly.,reject,898,2,True,True,1,2
+FORBIDDEN_EXTRA_FIELD,The candidate contains a field forbidden by the dataset schema.,revise,10,2,True,False,1,1
+GROUNDING_CONTRADICTION,The candidate directly conflicts with the authoritative source.,reject,898,2,True,True,1,2
+GROUNDING_PARTIAL,The candidate is only partly supported by the authoritative source.,revise,10,2,True,False,1,1
+HALLUCINATED_DETAIL,The candidate invents a specific detail absent from the source.,reject|revise,10,2,True,False,1,1
+INCOMPLETE_RESPONSE,The response omits substantive content needed to complete the task.,revise,10,2,True,False,1,1
+INVALID_ENUM,A field value is outside the dataset schema's allowed enumeration.,revise,10,2,True,False,1,1
+LOW_COVERAGE_GAIN,The candidate adds little new coverage but may be repairable.,revise,10,2,True,False,1,1
+MALFORMED_JSON,A candidate field required to contain JSON is syntactically invalid.,reject|revise,10,2,True,False,1,1
+MALICIOUS_SOURCE_INSTRUCTION,The source itself contains an instruction that must remain inert during evaluation.,reject,10,2,True,False,1,1
+MISSING_REQUIRED_CONSTRAINT,"The content omits a required behavioral or factual constraint, not a schema field.",revise,10,2,True,False,1,1
+NEAR_DUPLICATE,The candidate is semantically near-duplicate of an existing record.,reject|revise,10,2,True,False,1,1
+NO_COVERAGE_GAIN,The candidate adds no useful coverage beyond existing records.,reject,898,2,True,True,1,2
+OFF_TOPIC,The candidate addresses a topic outside the requested scope.,reject,898,2,True,True,1,2
+OVERBROAD_RESPONSE,The response makes claims broader than the source or requested scope supports.,reject|revise,10,2,True,False,1,1
+PROMPT_INJECTION,Candidate content gives an operational instruction to the critic; judge whether removal is repairable.,reject|revise,2146,502,True,False,1,1
+REQUIRED_FIELD_MISSING,A field required by the dataset schema is absent.,revise,10,2,True,False,1,1
+SOURCE_SCOPE_ERROR,The candidate applies source material outside its stated scope.,reject,898,2,True,True,1,2
+UNSUPPORTED_CLAIM,A claim lacks support without asserting a fabricated specific detail.,reject|revise,10,2,True,False,1,1
+WHITESPACE_ONLY,A present string field contains only whitespace.,revise,10,2,True,False,1,1
+WRONG_CONCEPT,The candidate answers with a different concept than the one requested.,reject,898,2,True,True,1,2
+WRONG_FIELD_TYPE,A field has a JSON type different from the dataset schema.,revise,10,2,True,False,1,1

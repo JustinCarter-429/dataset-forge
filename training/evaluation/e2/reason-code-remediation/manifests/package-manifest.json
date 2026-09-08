@@ -1,0 +1,171 @@
+{
+  "files": {
+    "phase-e2.2/EXECUTION.md": {
+      "bytes": 1145,
+      "sha256": "eb22de285d8efc46e1335b306e9eb842a6a00da753ca576e1dda2a19d58f324e"
+    },
+    "phase-e2.2/build.py": {
+      "bytes": 34335,
+      "sha256": "61c8ba26d03e6add9fd14efdbbfe8ae1c57c7fd05802912dd00dfc542a281e7e"
+    },
+    "phase-e2.2/contract/critic-system-v2.txt": {
+      "bytes": 4421,
+      "sha256": "0c4a0bd3ce3a4563e0acc19ef6c60574ead5385913ab99e17e81d3d097d969a8"
+    },
+    "phase-e2.2/contract/e2_contract.py": {
+      "bytes": 12157,
+      "sha256": "d05bac02e7bfb19c211eb7fad0646b115b23207b16a37f5e95bf9c559d21caff"
+    },
+    "phase-e2.2/finalize.py": {
+      "bytes": 11517,
+      "sha256": "050f4d178b2e9ce19c4f47141ec882cddcc9f418eb857f02381185153ef489a2"
+    },
+    "phase-e2.2/logs/corpus-tests.txt": {
+      "bytes": 1338,
+      "sha256": "0bbed2cdbff426e6f611cdafd26355938059a1c48bb3a6409b71b3cdd7bd2306"
+    },
+    "phase-e2.2/logs/corpus-tests.xml": {
+      "bytes": 4726,
+      "sha256": "2dd78d77cef4c209bc89fb1307354be9469a5c4b0f52d9bc46ef6b739fd12362"
+    },
+    "phase-e2.2/logs/development/focused-tests-initial-failure.txt": {
+      "bytes": 2939,
+      "sha256": "d090e720b74ae4c2ac96c57a9e7665bb8619b4cf6bfc4d601a8d64c243744575"
+    },
+    "phase-e2.2/logs/development/focused-tests-second-failure.txt": {
+      "bytes": 2923,
+      "sha256": "5c7177e55ab2da6845c653069be5bf390ed8f4061d9d9ed2f49b55018518f411"
+    },
+    "phase-e2.2/logs/focused-tests.txt": {
+      "bytes": 1091,
+      "sha256": "e6dbbac7cb5355f05e7f38873c3cc5437e29c2f84578d55f521bc21ab159b85f"
+    },
+    "phase-e2.2/logs/focused-tests.xml": {
+      "bytes": 8324,
+      "sha256": "28e54c14d0f7025f8801009f7fe18a49b1d1941e7154569efb4495364bc2d5ec"
+    },
+    "phase-e2.2/logs/relevant-core-tests.txt": {
+      "bytes": 1534,
+      "sha256": "aa39c513759d3e5c9808751e8dc7258a4587107e2c3a869d462c1a2cb5cea379"
+    },
+    "phase-e2.2/logs/relevant-core-tests.xml": {
+      "bytes": 9572,
+      "sha256": "617c7f9845bdc642180e5c80b059bd0ac2d433333e1d81c01218c209416fc797"
+    },
+    "phase-e2.2/logs/relevant-schemas-tests.txt": {
+      "bytes": 610,
+      "sha256": "ee917da415a08c926fae6c8f1f8131b8756bdddc0eb48bac9cf21114d68a6ebc"
+    },
+    "phase-e2.2/logs/relevant-schemas-tests.xml": {
+      "bytes": 1268,
+      "sha256": "a76bff8c37463ef59e32278649d73a30c155a6de0495bb3001dc0ef48ff5282a"
+    },
+    "phase-e2.2/logs/relevant-tail-tests.txt": {
+      "bytes": 725,
+      "sha256": "29d072d1e0d56af62a1470059f862dc7ae0c63489e5151cda8f622ddb54db6eb"
+    },
+    "phase-e2.2/logs/relevant-tail-tests.xml": {
+      "bytes": 1112,
+      "sha256": "e75b091639ee5d7318290b1717c0e732848787132429e9d6a8ab427800b8329e"
+    },
+    "phase-e2.2/logs/relevant-training-system-tests.txt": {
+      "bytes": 178,
+      "sha256": "df9a7c57e15f206d20ccc992f54af2abecb3807bed5dc2290f25e7b539a6b0b2"
+    },
+    "phase-e2.2/logs/relevant-training-system-tests.xml": {
+      "bytes": 1872,
+      "sha256": "a075a7eb20f94a48164a14410cbf7d11dd2314e0c1cdf3e88a47fdfe90eff949"
+    },
+    "phase-e2.2/manifests/final-file-hashes.json": {
+      "bytes": 2527,
+      "sha256": "78e2ba40416e4b9e7ff4bdc8ddc840356f23800472772d7d4013993cfe6dfd80"
+    },
+    "phase-e2.2/manifests/reproducibility-manifest.json": {
+      "bytes": 2543,
+      "sha256": "428a3a32a193cd31f9cd239bd2007684dcb0b49dab785ce867a8f9a6127da82d"
+    },
+    "phase-e2.2/manifests/test-evidence.json": {
+      "bytes": 12710,
+      "sha256": "caa38dcedd7e56c23f3c8d3e5c00108a8b2a135607268a684baf74b0e061cced"
+    },
+    "phase-e2.2/record_tests.py": {
+      "bytes": 9417,
+      "sha256": "80d830966bd48a9ce695ebca1547d2f61a749a4e0c548d56e6d132921f63592f"
+    },
+    "phase-e2.2/reports/build-exit-code.txt": {
+      "bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    "phase-e2.2/reports/build.log": {
+      "bytes": 95,
+      "sha256": "764930afa3a96c1ec1166d4b7f3f9d86db7ec4e639befb9dc2521605eb70e0d4"
+    },
+    "phase-e2.2/reports/final-corpus-verification.json": {
+      "bytes": 1913,
+      "sha256": "5dfed540610e27d5ced937f76304596fd2362bfa74166b8448b68d273854fd9b"
+    },
+    "phase-e2.2/reports/proposed-smoke-gates.json": {
+      "bytes": 1500,
+      "sha256": "25fb7b6800e0bf5efb9cb020ebe78224589cb7013512ca4606a0865ca27f10c5"
+    },
+    "phase-e2.2/reports/publication-safety-scan.json": {
+      "bytes": 1572,
+      "sha256": "d10316c4361723f4ff447c0c647240e105a90c6a35e845ad5f6beb1a9db28f79"
+    },
+    "phase-e2.2/reports/reason-code-audit.json": {
+      "bytes": 347668,
+      "sha256": "569db57dfadd15ab340d0912116d57ce70c7bccbd3c2741cb9c02fdc220ad81c"
+    },
+    "phase-e2.2/reports/reason-code-coverage.csv": {
+      "bytes": 3489,
+      "sha256": "822879b6ae8eab5dbacf7f2dbd55040eeb51250c5ac7f3ebbbf8165049a59d04"
+    },
+    "phase-e2.2/reports/root-cause-report.md": {
+      "bytes": 3123,
+      "sha256": "e5e27ab2fb148be9bfd7e1f308e53f389c2561c2b54082c856ab7f53387df76e"
+    },
+    "phase-e2.2/runner/e2_train.py": {
+      "bytes": 26275,
+      "sha256": "ae85ecc270129e97d546456ceeb92b135fb6bc37811ececb0a1cd8df325e15d0"
+    },
+    "phase-e2.2/scan_publication.py": {
+      "bytes": 7786,
+      "sha256": "40e0b6ea05f9832a30963d21619df2bdd42d26ff7ed1de0d8a9fa9bfddd19b4c"
+    },
+    "phase-e2.2/smoke-config.json": {
+      "bytes": 2649,
+      "sha256": "382cc69480e77cd9dc3a4f6c7a7788826b6267feed11f72193560f93bef80573"
+    },
+    "phase-e2.2/smoke-data/train/corpus.jsonl": {
+      "bytes": 661903,
+      "sha256": "99f271df7c875f6bfe380832a28e092b285cbaa049c58522d06f521f75ab1104"
+    },
+    "phase-e2.2/smoke-data/validation/corpus.jsonl": {
+      "bytes": 234191,
+      "sha256": "be87682d0d07758e5ae6e0d2e524d81e473fcae1f7233364d07669f5b69df28a"
+    },
+    "phase-e2.2/tests/test_e2_contract.py": {
+      "bytes": 4693,
+      "sha256": "844ec94557a606e4d15b03d7b0aa198e3940754ab81d7e2e248fa3e3fc2e6f97"
+    },
+    "phase-e2.2/tests/test_e2_reason_code_remediation.py": {
+      "bytes": 9077,
+      "sha256": "2e78c55695c654a1cc6f38df178600fd4d144059a0dd37d9505475288062996c"
+    },
+    "phase-e2.2/tests/test_full_retraining.py": {
+      "bytes": 3161,
+      "sha256": "380cd5b76b92ea94dde0f9189666507fba55d007d1ab9bd0b54767e32bc1eee0"
+    },
+    "phase-e2.2/tests/test_gemma.py": {
+      "bytes": 542,
+      "sha256": "0b0dcb340c1680f2928889a87605d9376f2af715e2b53d93e31466ed050f8324"
+    },
+    "phase-e2.2/verify_final.py": {
+      "bytes": 4984,
+      "sha256": "c33b4a1aad6fda021c33af230a549a203181f58c5bf1759e65d31ce496aa76bc"
+    }
+  },
+  "non_model_artifacts_only": true,
+  "remote_execution_authorized": false,
+  "schema_version": "phase-e2.2-package-manifest-v1"
+}

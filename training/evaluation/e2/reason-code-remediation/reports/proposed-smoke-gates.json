@@ -1,0 +1,43 @@
+{
+  "budget_basis": "Ten deterministic training examples per approved code receive eight epochs (80 exposures/code); 30 benign controls and 30 injection contrasts are included. This is 15.1% of the unauthorized 2,250-step full run and materially stronger than the one-pass 64-example failed smoke.",
+  "defined_before_execution": true,
+  "e1_adapter_forbidden": true,
+  "effective_batch_size": 8,
+  "epochs": 8,
+  "fail_closed": true,
+  "failed_smoke_adapter_forbidden": true,
+  "fresh_base_model_only": true,
+  "optimizer_steps": 340,
+  "remote_execution_authorized": false,
+  "reporting": [
+    "dataset_type",
+    "attack_category",
+    "decision",
+    "reason_code"
+  ],
+  "schema_version": "phase-e2.2-proposed-smoke-gates-v1",
+  "thresholds": {
+    "adapter_parameters_changed": true,
+    "completed_optimizer_steps": 340,
+    "decision_accuracy_min": 0.8,
+    "decision_macro_f1_min": 0.75,
+    "evaluation_reason_code_coverage_min": 1.0,
+    "external_prose_max": 0,
+    "extra_keys_max": 0,
+    "finite_gradients": true,
+    "finite_loss": true,
+    "finite_validation_loss": true,
+    "immediate_termination_min": 1.0,
+    "incorrectly_cased_reason_codes_max": 0,
+    "markdown_fences_max": 0,
+    "missing_keys_max": 0,
+    "process_exit_code": 0,
+    "reason_code_exact_match_min": 0.9,
+    "reason_code_macro_f1_min": 0.85,
+    "strict_json_validity_min": 1.0,
+    "token_limit_hits_max": 0,
+    "unknown_reason_codes_max": 0
+  },
+  "training_records": 340,
+  "validation_records": 97
+}

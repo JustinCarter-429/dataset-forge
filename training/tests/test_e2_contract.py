@@ -14,11 +14,11 @@ from test_training_system import FakeProcessor, decision_record
 
 
 def valid_payload():
-    return {"decision": "accept", "confidence": 0.98, "reason_codes": [], "feedback": None, "model_version": "dataset-forge-critic-v1"}
+    return {"decision": "accept", "confidence": 1.0, "reason_codes": [], "feedback": None, "model_version": "dataset-forge-critic-v1"}
 
 
 def test_canonical_target_serialization_is_exact_and_ordered():
-    assert canonical_json(valid_payload()) == '{"decision":"accept","confidence":0.98,"reason_codes":[],"feedback":null,"model_version":"dataset-forge-critic-v1"}'
+    assert canonical_json(valid_payload()) == '{"decision":"accept","confidence":1.0,"reason_codes":[],"feedback":null,"model_version":"dataset-forge-critic-v1"}'
 
 
 @pytest.mark.parametrize(

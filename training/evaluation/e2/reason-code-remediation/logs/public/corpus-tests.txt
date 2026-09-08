@@ -1,0 +1,19 @@
+COMMAND: python -m pytest training/evaluation/e2/corpus-remediation/tests --basetemp=training/.pytest-e22-corpus-final-20260908 --junitxml=training/evaluation/e2/reason-code-remediation/logs/corpus-tests.xml -o addopts=
+============================= test session starts =============================
+platform win32 -- Python 3.11.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: <REPOSITORY_ROOT>\training
+configfile: pyproject.toml
+plugins: Faker-40.36.0, anyio-4.13.0, cov-7.1.0
+collected 32 items
+
+training\evaluation\e2\corpus-remediation\tests\test_canonical_conflicts.py . [  3%]
+..........                                                               [ 34%]
+training\evaluation\e2\corpus-remediation\tests\test_clustering_splitting.py . [ 37%]
+...                                                                      [ 46%]
+training\evaluation\e2\corpus-remediation\tests\test_final_evidence.py . [ 50%]
+......                                                                   [ 68%]
+training\evaluation\e2\corpus-remediation\tests\test_injection_contract.py . [ 71%]
+.........                                                                [100%]
+
+- generated xml file: <REPOSITORY_ROOT>\training\evaluation\e2\reason-code-remediation\logs\corpus-tests.xml -
+============================= 32 passed in 0.74s ==============================

@@ -1,0 +1,12 @@
+COMMAND: python -m pytest training/tests/test_schemas.py
+============================= test session starts =============================
+platform win32 -- Python 3.11.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: <REPOSITORY_ROOT>\training
+configfile: pyproject.toml
+plugins: Faker-40.36.0, anyio-4.13.0, cov-7.1.0
+collected 10 items
+
+training\tests\test_schemas.py ..........                                [100%]
+
+- generated xml file: <REPOSITORY_ROOT>\training\evaluation\e2\reason-code-remediation\logs\relevant-schemas-tests.xml -
+============================= 10 passed in 0.40s ==============================

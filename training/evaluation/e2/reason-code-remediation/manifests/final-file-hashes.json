@@ -1,0 +1,57 @@
+{
+  "files": {
+    "training/evaluation/e2/full-retraining/e2_train.py": {
+      "bytes": 26275,
+      "sha256": "ae85ecc270129e97d546456ceeb92b135fb6bc37811ececb0a1cd8df325e15d0"
+    },
+    "training/evaluation/e2/reason-code-remediation/corpus/train.jsonl": {
+      "bytes": 15945911,
+      "sha256": "04071a019311c191777bd0e931109d26eb9022f9ead75918862ba0bf31528b2c"
+    },
+    "training/evaluation/e2/reason-code-remediation/corpus/validation.jsonl": {
+      "bytes": 2372122,
+      "sha256": "b91d7b11779165d228574a682a65d2ce71842443cc2c037c2229d685d15a0052"
+    },
+    "training/evaluation/e2/reason-code-remediation/manifests/reproducibility-manifest.json": {
+      "bytes": 2543,
+      "sha256": "428a3a32a193cd31f9cd239bd2007684dcb0b49dab785ce867a8f9a6127da82d"
+    },
+    "training/evaluation/e2/reason-code-remediation/reports/proposed-smoke-gates.json": {
+      "bytes": 1500,
+      "sha256": "25fb7b6800e0bf5efb9cb020ebe78224589cb7013512ca4606a0865ca27f10c5"
+    },
+    "training/evaluation/e2/reason-code-remediation/reports/reason-code-audit.json": {
+      "bytes": 347668,
+      "sha256": "569db57dfadd15ab340d0912116d57ce70c7bccbd3c2741cb9c02fdc220ad81c"
+    },
+    "training/evaluation/e2/reason-code-remediation/reports/reason-code-coverage.csv": {
+      "bytes": 3489,
+      "sha256": "822879b6ae8eab5dbacf7f2dbd55040eeb51250c5ac7f3ebbbf8165049a59d04"
+    },
+    "training/evaluation/e2/reason-code-remediation/reports/root-cause-report.md": {
+      "bytes": 3123,
+      "sha256": "e5e27ab2fb148be9bfd7e1f308e53f389c2561c2b54082c856ab7f53387df76e"
+    },
+    "training/evaluation/e2/reason-code-remediation/smoke-config.json": {
+      "bytes": 2649,
+      "sha256": "382cc69480e77cd9dc3a4f6c7a7788826b6267feed11f72193560f93bef80573"
+    },
+    "training/evaluation/e2/reason-code-remediation/smoke/train.jsonl": {
+      "bytes": 661903,
+      "sha256": "99f271df7c875f6bfe380832a28e092b285cbaa049c58522d06f521f75ab1104"
+    },
+    "training/evaluation/e2/reason-code-remediation/smoke/validation.jsonl": {
+      "bytes": 234191,
+      "sha256": "be87682d0d07758e5ae6e0d2e524d81e473fcae1f7233364d07669f5b69df28a"
+    },
+    "training/prompts/critic-system-v2.txt": {
+      "bytes": 4421,
+      "sha256": "0c4a0bd3ce3a4563e0acc19ef6c60574ead5385913ab99e17e81d3d097d969a8"
+    },
+    "training/src/dataset_forge_critic/e2_contract.py": {
+      "bytes": 12157,
+      "sha256": "d05bac02e7bfb19c211eb7fad0646b115b23207b16a37f5e95bf9c559d21caff"
+    }
+  },
+  "schema_version": "phase-e2.2-final-file-hashes-v1"
+}

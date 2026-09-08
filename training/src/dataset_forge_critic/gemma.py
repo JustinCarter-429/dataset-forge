@@ -4,7 +4,7 @@ import json, platform, shutil
 from pathlib import Path
 from typing import Any
 
-from .e2_contract import canonical_json, parse_strict_response, target_from_record
+from .e2_contract import canonical_json, parse_strict_response, target_from_record, validate_prompt_ontology
 
 MODEL_ID='google/gemma-4-E4B-it'; REVISION='ee0ef6023621cff504d758262d4e04895a5af4a2'; RENDERER='gemma4-critic-render-v2'
 SCORE_FIELDS=('grounding','correctness','helpfulness','coherence','complexity','verbosity','usefulness','novelty','difficulty_fit','hallucination','dataset_spec_adherence','coverage_contribution','semantic_redundancy')
@@ -19,7 +19,8 @@ def response_envelope(target:dict[str,Any],requested:list[str])->dict[str,Any]:
 def render(record:dict[str,Any],layer:str)->dict[str,Any]:
  r=record['canonical_record'] if 'canonical_record' in record else record; requested=r['supervision']['available_targets']; payload={'source_context':r['input'].get('source_context'),'dataset_spec':r['input'].get('dataset_spec'),'candidate_record':r['input']['candidate_record'],'comparison_candidates':r['input'].get('comparison_candidates'),'prior_dataset_state':r['input'].get('prior_dataset_state')}
  completion=canonical_json(target_from_record(r))
- return {'record_id':r['record_id'],'source_layer':layer,'renderer_version':RENDERER,'system_prompt':(Path(__file__).resolve().parents[2]/'prompts'/'critic-system-v2.txt').read_text(encoding='utf-8'),'user_payload':stable_json(payload),'completion':completion,'requested_targets':requested}
+ system_prompt=(Path(__file__).resolve().parents[2]/'prompts'/'critic-system-v2.txt').read_text(encoding='utf-8').rstrip('\n'); validate_prompt_ontology(system_prompt)
+ return {'record_id':r['record_id'],'source_layer':layer,'renderer_version':RENDERER,'system_prompt':system_prompt,'user_payload':stable_json(payload),'completion':completion,'requested_targets':requested}
 def parse_response(text:str)->dict[str,Any]:
  return parse_strict_response(text)
 def preflight()->dict[str,Any]:

@@ -1,0 +1,55 @@
+{
+  "byte_identity": {
+    "corpus/train.jsonl": true,
+    "corpus/validation.jsonl": true,
+    "reports/proposed-smoke-gates.json": true,
+    "reports/reason-code-audit.json": true,
+    "reports/reason-code-coverage.csv": true,
+    "reports/root-cause-report.md": true,
+    "smoke-config.json": true,
+    "smoke/train.jsonl": true,
+    "smoke/validation.jsonl": true
+  },
+  "checks": {
+    "aliases_absent_and_casing_exact": true,
+    "all_dataset_types_represented": true,
+    "all_decisions_represented": true,
+    "all_reason_codes_represented": true,
+    "closing_brace_supervised_all": true,
+    "confidence_semantics_explicit": true,
+    "controlled_overfit_overlap_zero": true,
+    "deterministic_rebuild_byte_identical": true,
+    "e1_overlap_zero": true,
+    "eos_1_supervised_all": true,
+    "exact_and_canonical_input_overlap_zero": true,
+    "fully_masked_zero": true,
+    "near_duplicate_overlap_zero": true,
+    "no_excluded_or_quarantined_reintroduced": true,
+    "record_id_overlap_zero": true,
+    "smoke_train_records_340": true,
+    "smoke_validation_records_97": true,
+    "source_family_overlap_zero": true,
+    "targets_have_exactly_five_fields": true,
+    "template_family_overlap_zero": true,
+    "turn_terminator_106_supervised_all": true
+  },
+  "counts": {
+    "approved_reason_codes": 28,
+    "training": 340,
+    "validation": 97
+  },
+  "optimizer_steps": 340,
+  "schema_version": "phase-e2.2-final-corpus-verification-v1",
+  "status": "PASS",
+  "tokenization": {
+    "chat_template_sha256": "0a2c8073c878ab1da004bee933a998606537bbb62016310352c7285c3f01c5b5",
+    "fully_masked_completions": 0,
+    "max_sequence_tokens": 1345,
+    "records": 7156,
+    "strict_target": 7156,
+    "supervised_closing_brace": 7156,
+    "supervised_eos": 7156,
+    "supervised_turn_terminator": 7156,
+    "tokenizer_json_sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f"
+  }
+}

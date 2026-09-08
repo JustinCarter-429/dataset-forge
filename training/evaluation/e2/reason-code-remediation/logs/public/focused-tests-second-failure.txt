@@ -1,0 +1,41 @@
+COMMAND: python -m pytest training/tests/test_e2_reason_code_remediation.py training/tests/test_e2_contract.py training/tests/test_gemma.py training/evaluation/e2/full-retraining/tests/test_full_retraining.py --basetemp=training/.pytest-e22-focused-rerun-20260907 --junitxml=training/evaluation/e2/reason-code-remediation/logs/focused-tests.xml -o addopts=
+============================= test session starts =============================
+platform win32 -- Python 3.11.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: <REPOSITORY_ROOT>\training
+configfile: pyproject.toml
+plugins: Faker-40.36.0, anyio-4.13.0, cov-7.1.0
+collected 43 items
+
+training\tests\test_e2_reason_code_remediation.py .................F.    [ 44%]
+training\tests\test_e2_contract.py ................                      [ 81%]
+training\tests\test_gemma.py .                                           [ 83%]
+training\evaluation\e2\full-retraining\tests\test_full_retraining.py ... [ 90%]
+....                                                                     [100%]
+
+================================== FAILURES ===================================
+______ test_runner_reason_code_metrics_and_predefined_gates_fail_closed _______
+
+    def test_runner_reason_code_metrics_and_predefined_gates_fail_closed():
+        truth = [{"PROMPT_INJECTION"}, {"REQUIRED_FIELD_MISSING"}]
+        assert RUNNER.reason_code_macro_f1(truth, truth) == 2 / len(APPROVED_REASON_CODES)
+        config = json.loads((E22 / "smoke-config.json").read_text(encoding="utf-8"))
+        metrics = {
+            "validation_loss": 0.5, "strict_json_validity": 1.0, "immediate_termination_rate": 1.0,
+            "unknown_reason_codes": 1, "incorrectly_cased_reason_codes": 0, "extra_keys": 0, "missing_keys": 0,
+            "markdown_fences": 0, "external_prose": 0, "token_limit_hits": 0,
+            "evaluation_reason_code_coverage": 1.0, "accuracy": 1.0, "macro_f1": 1.0,
+            "reason_code_exact_match": 1.0, "reason_code_macro_f1": 1.0,
+        }
+        failures = RUNNER.smoke_gate_failures(config, metrics, config["smoke"]["optimizer_steps"], True, True, True)
+>       assert failures == ["unknown_reason_codes=1 > 0"]
+E       AssertionError: assert ['immediate_t..._codes=1 > 0'] == ['unknown_reason_codes=1 > 0']
+E
+E         At index 0 diff: 'immediate_termination=None < 1.0' != 'unknown_reason_codes=1 > 0'
+E         Left contains one more item: 'unknown_reason_codes=1 > 0'
+E         Use -v to get more diff
+
+training\tests\test_e2_reason_code_remediation.py:155: AssertionError
+- generated xml file: <REPOSITORY_ROOT>\training\evaluation\e2\reason-code-remediation\logs\focused-tests.xml -
+=========================== short test summary info ===========================
+FAILED training\tests\test_e2_reason_code_remediation.py::test_runner_reason_code_metrics_and_predefined_gates_fail_closed
+======================== 1 failed, 42 passed in 5.88s =========================

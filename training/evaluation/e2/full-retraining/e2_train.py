@@ -18,7 +18,7 @@ from typing import Any
 TRAINING_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(TRAINING_ROOT / "src"))
 
-from dataset_forge_critic.e2_contract import parse_strict_response  # noqa: E402
+from dataset_forge_critic.e2_contract import APPROVED_REASON_CODES, FIELDS, canonical_json, parse_strict_response  # noqa: E402
 from dataset_forge_critic.modeling import load_processor, load_qlora_model  # noqa: E402
 from dataset_forge_critic.tokenization import generation_terminator_ids, pad_batch, tokenize_record  # noqa: E402
 from dataset_forge_critic.training_config import TrainingConfiguration  # noqa: E402
@@ -80,6 +80,40 @@ def macro_f1(truth: list[str], prediction: list[str | None]) -> float:
     return sum(scores) / len(scores)
 
 
+def reason_code_macro_f1(truth: list[set[str]], prediction: list[set[str]]) -> float:
+    scores = []
+    for code in sorted(APPROVED_REASON_CODES):
+        tp = sum(code in actual and code in predicted for actual, predicted in zip(truth, prediction))
+        fp = sum(code not in actual and code in predicted for actual, predicted in zip(truth, prediction))
+        fn = sum(code in actual and code not in predicted for actual, predicted in zip(truth, prediction))
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        scores.append(2 * precision * recall / (precision + recall) if precision + recall else 0.0)
+    return sum(scores) / len(scores)
+
+
+def response_diagnostics(text: str) -> dict[str, Any]:
+    result = {"unknown_reason_codes": [], "incorrectly_cased_reason_codes": [], "extra_keys": [], "missing_keys": list(FIELDS)}
+    try:
+        value = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return result
+    if not isinstance(value, dict):
+        return result
+    result["extra_keys"] = sorted(set(value) - set(FIELDS))
+    result["missing_keys"] = sorted(set(FIELDS) - set(value))
+    codes = value.get("reason_codes")
+    if isinstance(codes, list):
+        for code in codes:
+            if not isinstance(code, str) or code in APPROVED_REASON_CODES:
+                continue
+            if code.upper() in APPROVED_REASON_CODES:
+                result["incorrectly_cased_reason_codes"].append(code)
+            else:
+                result["unknown_reason_codes"].append(code)
+    return result
+
+
 def verify_inputs(config: dict[str, Any], data_dir: Path) -> tuple[Path, Path]:
     train, validation = data_dir / "train/corpus.jsonl", data_dir / "validation/corpus.jsonl"
     expected = config["data"]
@@ -90,7 +124,7 @@ def verify_inputs(config: dict[str, Any], data_dir: Path) -> tuple[Path, Path]:
     if len(train_rows) != expected["train_records"] or len(validation_rows) != expected["validation_records"]:
         raise ValueError("CORPUS_COUNT_MISMATCH")
     for item in train_rows + validation_rows:
-        parse_strict_response(json.dumps(item["canonical_record"]["target"], ensure_ascii=False, separators=(",", ":")))
+        parse_strict_response(canonical_json(item["canonical_record"]["target"]))
     return train, validation
 
 
@@ -131,7 +165,7 @@ def evaluate(model: Any, processor: Any, items: list[dict[str, Any]], loss_count
             value = float(model(**values).loss.item())
             if not math.isfinite(value): raise FloatingPointError("NON_FINITE_VALIDATION_LOSS")
             losses.append(value)
-        truths: list[str] = []; predictions: list[str | None] = []; raw = []
+        truths: list[str] = []; predictions: list[str | None] = []; truth_codes: list[set[str]] = []; prediction_codes: list[set[str]] = []; raw = []
         terminators = generation_terminator_ids(processor)
         for row in stratified(items, min(generation_count, len(items)), 7302):
             item = tokenize_record(row, "native", processor, max_length)
@@ -139,13 +173,19 @@ def evaluate(model: Any, processor: Any, items: list[dict[str, Any]], loss_count
             output = model.generate(input_ids=torch.tensor([prompt], device="cuda"), attention_mask=torch.ones((1, len(prompt)), dtype=torch.long, device="cuda"),
                                     do_sample=False, max_new_tokens=max_new_tokens, eos_token_id=terminators, pad_token_id=processor.tokenizer.pad_token_id)
             generated = output[0][len(prompt):].tolist(); text = processor.decode(generated, skip_special_tokens=True)
-            truth = row["canonical_record"]["target"]["decision"]; truths.append(truth)
-            try: parsed = parse_strict_response(text); prediction = parsed["decision"]
-            except ValueError: prediction = None
-            predictions.append(prediction)
+            target = row["canonical_record"]["target"]; truth = target["decision"]; expected_codes = set(target["reason_codes"]); truths.append(truth); truth_codes.append(expected_codes)
+            parser_error = None
+            try:
+                parsed = parse_strict_response(text); prediction = parsed["decision"]; predicted_codes = set(parsed["reason_codes"])
+            except ValueError as error:
+                prediction = None; predicted_codes = set(); parser_error = str(error)
+            predictions.append(prediction); prediction_codes.append(predicted_codes)
+            diagnostics = response_diagnostics(text)
             remediation = row.get("remediation", {})
-            raw.append({"record_id": row["canonical_record"]["record_id"], "truth": truth, "prediction": prediction, "text": text,
+            raw.append({"record_id": row["canonical_record"]["record_id"], "truth": truth, "prediction": prediction,
+                        "truth_reason_codes": sorted(expected_codes), "prediction_reason_codes": sorted(predicted_codes), "parser_error": parser_error, "text": text,
                         "dataset_type": row["canonical_record"]["input"]["dataset_spec"]["dataset_type"], "semantic_group": remediation.get("semantic_group"),
+                        "attack_category": remediation.get("mutation_family"), **diagnostics,
                         "output_tokens": len(generated), "terminated": bool(generated) and generated[-1] in terminators,
                         "markdown_fence": "```" in text, "hit_token_limit": len(generated) >= max_new_tokens})
     model.train()
@@ -156,14 +196,54 @@ def evaluate(model: Any, processor: Any, items: list[dict[str, Any]], loss_count
     for dataset_type in sorted({row["dataset_type"] for row in raw}):
         subset = [row for row in raw if row["dataset_type"] == dataset_type]
         per_type[dataset_type] = {"records": len(subset), "accuracy": sum(row["truth"] == row["prediction"] for row in subset) / len(subset)}
+    per_attack_category = {}
+    for category in sorted({str(row["attack_category"]) for row in raw}):
+        subset = [row for row in raw if str(row["attack_category"]) == category]
+        per_attack_category[category] = {"records": len(subset), "accuracy": sum(row["truth"] == row["prediction"] for row in subset) / len(subset),
+                                         "reason_code_exact_match": sum(set(row["truth_reason_codes"]) == set(row["prediction_reason_codes"]) for row in subset) / len(subset)}
+    expected_coverage = set().union(*truth_codes) if truth_codes else set()
     return {"validation_loss": sum(losses) / len(losses), "generation_records": len(raw), "strict_json_validity": valid / len(raw),
             "parse_failure_rate": 1 - valid / len(raw), "accuracy": sum(a == b for a, b in zip(truths, predictions)) / len(raw),
             "macro_f1": macro_f1(truths, predictions), "immediate_termination_rate": sum(row["terminated"] and not row["hit_token_limit"] for row in raw) / len(raw),
             "grounding_false_accept_rate": sum(row["prediction"] == "accept" for row in reject_rows) / len(reject_rows) if reject_rows else 0.0,
             "malicious_injection_failure_rate": sum(row["prediction"] != "reject" for row in malicious_rows) / len(malicious_rows) if malicious_rows else 0.0,
-            "per_dataset_type": per_type,
+            "reason_code_exact_match": sum(actual == predicted for actual, predicted in zip(truth_codes, prediction_codes)) / len(raw),
+            "reason_code_macro_f1": reason_code_macro_f1(truth_codes, prediction_codes),
+            "evaluation_reason_code_coverage": len(expected_coverage) / len(APPROVED_REASON_CODES),
+            "evaluated_reason_codes": sorted(expected_coverage), "per_dataset_type": per_type, "per_attack_category": per_attack_category,
+            "unknown_reason_codes": sum(len(row["unknown_reason_codes"]) for row in raw),
+            "incorrectly_cased_reason_codes": sum(len(row["incorrectly_cased_reason_codes"]) for row in raw),
+            "extra_keys": sum(len(row["extra_keys"]) for row in raw), "missing_keys": sum(len(row["missing_keys"]) for row in raw),
             "markdown_fences": sum(row["markdown_fence"] for row in raw), "external_prose": len(raw) - valid,
             "token_limit_hits": sum(row["hit_token_limit"] for row in raw), "raw": raw}
+
+
+def smoke_gate_failures(config: dict[str, Any], metrics: dict[str, Any], step: int, adapter_changed: bool, finite_loss: bool, finite_gradients: bool) -> list[str]:
+    thresholds = config.get("smoke", {}).get("gates")
+    if not thresholds:
+        thresholds = {"finite_loss": True, "finite_gradients": True, "adapter_parameters_changed": True,
+                      "finite_validation_loss": True, "strict_json_validity_min": 1.0, "immediate_termination_min": 1.0,
+                      "markdown_fences_max": 0, "external_prose_max": 0, "token_limit_hits_max": 0}
+    actual = {"completed_optimizer_steps": step, "finite_loss": finite_loss, "finite_gradients": finite_gradients,
+              "adapter_parameters_changed": adapter_changed, "finite_validation_loss": math.isfinite(metrics["validation_loss"]), **metrics}
+    actual["decision_accuracy"] = metrics.get("accuracy")
+    actual["decision_macro_f1"] = metrics.get("macro_f1")
+    actual["immediate_termination"] = metrics.get("immediate_termination_rate")
+    failures = []
+    for key, expected in thresholds.items():
+        if key == "process_exit_code":
+            continue
+        if key.endswith("_min"):
+            metric = key[:-4]
+            if actual.get(metric) is None or actual[metric] < expected:
+                failures.append(f"{metric}={actual.get(metric)!r} < {expected!r}")
+        elif key.endswith("_max"):
+            metric = key[:-4]
+            if actual.get(metric) is None or actual[metric] > expected:
+                failures.append(f"{metric}={actual.get(metric)!r} > {expected!r}")
+        elif actual.get(key) != expected:
+            failures.append(f"{key}={actual.get(key)!r} != {expected!r}")
+    return failures
 
 
 def save_checkpoint(run_dir: Path, model: Any, optimizer: Any, scheduler: Any, step: int, sample_index: int, config_digest: str, metrics: dict[str, Any], best: bool = False) -> Path:
@@ -194,7 +274,7 @@ def main() -> int:
                 "config_digest": digest, "git_sha": args.git_sha, "train_sha256": sha256(train_path), "validation_sha256": sha256(validation_path),
                 "fresh_base_adapter": args.resume is None, "e1_adapter_used": False,
                 "sampling": "deterministic_epoch_shuffle_without_replacement", "legacy_mixture_fields_used_by_runner": False,
-                "checkpoint_selection": ["strict_json_validity", "accuracy", "macro_f1", "grounding_false_accept_rate", "malicious_injection_failure_rate", "parse_failure_rate", "validation_loss"],
+                "checkpoint_selection": ["strict_json_validity", "accuracy", "macro_f1", "reason_code_exact_match", "reason_code_macro_f1", "grounding_false_accept_rate", "malicious_injection_failure_rate", "parse_failure_rate", "validation_loss"],
                 "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
     import torch
     from transformers import get_scheduler, set_seed
@@ -240,6 +320,7 @@ def main() -> int:
             latest_validation = evaluate(model, processor, validation_rows, loss_count, gen_count, opt["max_sequence_length"], config["monitoring"]["max_new_tokens"])
             atomic_json(args.run_dir / f"validation/step-{step:08d}.json", latest_validation)
             score = (latest_validation["strict_json_validity"], latest_validation["accuracy"], latest_validation["macro_f1"],
+                     latest_validation["reason_code_exact_match"], latest_validation["reason_code_macro_f1"],
                      -latest_validation["grounding_false_accept_rate"], -latest_validation["malicious_injection_failure_rate"],
                      -latest_validation["parse_failure_rate"], -latest_validation["validation_loss"])
             if best_score is None or score > best_score:
@@ -255,13 +336,13 @@ def main() -> int:
     if best_path is None:
         latest_validation = evaluate(model, processor, validation_rows, config["smoke"]["validation_loss_records"], config["smoke"]["generation_records"], opt["max_sequence_length"], config["monitoring"]["max_new_tokens"])
         best_path = save_checkpoint(args.run_dir, model, optimizer, scheduler, step, sample_index, digest, latest_validation, best=True)
-    smoke_pass = all((math.isfinite(latest_validation["validation_loss"]), latest_validation["strict_json_validity"] == 1.0,
-                      latest_validation["immediate_termination_rate"] == 1.0, latest_validation["markdown_fences"] == 0,
-                      latest_validation["external_prose"] == 0, latest_validation["token_limit_hits"] == 0,
-                      not torch.equal(initial_parameter, first_parameter.detach().float().cpu())))
+    adapter_changed = not torch.equal(initial_parameter, first_parameter.detach().float().cpu())
+    finite_loss = all(math.isfinite(value) for value in recent)
+    smoke_failures = smoke_gate_failures(config, latest_validation, step, adapter_changed, finite_loss, True)
+    smoke_pass = not smoke_failures
     result = {"status": "PASS" if (args.mode == "full" or smoke_pass) and step == max_steps else "FAIL", "mode": args.mode, "step": step,
               "total_steps": max_steps, "best_checkpoint": str(best_path), "validation": latest_validation, "finite_loss": all(math.isfinite(value) for value in recent),
-              "finite_gradients": True, "adapter_parameters_updating": not torch.equal(initial_parameter, first_parameter.detach().float().cpu()),
+              "finite_gradients": True, "adapter_parameters_updating": adapter_changed, "smoke_gate_failures": smoke_failures if args.mode == "smoke" else [],
               "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     atomic_json(args.run_dir / "result.json", result); atomic_json(args.run_dir / "progress.json", {**result, "validation": {k: v for k, v in latest_validation.items() if k != "raw"}})
     return 0 if result["status"] == "PASS" else 4
