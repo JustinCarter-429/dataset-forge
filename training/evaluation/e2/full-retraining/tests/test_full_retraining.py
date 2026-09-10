@@ -85,6 +85,12 @@ def test_best_checkpoint_selection_is_frozen_before_training():
     assert CONFIG["checkpoint_policy"]["preserve_final_separately"] is True
 
 
+def test_completed_checkpoint_resume_preserves_prior_adapter_update_evidence():
+    text = (ROOT / "e2_train.py").read_text(encoding="utf-8")
+    assert "resumed_adapter_already_updated = bool(args.resume and step > 0)" in text
+    assert "adapter_changed = resumed_adapter_already_updated or" in text
+
+
 def make_checkpoint(path: Path, digest: str = "digest") -> None:
     (path / "adapter").mkdir(parents=True)
     (path / "adapter/model.safetensors").write_bytes(b"adapter")

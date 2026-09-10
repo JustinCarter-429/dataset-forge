@@ -460,6 +460,7 @@ def main() -> int:
         if expected_resumed_steps != step or (sample_index % opt["gradient_accumulation_steps"] != 0 and sample_index != total_samples):
             raise ValueError("NON_DETERMINISTIC_RESUME_POSITION")
         random.setstate(state["python_rng"]); torch.set_rng_state(state["torch_rng"]); torch.cuda.set_rng_state_all(state["cuda_rng"])
+    resumed_adapter_already_updated = bool(args.resume and step > 0)
     first_parameter = next(parameter for parameter in model.parameters() if parameter.requires_grad)
     initial_parameter = first_parameter.detach().float().cpu().clone(); model.train(); optimizer.zero_grad(set_to_none=True)
     started = time.monotonic(); recent = deque(maxlen=50); best_loss = math.inf; best_path = None; latest_validation: dict[str, Any] = {}
@@ -498,7 +499,7 @@ def main() -> int:
         gradients = [parameter.grad for parameter in model.parameters() if parameter.requires_grad and parameter.grad is not None]
         if not gradients or any(not torch.isfinite(gradient).all() for gradient in gradients): raise FloatingPointError("NON_FINITE_OR_MISSING_GRADIENT")
         torch.nn.utils.clip_grad_norm_(model.parameters(), opt["max_grad_norm"]); optimizer.step(); scheduler.step(); optimizer.zero_grad(set_to_none=True); step += 1
-        if step == 1 and torch.equal(initial_parameter, first_parameter.detach().float().cpu()):
+        if step == 1 and not resumed_adapter_already_updated and torch.equal(initial_parameter, first_parameter.detach().float().cpu()):
             raise RuntimeError("ADAPTER_PARAMETERS_NOT_UPDATING")
         expected_step = optimizer_step_count(sample_index, 1, opt["gradient_accumulation_steps"])
         if step != expected_step:
@@ -522,7 +523,7 @@ def main() -> int:
                     "current_loss": recent[-1], "smoothed_loss": sum(recent) / len(recent), "validation": {k: v for k, v in latest_validation.items() if k != "raw"},
                     "latest_checkpoint": str(best_path) if best_path else None, "gpu": {"allocated_bytes": torch.cuda.memory_allocated(), "peak_bytes": torch.cuda.max_memory_allocated()},
                      "epoch": epoch, "epoch_position": position + 1, "samples_completed": sample_index, "samples_total": total_samples,
-                     "adapter_parameters_updating": not torch.equal(initial_parameter, first_parameter.detach().float().cpu())})
+                     "adapter_parameters_updating": resumed_adapter_already_updated or not torch.equal(initial_parameter, first_parameter.detach().float().cpu())})
         if args.mode == "full" and step in checkpoint_schedule:
             save_checkpoint(args.run_dir, model, optimizer, scheduler, step, sample_index, digest, latest_validation,
                             kind="periodic", keep_latest=config["checkpoint_policy"]["keep_latest"])
@@ -536,7 +537,7 @@ def main() -> int:
     if completed:
         final_path = save_checkpoint(args.run_dir, model, optimizer, scheduler, step, sample_index, digest, latest_validation,
                                      kind="final", keep_latest=config["checkpoint_policy"]["keep_latest"])
-    adapter_changed = not torch.equal(initial_parameter, first_parameter.detach().float().cpu())
+    adapter_changed = resumed_adapter_already_updated or not torch.equal(initial_parameter, first_parameter.detach().float().cpu())
     finite_loss = all(math.isfinite(value) for value in recent)
     smoke_failures = smoke_gate_failures(config, latest_validation, step, adapter_changed, finite_loss, True)
     smoke_pass = not smoke_failures
