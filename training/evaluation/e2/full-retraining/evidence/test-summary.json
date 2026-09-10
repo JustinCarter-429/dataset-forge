@@ -1,0 +1,34 @@
+{
+  "excluded": [
+    {
+      "classification": "environmental limitation",
+      "counted_as_pass": false,
+      "module": "training/tests/test_live_dashboard.py",
+      "reason": "Optional TensorBoard dependency is unavailable in the local verification environment."
+    }
+  ],
+  "runs": [
+    {
+      "duration_seconds": 0.559,
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "name": "focused",
+      "passed": 16,
+      "skipped": 0,
+      "tests": 16
+    },
+    {
+      "duration_seconds": 7.13,
+      "errors": 0,
+      "exit_code": 0,
+      "failures": 0,
+      "name": "relevant",
+      "passed": 89,
+      "skipped": 0,
+      "tests": 89
+    }
+  ],
+  "schema_version": "phase-e2.4-test-summary-v1",
+  "status": "PASS"
+}

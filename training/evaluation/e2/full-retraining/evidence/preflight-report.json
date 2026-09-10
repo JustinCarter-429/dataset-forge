@@ -1,0 +1,104 @@
+{
+  "checkpoint_steps": [
+    250,
+    500,
+    750,
+    1000,
+    1250,
+    1500,
+    1750,
+    2000,
+    2250,
+    2382
+  ],
+  "checks": {
+    "all_28_reason_codes": true,
+    "all_dataset_types": true,
+    "all_decisions": true,
+    "canonical_input_overlap_zero": true,
+    "checkpoint_schedule_frozen": true,
+    "each_record_once_per_epoch": true,
+    "examples_19050": true,
+    "optimizer_steps_2382": true,
+    "partial_final_batch_2": true,
+    "prior_independence_and_tokenization_gates": true,
+    "rebuild_byte_identical": true,
+    "record_id_overlap_zero": true,
+    "smoke_validation_not_in_training": true,
+    "strict_five_field_targets": true,
+    "train_count_6350": true,
+    "train_hash_frozen": true,
+    "train_ids_unique": true,
+    "validation_count_806": true,
+    "validation_hash_frozen": true,
+    "validation_ids_unique": true,
+    "validation_schedule_frozen": true
+  },
+  "corpus": {
+    "approved_reason_codes": 28,
+    "dataset_types": [
+      "classification",
+      "custom",
+      "instruction_response",
+      "question_answer",
+      "scenario_expected_result"
+    ],
+    "decisions": [
+      "accept",
+      "reject",
+      "revise"
+    ],
+    "train_records": 6350,
+    "train_sha256": "04071a019311c191777bd0e931109d26eb9022f9ead75918862ba0bf31528b2c",
+    "validation_records": 806,
+    "validation_sha256": "b91d7b11779165d228574a682a65d2ce71842443cc2c037c2229d685d15a0052"
+  },
+  "held_out_thresholds_sha256": "74c6668fb05d43477952604d6a045b0f5d3b584332b87002aacef56d4271f98e",
+  "rebuild": {
+    "train_byte_identical": true,
+    "train_sha256": "04071a019311c191777bd0e931109d26eb9022f9ead75918862ba0bf31528b2c",
+    "validation_byte_identical": true,
+    "validation_sha256": "b91d7b11779165d228574a682a65d2ce71842443cc2c037c2229d685d15a0052"
+  },
+  "remote_or_gpu_work_performed": false,
+  "sampler": {
+    "each_record_once_per_epoch": true,
+    "epoch_order_sha256": [
+      "31f07d6e7affbaddc868316510499194f092d023daa5d33aef52b790b3ae1b56",
+      "8c14398a53cd4662479616e57454877b2bc61f5909473c7bebcbc44194aa3667",
+      "eaee8505e3176c78f265e4b8a8277efcd62e3d095c07133051619b6d55018334"
+    ],
+    "epochs": 3,
+    "examples": 19050,
+    "final_partial_batch_examples": 2,
+    "full_effective_batches": 2381,
+    "optimizer_steps": 2382,
+    "records_per_epoch": 6350
+  },
+  "schema_version": "phase-e2.4-preflight-v1",
+  "status": "PASS",
+  "tokenization": {
+    "chat_template_sha256": "0a2c8073c878ab1da004bee933a998606537bbb62016310352c7285c3f01c5b5",
+    "fully_masked_completions": 0,
+    "max_sequence_tokens": 1345,
+    "records": 7156,
+    "strict_target": 7156,
+    "supervised_closing_brace": 7156,
+    "supervised_eos": 7156,
+    "supervised_turn_terminator": 7156,
+    "tokenizer_json_sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f"
+  },
+  "validation_steps": [
+    0,
+    250,
+    500,
+    750,
+    1000,
+    1250,
+    1500,
+    1750,
+    2000,
+    2250,
+    2382
+  ]
+}

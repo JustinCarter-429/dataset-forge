@@ -1,5 +1,11 @@
 {
-  "schema_version": "phase-e2-full-retraining-v1",
+  "schema_version": "phase-e2.4-full-retraining-v1",
+  "authorization": {
+    "gpu_execution_authorized": false,
+    "requires_explicit_authorization": true,
+    "fresh_adapter_required": true,
+    "forbidden_starting_adapters": ["phase-e1", "failed-smoke", "e2.2-recovery-smoke"]
+  },
   "model": {
     "id": "google/gemma-4-E4B-it",
     "revision": "ee0ef6023621cff504d758262d4e04895a5af4a2",
@@ -8,11 +14,12 @@
     "model_version": "dataset-forge-critic-v1"
   },
   "data": {
-    "package_sha256": "0ae841070c050a7ebe8f69fc85ad5d4de3aec146b861422ec72305489d44fe4b",
-    "train_sha256": "a7485d598825573e557a982dd4e86f7ba5868a9ee8d71c0306616b625b524ce8",
-    "validation_sha256": "4b991d36e2d179161293e96b81dbda1abff948fbb27ee7ad9e2634744cc31e47",
-    "train_records": 6000,
-    "validation_records": 750,
+    "source_package_sha256": "6a59e6c2397e5d1f8e75de14fa2e60b7d7c644076f5d9f2f072e75537c86579c",
+    "train_sha256": "04071a019311c191777bd0e931109d26eb9022f9ead75918862ba0bf31528b2c",
+    "validation_sha256": "b91d7b11779165d228574a682a65d2ce71842443cc2c037c2229d685d15a0052",
+    "train_records": 6350,
+    "validation_records": 806,
+    "approved_reason_codes": 28,
     "public_records": 0,
     "quarantined_records": 0,
     "confidence_semantics": "UNCALIBRATED_LABEL_AUTHORITY_PLACEHOLDER"
@@ -24,8 +31,10 @@
     "gradient_accumulation_steps": 8,
     "effective_batch_size": 8,
     "epochs": 3,
-    "max_optimizer_steps": 2250,
-    "approved_step_ceiling": 14561,
+    "max_optimizer_steps": 2382,
+    "total_training_examples": 19050,
+    "final_partial_batch_examples": 2,
+    "approved_step_ceiling": 2382,
     "learning_rate": 0.0001,
     "weight_decay": 0.0,
     "optimizer": "paged_adamw_8bit",
@@ -33,7 +42,9 @@
     "warmup_ratio": 0.03,
     "max_grad_norm": 1.0,
     "precision": "bfloat16",
+    "gradient_scaler": null,
     "quantization": "4bit-nf4-double-quant",
+    "quantization_compute_dtype": "bfloat16",
     "packing": false,
     "completion_only_loss": true,
     "lora_rank": 16,
@@ -41,22 +52,60 @@
     "lora_dropout": 0.05,
     "lora_target_regex": "(^|\\.)(language_model|text_model)(\\.|$)"
   },
+  "monitoring": {
+    "baseline_validation": true,
+    "checkpoint_every_steps": 250,
+    "validation_every_steps": 250,
+    "log_every_steps": 1,
+    "validation_loss_records": 128,
+    "generation_records": 30,
+    "max_new_tokens": 256,
+    "do_sample": false,
+    "eos_token_id": 1,
+    "assistant_turn_terminator_id": 106,
+    "stopping_ids": [1, 106],
+    "max_wall_seconds": 172800,
+    "min_free_disk_gb": 40,
+    "tmux_session": "e2-full-retraining"
+  },
+  "checkpoint_policy": {
+    "atomic_stage_then_publish": true,
+    "keep_latest": 3,
+    "keep_best": 1,
+    "preserve_final_separately": true,
+    "best_selection": {"metric": "validation_loss", "direction": "minimize", "tie_breaker": "earliest_step"},
+    "required_state": ["adapter", "optimizer", "scheduler", "rng", "sampler_position", "trainer_state", "manifest", "hashes"],
+    "scaler_applicable": false
+  },
+  "regression_alerts": {
+    "validation_loss_vs_best_relative_increase": 0.25,
+    "strict_json_validity_drop_from_baseline": 0.10,
+    "decision_macro_f1_drop_from_baseline": 0.10,
+    "reason_code_macro_f1_drop_from_baseline": 0.10,
+    "alerts_are_non_certifying": true
+  },
+  "durability": {
+    "off_instance_sync_required": true,
+    "sync_progress_and_logs_seconds": 60,
+    "sync_every_completed_checkpoint": true,
+    "sync_raw_evaluation_incrementally": true,
+    "hash_before_and_after_transfer": true,
+    "local_retrieval_ledger": "retrieval-ledger.jsonl",
+    "destruction_guard_marker": "RETRIEVAL_VERIFIED.json"
+  },
+  "post_training": {
+    "strict_contract_smoke_first": true,
+    "held_out_cases": 105,
+    "held_out_thresholds_file": "evaluation/thresholds.json",
+    "retain_raw_and_normalized_separately": true,
+    "allowed_certifications": ["PASS", "PARTIAL", "FAIL"],
+    "integration_authorized": false,
+    "deployment_authorized": false
+  },
   "smoke": {
     "optimizer_steps": 8,
     "training_records": 64,
     "validation_loss_records": 16,
     "generation_records": 15
-  },
-  "monitoring": {
-    "checkpoint_every_steps": 250,
-    "validation_every_steps": 250,
-    "validation_loss_records": 128,
-    "generation_records": 30,
-    "max_new_tokens": 256,
-    "eos_token_id": 1,
-    "assistant_turn_terminator_id": 106,
-    "max_wall_seconds": 172800,
-    "min_free_disk_gb": 40,
-    "tmux_session": "e2-retraining"
   }
 }

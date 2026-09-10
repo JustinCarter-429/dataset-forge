@@ -1,0 +1,29 @@
+{
+  "schema_version": "phase-e2.4-post-training-v1",
+  "authorized_during_preflight": false,
+  "sequence": [
+    "verify_final_checkpoint",
+    "strict_contract_smoke_independent_cases",
+    "unchanged_105_case_e1_held_out_certification_if_smoke_passes",
+    "compare_pinned_base_failed_e1_and_final_e2",
+    "package_hash_and_retrieve"
+  ],
+  "strict_contract": {
+    "parser": "dataset_forge_critic.e2_contract.parse_strict_response",
+    "malformed_outputs_are_failures": true,
+    "repair_outputs": false,
+    "stopping_ids": [1, 106]
+  },
+  "held_out": {
+    "cases": 105,
+    "thresholds_file": "evaluation/thresholds.json",
+    "thresholds_must_remain_byte_identical": true,
+    "allowed_outcomes": ["PASS", "PARTIAL", "FAIL"]
+  },
+  "outputs": {
+    "raw_and_normalized_separate": true,
+    "incremental_atomic_flush": true,
+    "integration_authorized": false,
+    "deployment_authorized": false
+  }
+}

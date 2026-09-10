@@ -1,0 +1,11 @@
+{
+  "schema_version": "phase-e2.4-test-exclusions-v1",
+  "excluded": [
+    {
+      "module": "training/tests/test_live_dashboard.py",
+      "reason": "Optional TensorBoard dependency is unavailable in the local verification environment.",
+      "classification": "environmental limitation",
+      "counted_as_pass": false
+    }
+  ]
+}
