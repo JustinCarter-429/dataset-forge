@@ -88,7 +88,26 @@ def test_best_checkpoint_selection_is_frozen_before_training():
 def test_completed_checkpoint_resume_preserves_prior_adapter_update_evidence():
     text = (ROOT / "e2_train.py").read_text(encoding="utf-8")
     assert "resumed_adapter_already_updated = bool(args.resume and step > 0)" in text
-    assert "adapter_changed = resumed_adapter_already_updated or" in text
+    assert "adapter_changed = resumed_adapter_already_updated" in text
+
+
+def test_adapter_update_check_accepts_any_changed_trainable_parameter():
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Sequential(torch.nn.Linear(2, 2, bias=False), torch.nn.Linear(2, 2, bias=False))
+    snapshots = TRAIN.snapshot_trainable_parameters(model)
+    assert not TRAIN.any_trainable_parameter_changed(model, snapshots)
+    with torch.no_grad():
+        model[1].weight.add_(1.0)
+    assert TRAIN.any_trainable_parameter_changed(model, snapshots)
+
+
+def test_adapter_update_check_rejects_trainable_parameter_set_change():
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Linear(2, 2, bias=False)
+    snapshots = TRAIN.snapshot_trainable_parameters(model)
+    model.weight.requires_grad_(False)
+    with pytest.raises(RuntimeError, match="TRAINABLE_PARAMETER_SET_CHANGED"):
+        TRAIN.any_trainable_parameter_changed(model, snapshots)
 
 
 def make_checkpoint(path: Path, digest: str = "digest") -> None:
