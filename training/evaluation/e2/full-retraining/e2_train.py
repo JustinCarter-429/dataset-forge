@@ -25,6 +25,7 @@ from dataset_forge_critic.tokenization import generation_terminator_ids, pad_bat
 from dataset_forge_critic.training_config import TrainingConfiguration  # noqa: E402
 
 STOP = False
+ADAPTER_UPDATE_MAX_POSITIVE_STEPS = 3
 
 
 def sha256(path: Path) -> str:
@@ -378,11 +379,102 @@ def snapshot_trainable_parameters(model: Any) -> dict[str, Any]:
     return snapshots
 
 
-def any_trainable_parameter_changed(model: Any, snapshots: dict[str, Any]) -> bool:
+def trainable_parameter_fingerprint(snapshots: dict[str, Any]) -> dict[str, Any]:
+    digest = hashlib.sha256()
+    elements = 0
+    for name, tensor in sorted(snapshots.items()):
+        value = tensor.detach().float().cpu().contiguous()
+        shape = list(value.shape)
+        encoded_name = name.encode("utf-8")
+        digest.update(len(encoded_name).to_bytes(8, "big")); digest.update(encoded_name)
+        encoded_shape = json.dumps(shape, separators=(",", ":")).encode("ascii")
+        digest.update(len(encoded_shape).to_bytes(8, "big")); digest.update(encoded_shape)
+        digest.update(value.numpy().tobytes(order="C"))
+        elements += value.numel()
+    return {"sha256": digest.hexdigest(), "parameter_count": len(snapshots), "elements": elements}
+
+
+def new_adapter_update_verification(model: Any, max_positive_steps: int = ADAPTER_UPDATE_MAX_POSITIVE_STEPS) -> tuple[dict[str, Any], dict[str, Any]]:
+    if max_positive_steps <= 0:
+        raise ValueError("ADAPTER_UPDATE_BOUND_MUST_BE_POSITIVE")
+    snapshots = snapshot_trainable_parameters(model)
+    evidence = {
+        "schema_version": "phase-e2.4-adapter-update-verification-v1",
+        "status": "PENDING",
+        "max_positive_lr_steps": max_positive_steps,
+        "positive_lr_steps_checked": 0,
+        "before": trainable_parameter_fingerprint(snapshots),
+        "after": None,
+        "checks": [],
+        "finite_loss_from_start": True,
+        "finite_gradients_from_start": True,
+        "parameter_change_verified": False,
+        "resumed_from_verified_checkpoint": False,
+    }
+    return snapshots, evidence
+
+
+def observe_adapter_update(model: Any, snapshots: dict[str, Any], evidence: dict[str, Any], *, step: int,
+                           learning_rate: float, finite_loss: bool, finite_gradients: bool,
+                           evidence_path: Path | None = None) -> bool:
     current = {name: parameter for name, parameter in model.named_parameters() if parameter.requires_grad}
     if current.keys() != snapshots.keys():
         raise RuntimeError("TRAINABLE_PARAMETER_SET_CHANGED")
-    return any(not current[name].detach().float().cpu().equal(initial) for name, initial in snapshots.items())
+    evidence["finite_loss_from_start"] = evidence["finite_loss_from_start"] and finite_loss
+    evidence["finite_gradients_from_start"] = evidence["finite_gradients_from_start"] and finite_gradients
+    after = trainable_parameter_fingerprint(current)
+    changed = after["sha256"] != evidence["before"]["sha256"]
+    check = {"step": step, "learning_rate": learning_rate, "finite_loss": finite_loss,
+             "finite_gradients": finite_gradients, "after_sha256": after["sha256"],
+             "changed_from_before": changed}
+    evidence["checks"].append(check); evidence["after"] = after
+    failure = None
+    if not finite_loss:
+        failure = "NON_FINITE_TRAINING_LOSS"
+    elif not finite_gradients:
+        failure = "NON_FINITE_OR_MISSING_GRADIENT"
+    elif learning_rate > 0:
+        evidence["positive_lr_steps_checked"] += 1
+        if changed:
+            evidence["status"] = "PASS"; evidence["parameter_change_verified"] = True
+        elif evidence["positive_lr_steps_checked"] >= evidence["max_positive_lr_steps"]:
+            failure = "ADAPTER_PARAMETERS_NOT_UPDATING_AFTER_POSITIVE_LR"
+        else:
+            evidence["status"] = "PENDING_POSITIVE_LR_PARAMETER_CHANGE"
+    else:
+        evidence["status"] = "WAITING_FOR_POSITIVE_LR"
+    if failure:
+        evidence["status"] = "FAIL"; evidence["failure"] = failure
+    if evidence_path is not None:
+        atomic_json(evidence_path, evidence)
+    if failure:
+        raise RuntimeError(failure)
+    return evidence["status"] == "PASS"
+
+
+def resume_adapter_update_verification(manifest: dict[str, Any]) -> dict[str, Any]:
+    evidence = manifest.get("adapter_update_verification")
+    if not isinstance(evidence, dict) or evidence.get("status") != "PASS" or evidence.get("parameter_change_verified") is not True:
+        raise ValueError("RESUME_ADAPTER_UPDATE_VERIFICATION_MISSING")
+    resumed = json.loads(json.dumps(evidence))
+    resumed["resumed_from_verified_checkpoint"] = True
+    return resumed
+
+
+def record_post_resume_training_failure(evidence: dict[str, Any], evidence_path: Path, *, step: int,
+                                        learning_rate: float, failure: str) -> None:
+    if failure not in {"NON_FINITE_TRAINING_LOSS", "NON_FINITE_OR_MISSING_GRADIENT"}:
+        raise ValueError("UNKNOWN_TRAINING_SAFETY_FAILURE")
+    evidence["status"] = "FAIL"; evidence["failure"] = failure
+    evidence["finite_loss_from_start"] = evidence["finite_loss_from_start"] and failure != "NON_FINITE_TRAINING_LOSS"
+    evidence["finite_gradients_from_start"] = evidence["finite_gradients_from_start"] and failure != "NON_FINITE_OR_MISSING_GRADIENT"
+    evidence["checks"].append({"step": step, "learning_rate": learning_rate,
+                               "finite_loss": failure != "NON_FINITE_TRAINING_LOSS",
+                               "finite_gradients": failure != "NON_FINITE_OR_MISSING_GRADIENT",
+                               "after_sha256": evidence["after"]["sha256"],
+                               "changed_from_before": True, "post_resume_failure": True})
+    atomic_json(evidence_path, evidence)
+    raise RuntimeError(failure)
 
 
 def _checkpoint_destination(run_dir: Path, step: int, kind: str) -> Path:
@@ -396,7 +488,8 @@ def _checkpoint_destination(run_dir: Path, step: int, kind: str) -> Path:
 
 
 def save_checkpoint(run_dir: Path, model: Any, optimizer: Any, scheduler: Any, step: int, sample_index: int,
-                    config_digest: str, metrics: dict[str, Any], *, kind: str = "periodic", keep_latest: int = 3) -> Path:
+                    config_digest: str, metrics: dict[str, Any], *, adapter_update_verification: dict[str, Any] | None = None,
+                    kind: str = "periodic", keep_latest: int = 3) -> Path:
     import torch
     destination = _checkpoint_destination(run_dir, step, kind)
     if destination.exists():
@@ -413,11 +506,16 @@ def save_checkpoint(run_dir: Path, model: Any, optimizer: Any, scheduler: Any, s
         "torch_rng": torch.get_rng_state(), "cuda_rng": torch.cuda.get_rng_state_all(),
     }, stage / "training-state.pt")
     files = checkpoint_file_hashes(stage)
-    atomic_json(stage / "checkpoint-manifest.json", {
+    manifest = {
         "schema_version": "phase-e2.4-checkpoint-v1", "complete": True, "kind": kind,
         "step": step, "sample_index": sample_index, "config_digest": config_digest,
         "metrics": {key: value for key, value in metrics.items() if key != "raw"}, "files": files,
-    })
+    }
+    if adapter_update_verification is not None:
+        if adapter_update_verification.get("status") != "PASS" or adapter_update_verification.get("parameter_change_verified") is not True:
+            raise RuntimeError("CHECKPOINT_REQUIRES_VERIFIED_ADAPTER_UPDATE")
+        manifest["adapter_update_verification"] = adapter_update_verification
+    atomic_json(stage / "checkpoint-manifest.json", manifest)
     verify_checkpoint(stage, config_digest)
     destination.parent.mkdir(parents=True, exist_ok=True)
     os.replace(stage, destination)
@@ -479,8 +577,14 @@ def main() -> int:
             raise ValueError("NON_DETERMINISTIC_RESUME_POSITION")
         random.setstate(state["python_rng"]); torch.set_rng_state(state["torch_rng"]); torch.cuda.set_rng_state_all(state["cuda_rng"])
     resumed_adapter_already_updated = bool(args.resume and step > 0)
-    adapter_changed = resumed_adapter_already_updated
-    initial_parameters = {} if resumed_adapter_already_updated else snapshot_trainable_parameters(model)
+    adapter_evidence_path = args.run_dir / "adapter-update-verification.json"
+    if resumed_adapter_already_updated:
+        adapter_evidence = resume_adapter_update_verification(resume_manifest)
+        initial_parameters = {}
+    else:
+        initial_parameters, adapter_evidence = new_adapter_update_verification(model)
+    adapter_changed = adapter_evidence["parameter_change_verified"]
+    atomic_json(adapter_evidence_path, adapter_evidence)
     model.train(); optimizer.zero_grad(set_to_none=True)
     started = time.monotonic(); recent = deque(maxlen=50); best_loss = math.inf; best_path = None; latest_validation: dict[str, Any] = {}
     best_pointer = args.run_dir / "best-checkpoint.json"
@@ -510,19 +614,34 @@ def main() -> int:
         item = tokenize_record(train_rows[row_index], "native", processor, opt["max_sequence_length"])
         batch = pad_batch([item], processor.tokenizer.pad_token_id); values = {key: torch.tensor(value, device="cuda") for key, value in batch.items()}
         loss = model(**values).loss
-        if not torch.isfinite(loss): raise FloatingPointError("NON_FINITE_TRAINING_LOSS")
+        if not torch.isfinite(loss):
+            current_lr = max(float(group["lr"]) for group in optimizer.param_groups)
+            if adapter_changed:
+                record_post_resume_training_failure(adapter_evidence, adapter_evidence_path, step=step + 1,
+                                                    learning_rate=current_lr, failure="NON_FINITE_TRAINING_LOSS")
+            observe_adapter_update(model, initial_parameters, adapter_evidence, step=step + 1, learning_rate=current_lr,
+                                   finite_loss=False, finite_gradients=True, evidence_path=adapter_evidence_path)
         divisor = accumulation_target(total_samples, sample_index, opt["gradient_accumulation_steps"])
         (loss / divisor).backward(); recent.append(float(loss.item())); sample_index += 1
         batch_complete = sample_index % opt["gradient_accumulation_steps"] == 0 or sample_index == total_samples
         if not batch_complete: continue
         gradients = [parameter.grad for parameter in model.parameters() if parameter.requires_grad and parameter.grad is not None]
-        if not gradients or any(not torch.isfinite(gradient).all() for gradient in gradients): raise FloatingPointError("NON_FINITE_OR_MISSING_GRADIENT")
+        gradients_finite = bool(gradients) and all(torch.isfinite(gradient).all() for gradient in gradients)
+        if not gradients_finite:
+            current_lr = max(float(group["lr"]) for group in optimizer.param_groups)
+            if adapter_changed:
+                record_post_resume_training_failure(adapter_evidence, adapter_evidence_path, step=step + 1,
+                                                    learning_rate=current_lr, failure="NON_FINITE_OR_MISSING_GRADIENT")
+            observe_adapter_update(model, initial_parameters, adapter_evidence, step=step + 1, learning_rate=current_lr,
+                                   finite_loss=True, finite_gradients=False, evidence_path=adapter_evidence_path)
+        learning_rate_used = max(float(group["lr"]) for group in optimizer.param_groups)
         torch.nn.utils.clip_grad_norm_(model.parameters(), opt["max_grad_norm"]); optimizer.step(); scheduler.step(); optimizer.zero_grad(set_to_none=True); step += 1
-        if step == 1 and not resumed_adapter_already_updated:
-            adapter_changed = any_trainable_parameter_changed(model, initial_parameters)
-            initial_parameters.clear()
-            if not adapter_changed:
-                raise RuntimeError("ADAPTER_PARAMETERS_NOT_UPDATING")
+        if not adapter_changed:
+            adapter_changed = observe_adapter_update(model, initial_parameters, adapter_evidence, step=step,
+                                                     learning_rate=learning_rate_used, finite_loss=True,
+                                                     finite_gradients=True, evidence_path=adapter_evidence_path)
+            if adapter_changed:
+                initial_parameters.clear()
         expected_step = optimizer_step_count(sample_index, 1, opt["gradient_accumulation_steps"])
         if step != expected_step:
             raise RuntimeError("PROGRESS_STATE_INCONSISTENCY")
@@ -538,6 +657,7 @@ def main() -> int:
             if latest_validation["validation_loss"] < best_loss:
                 best_loss = latest_validation["validation_loss"]
                 best_path = save_checkpoint(args.run_dir, model, optimizer, scheduler, step, sample_index, digest, latest_validation,
+                                            adapter_update_verification=adapter_evidence,
                                             kind="best", keep_latest=config["checkpoint_policy"]["keep_latest"])
         elapsed = time.monotonic() - started; rate = step / elapsed if elapsed else 0.0
         atomic_json(args.run_dir / "progress.json", {"status": "running", "mode": args.mode, "step": step, "total_steps": max_steps,
@@ -548,16 +668,19 @@ def main() -> int:
                      "adapter_parameters_updating": adapter_changed})
         if args.mode == "full" and step in checkpoint_schedule:
             save_checkpoint(args.run_dir, model, optimizer, scheduler, step, sample_index, digest, latest_validation,
+                            adapter_update_verification=adapter_evidence,
                             kind="periodic", keep_latest=config["checkpoint_policy"]["keep_latest"])
     if best_path is None:
         latest_validation = evaluate(model, processor, validation_rows, config["smoke"]["validation_loss_records"], config["smoke"]["generation_records"], opt["max_sequence_length"], config["monitoring"]["max_new_tokens"])
         best_loss = latest_validation["validation_loss"]
         best_path = save_checkpoint(args.run_dir, model, optimizer, scheduler, step, sample_index, digest, latest_validation,
+                                    adapter_update_verification=adapter_evidence,
                                     kind="best", keep_latest=config["checkpoint_policy"]["keep_latest"])
     completed = step == max_steps and sample_index == total_samples
     final_path = None
     if completed:
         final_path = save_checkpoint(args.run_dir, model, optimizer, scheduler, step, sample_index, digest, latest_validation,
+                                     adapter_update_verification=adapter_evidence,
                                      kind="final", keep_latest=config["checkpoint_policy"]["keep_latest"])
     finite_loss = all(math.isfinite(value) for value in recent)
     smoke_failures = smoke_gate_failures(config, latest_validation, step, adapter_changed, finite_loss, True)

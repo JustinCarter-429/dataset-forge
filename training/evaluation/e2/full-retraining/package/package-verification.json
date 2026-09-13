@@ -1,7 +1,7 @@
 {
   "archive": "phase-e2.4-full-retraining.tar.gz",
-  "archive_bytes": 1259912,
-  "archive_sha256": "081af76062c7d305930436faa7137e2e50369ce6b136f5a349d38de528b66047",
+  "archive_bytes": 1262263,
+  "archive_sha256": "22d6454664a2e3fd92d4f25b98244322ff7bb87028fa913268cb32ec53c9c8b5",
   "internal_manifest_verified": true,
   "members": 29,
   "publication_scan": {

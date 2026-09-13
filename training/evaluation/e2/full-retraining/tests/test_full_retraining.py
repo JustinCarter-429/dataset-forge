@@ -88,26 +88,93 @@ def test_best_checkpoint_selection_is_frozen_before_training():
 def test_completed_checkpoint_resume_preserves_prior_adapter_update_evidence():
     text = (ROOT / "e2_train.py").read_text(encoding="utf-8")
     assert "resumed_adapter_already_updated = bool(args.resume and step > 0)" in text
-    assert "adapter_changed = resumed_adapter_already_updated" in text
+    assert "resume_adapter_update_verification(resume_manifest)" in text
 
 
-def test_adapter_update_check_accepts_any_changed_trainable_parameter():
+def test_zero_lr_first_step_does_not_falsely_fail_adapter_guard():
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Linear(2, 2, bias=False)
+    snapshots, evidence = TRAIN.new_adapter_update_verification(model)
+    assert not TRAIN.observe_adapter_update(model, snapshots, evidence, step=1, learning_rate=0.0,
+                                            finite_loss=True, finite_gradients=True)
+    assert evidence["status"] == "WAITING_FOR_POSITIVE_LR"
+    assert evidence["positive_lr_steps_checked"] == 0
+
+
+def test_positive_lr_update_of_any_trainable_parameter_passes():
     torch = pytest.importorskip("torch")
     model = torch.nn.Sequential(torch.nn.Linear(2, 2, bias=False), torch.nn.Linear(2, 2, bias=False))
-    snapshots = TRAIN.snapshot_trainable_parameters(model)
-    assert not TRAIN.any_trainable_parameter_changed(model, snapshots)
+    snapshots, evidence = TRAIN.new_adapter_update_verification(model)
+    TRAIN.observe_adapter_update(model, snapshots, evidence, step=1, learning_rate=0.0,
+                                 finite_loss=True, finite_gradients=True)
     with torch.no_grad():
         model[1].weight.add_(1.0)
-    assert TRAIN.any_trainable_parameter_changed(model, snapshots)
+    assert TRAIN.observe_adapter_update(model, snapshots, evidence, step=2, learning_rate=1e-6,
+                                        finite_loss=True, finite_gradients=True)
+    assert evidence["parameter_change_verified"] is True
+    assert evidence["before"]["sha256"] != evidence["after"]["sha256"]
 
 
 def test_adapter_update_check_rejects_trainable_parameter_set_change():
     torch = pytest.importorskip("torch")
     model = torch.nn.Linear(2, 2, bias=False)
-    snapshots = TRAIN.snapshot_trainable_parameters(model)
+    snapshots, evidence = TRAIN.new_adapter_update_verification(model)
     model.weight.requires_grad_(False)
     with pytest.raises(RuntimeError, match="TRAINABLE_PARAMETER_SET_CHANGED"):
-        TRAIN.any_trainable_parameter_changed(model, snapshots)
+        TRAIN.observe_adapter_update(model, snapshots, evidence, step=2, learning_rate=1e-6,
+                                     finite_loss=True, finite_gradients=True)
+
+
+def test_positive_lr_without_change_fails_closed_at_explicit_bound():
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Linear(2, 2, bias=False)
+    snapshots, evidence = TRAIN.new_adapter_update_verification(model, max_positive_steps=2)
+    assert not TRAIN.observe_adapter_update(model, snapshots, evidence, step=2, learning_rate=1e-6,
+                                            finite_loss=True, finite_gradients=True)
+    with pytest.raises(RuntimeError, match="ADAPTER_PARAMETERS_NOT_UPDATING_AFTER_POSITIVE_LR"):
+        TRAIN.observe_adapter_update(model, snapshots, evidence, step=3, learning_rate=2e-6,
+                                     finite_loss=True, finite_gradients=True)
+    assert evidence["positive_lr_steps_checked"] == evidence["max_positive_lr_steps"] == 2
+    assert evidence["status"] == "FAIL"
+
+
+@pytest.mark.parametrize(("finite_loss", "finite_gradients", "failure"), [
+    (False, True, "NON_FINITE_TRAINING_LOSS"),
+    (True, False, "NON_FINITE_OR_MISSING_GRADIENT"),
+])
+def test_non_finite_training_state_fails_guard_closed(finite_loss: bool, finite_gradients: bool, failure: str):
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Linear(2, 2, bias=False)
+    snapshots, evidence = TRAIN.new_adapter_update_verification(model)
+    with pytest.raises(RuntimeError, match=failure):
+        TRAIN.observe_adapter_update(model, snapshots, evidence, step=1, learning_rate=0.0,
+                                     finite_loss=finite_loss, finite_gradients=finite_gradients)
+    assert evidence["status"] == "FAIL"
+
+
+def test_resume_requires_prior_verified_adapter_update_evidence():
+    verified = {"status": "PASS", "parameter_change_verified": True, "checks": []}
+    resumed = TRAIN.resume_adapter_update_verification({"adapter_update_verification": verified})
+    assert resumed["resumed_from_verified_checkpoint"] is True
+    with pytest.raises(ValueError, match="RESUME_ADAPTER_UPDATE_VERIFICATION_MISSING"):
+        TRAIN.resume_adapter_update_verification({})
+    with pytest.raises(ValueError, match="RESUME_ADAPTER_UPDATE_VERIFICATION_MISSING"):
+        TRAIN.resume_adapter_update_verification({"adapter_update_verification": {"status": "PENDING"}})
+
+
+def test_frozen_scheduler_uses_zero_lr_then_positive_lr():
+    torch = pytest.importorskip("torch")
+    transformers = pytest.importorskip("transformers")
+    parameter = torch.nn.Parameter(torch.tensor([1.0]))
+    optimizer = torch.optim.SGD([parameter], lr=CONFIG["optimization"]["learning_rate"])
+    warmup_steps = int(CONFIG["optimization"]["max_optimizer_steps"] * CONFIG["optimization"]["warmup_ratio"])
+    scheduler = transformers.get_scheduler("cosine", optimizer, warmup_steps, CONFIG["optimization"]["max_optimizer_steps"])
+    first_lr = optimizer.param_groups[0]["lr"]
+    optimizer.step(); scheduler.step()
+    second_lr = optimizer.param_groups[0]["lr"]
+    assert warmup_steps == 71
+    assert first_lr == 0.0
+    assert second_lr > 0.0
 
 
 def make_checkpoint(path: Path, digest: str = "digest") -> None:

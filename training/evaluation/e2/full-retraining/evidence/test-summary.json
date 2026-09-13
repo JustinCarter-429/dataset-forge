@@ -9,17 +9,17 @@
   ],
   "runs": [
     {
-      "duration_seconds": 16.833,
+      "duration_seconds": 34.419,
       "errors": 0,
       "exit_code": 0,
       "failures": 0,
       "name": "focused",
-      "passed": 19,
+      "passed": 25,
       "skipped": 0,
-      "tests": 19
+      "tests": 25
     },
     {
-      "duration_seconds": 11.153,
+      "duration_seconds": 12.825,
       "errors": 0,
       "exit_code": 0,
       "failures": 0,
