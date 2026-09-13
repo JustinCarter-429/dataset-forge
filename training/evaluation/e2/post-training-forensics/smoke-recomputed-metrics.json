@@ -1,0 +1,270 @@
+{
+  "case_audit": [
+    {
+      "case_id": "e1-question_answer-01",
+      "expected_decision": "accept",
+      "expected_reason_codes": [],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "reject",
+      "recomputed_reason_codes": [
+        "EXACT_DUPLICATE",
+        "NO_COVERAGE_GAIN"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-question_answer-08",
+      "expected_decision": "revise",
+      "expected_reason_codes": [
+        "REQUIRED_FIELD_MISSING"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "revise",
+      "recomputed_reason_codes": [
+        "REQUIRED_FIELD_MISSING"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-question_answer-15",
+      "expected_decision": "reject",
+      "expected_reason_codes": [
+        "HALLUCINATED_DETAIL"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "reject",
+      "recomputed_reason_codes": [
+        "GROUNDING_CONTRADICTION"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-instruction_response-01",
+      "expected_decision": "accept",
+      "expected_reason_codes": [],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "accept",
+      "recomputed_reason_codes": [],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-instruction_response-08",
+      "expected_decision": "revise",
+      "expected_reason_codes": [
+        "REQUIRED_FIELD_MISSING"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "revise",
+      "recomputed_reason_codes": [
+        "REQUIRED_FIELD_MISSING"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-instruction_response-15",
+      "expected_decision": "reject",
+      "expected_reason_codes": [
+        "HALLUCINATED_DETAIL"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "reject",
+      "recomputed_reason_codes": [
+        "GROUNDING_CONTRADICTION"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-classification-01",
+      "expected_decision": "accept",
+      "expected_reason_codes": [],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "accept",
+      "recomputed_reason_codes": [],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-classification-08",
+      "expected_decision": "revise",
+      "expected_reason_codes": [
+        "REQUIRED_FIELD_MISSING"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "revise",
+      "recomputed_reason_codes": [
+        "GROUNDING_PARTIAL"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-classification-15",
+      "expected_decision": "reject",
+      "expected_reason_codes": [
+        "HALLUCINATED_DETAIL"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "reject",
+      "recomputed_reason_codes": [
+        "GROUNDING_CONTRADICTION"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-scenario_expected_result-01",
+      "expected_decision": "accept",
+      "expected_reason_codes": [],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "accept",
+      "recomputed_reason_codes": [],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-scenario_expected_result-08",
+      "expected_decision": "revise",
+      "expected_reason_codes": [
+        "REQUIRED_FIELD_MISSING"
+      ],
+      "hit_token_limit": false,
+      "parse_error": "INVALID_CODE_COMBINATION:REQUIRED_FIELD_MISSING",
+      "recomputed_decision": "invalid",
+      "recomputed_reason_codes": [],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-scenario_expected_result-15",
+      "expected_decision": "reject",
+      "expected_reason_codes": [
+        "HALLUCINATED_DETAIL"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "reject",
+      "recomputed_reason_codes": [
+        "GROUNDING_CONTRADICTION"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-custom-01",
+      "expected_decision": "accept",
+      "expected_reason_codes": [],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "accept",
+      "recomputed_reason_codes": [],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-custom-08",
+      "expected_decision": "revise",
+      "expected_reason_codes": [
+        "REQUIRED_FIELD_MISSING"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "revise",
+      "recomputed_reason_codes": [
+        "REQUIRED_FIELD_MISSING"
+      ],
+      "terminated": true
+    },
+    {
+      "case_id": "e1-custom-15",
+      "expected_decision": "reject",
+      "expected_reason_codes": [
+        "HALLUCINATED_DETAIL"
+      ],
+      "hit_token_limit": false,
+      "parse_error": null,
+      "recomputed_decision": "reject",
+      "recomputed_reason_codes": [
+        "GROUNDING_CONTRADICTION"
+      ],
+      "terminated": true
+    }
+  ],
+  "evidence_overwritten": false,
+  "malformed_outputs_counted_as_failures": true,
+  "metrics": {
+    "accuracy": 0.8666666666666667,
+    "approved_case_sensitive_code_count": 15,
+    "confidence_exactly_one_count": 15,
+    "confusion_matrix": {
+      "accept": {
+        "accept": 4,
+        "invalid": 0,
+        "reject": 1,
+        "revise": 0
+      },
+      "reject": {
+        "accept": 0,
+        "invalid": 0,
+        "reject": 5,
+        "revise": 0
+      },
+      "revise": {
+        "accept": 0,
+        "invalid": 1,
+        "reject": 0,
+        "revise": 4
+      }
+    },
+    "contract_validity_rate": 0.9333333333333333,
+    "examples_per_minute": 8.927051577576282,
+    "external_prose_count": 0,
+    "false_accept_rate": 0.0,
+    "false_reject_rate": 0.2,
+    "immediate_termination_count": 15,
+    "input_tokens": 17370,
+    "latency": {
+      "mean_seconds": 6.721144095404695,
+      "median_seconds": 7.482443541986868,
+      "p95_seconds": 7.735492065199651
+    },
+    "macro_f1": 0.8956228956228957,
+    "macro_precision": 0.9444444444444444,
+    "macro_recall": 0.8666666666666667,
+    "markdown_fence_count": 0,
+    "output_tokens": 778,
+    "parse_failure_rate": 0.06666666666666667,
+    "per_class": {
+      "accept": {
+        "f1": 0.888888888888889,
+        "precision": 1.0,
+        "recall": 0.8,
+        "support": 5
+      },
+      "reject": {
+        "f1": 0.9090909090909091,
+        "precision": 0.8333333333333334,
+        "recall": 1.0,
+        "support": 5
+      },
+      "revise": {
+        "f1": 0.888888888888889,
+        "precision": 1.0,
+        "recall": 0.8,
+        "support": 5
+      }
+    },
+    "raw_emitted_code_lexical_match": 0.5333333333333333,
+    "reason_code_exact_match_strict": 0.4666666666666667,
+    "revise_accuracy": 0.8,
+    "sample_count": 15,
+    "strict_five_field_count": 15,
+    "token_limit_hit_count": 0
+  },
+  "raw_response_count": 15,
+  "reported_metric_discrepancies": {},
+  "schema_version": "phase-e2.5-smoke-recomputed-metrics-v1",
+  "unique_case_ids": 15
+}

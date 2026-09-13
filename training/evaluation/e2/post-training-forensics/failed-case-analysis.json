@@ -1,0 +1,108 @@
+{
+  "actually_missing_required_fields": [
+    "expected_result"
+  ],
+  "adapter": {
+    "fresh_adapter": true,
+    "sha256": "7e85179525db5ebcb0875e5520379b4e8a272bc602678cfb8aa8b049b98ae71a",
+    "training_steps": 2382
+  },
+  "base_model": {
+    "id": "google/gemma-4-E4B-it",
+    "revision": "ee0ef6023621cff504d758262d4e04895a5af4a2"
+  },
+  "candidate_present_fields": [
+    "scenario"
+  ],
+  "case_id": "e1-scenario_expected_result-08",
+  "compatibility": {
+    "combination_with_other_code": "NOT_APPLICABLE_SINGLE_CODE",
+    "dataset_type": "NOT_RESTRICTED",
+    "defect_category": "NOT_RESTRICTED",
+    "explicit_rule": "reject is not in the code's revise-only allowed_decisions set",
+    "predicted_decision": "PROHIBITED"
+  },
+  "dataset_schema": {
+    "additional_properties": false,
+    "fields": [
+      "scenario",
+      "expected_result"
+    ],
+    "required": [
+      "scenario",
+      "expected_result"
+    ]
+  },
+  "dataset_type": "scenario_expected_result",
+  "emitted_decision": "reject",
+  "emitted_reason_codes": [
+    "REQUIRED_FIELD_MISSING"
+  ],
+  "expected_decision": "revise",
+  "expected_feedback_semantics": "Add the absent expected_result field using source-grounded content; keep the repair limited to the identified defect.",
+  "expected_reason_codes": [
+    "REQUIRED_FIELD_MISSING"
+  ],
+  "generated_tokens": 58,
+  "latency_seconds": 7.4419529407750815,
+  "model_confidence": 1.0,
+  "normalized_response": null,
+  "ontology": {
+    "allowed_decisions": [
+      "revise"
+    ],
+    "code": "REQUIRED_FIELD_MISSING",
+    "definition": "A field required by the dataset schema is absent.",
+    "version": "dataset-forge-reason-codes-v1"
+  },
+  "parser": {
+    "contract_sha256": "d05bac02e7bfb19c211eb7fad0646b115b23207b16a37f5e95bf9c559d21caff",
+    "dataset_type_specific_code_rules": false,
+    "defect_category_specific_code_rules": false,
+    "fields": [
+      "decision",
+      "confidence",
+      "reason_codes",
+      "feedback",
+      "model_version"
+    ],
+    "model_version": "dataset-forge-critic-v1"
+  },
+  "parser_error": "INVALID_CODE_COMBINATION:REQUIRED_FIELD_MISSING",
+  "parser_rejection_location": "validate_contract: decision/reason-code compatibility check after JSON/schema/type/code validation",
+  "private_complete_input": {
+    "excluded_from_publication": true,
+    "record_sha256": "70e86273492474f603705e523de57739a14d40fefa8227552d60b793c4262a32",
+    "stored_separately": true
+  },
+  "prompt": {
+    "explicit_rule": "REQUIRED_FIELD_MISSING is revise-only",
+    "sha256": "0c4a0bd3ce3a4563e0acc19ef6c60574ead5385913ab99e17e81d3d097d969a8",
+    "version": "critic-system-v2"
+  },
+  "raw_model_response": "{\"decision\":\"reject\",\"confidence\":1.0,\"reason_codes\":[\"REQUIRED_FIELD_MISSING\"],\"feedback\":\"Address REQUIRED_FIELD_MISSING exactly: A field required by the dataset schema is absent.\",\"model_version\":\"dataset-forge-critic-v1\"}",
+  "raw_response_sha256": "2712c84862df540e593aeae416f8e193c884e1557629c3fdfbddc3c1f7a725cf",
+  "related_code_distinctions": {
+    "DATASET_SPEC_MISMATCH": "Broader requested-type/specification mismatch; not needed for this exact field-presence defect.",
+    "INCOMPLETE_RESPONSE": "Substantive content missing inside a present response, not an absent schema field.",
+    "MISSING_REQUIRED_CONSTRAINT": "Omitted behavioral/factual constraint, not an absent schema field.",
+    "WRONG_FIELD_TYPE": "Field is present with the wrong JSON type; here the field is absent."
+  },
+  "schema_version": "phase-e2.5-failed-case-analysis-v1",
+  "semantic_assessment": {
+    "complete_output_is_contract_valid": false,
+    "emitted_reason_code_is_semantically_correct": true,
+    "expected_label_matches_specification": true,
+    "field_is_missing": true,
+    "parser_enforced_frozen_specification_correctly": true,
+    "why": "The correct reason code was paired with reject rather than revise."
+  },
+  "termination": {
+    "hit_token_limit": false,
+    "terminated": true,
+    "terminator_ids": [
+      1,
+      106
+    ]
+  }
+}

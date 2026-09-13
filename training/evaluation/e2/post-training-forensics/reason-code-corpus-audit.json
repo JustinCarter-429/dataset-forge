@@ -1,0 +1,82 @@
+{
+  "all_single_code_targets": true,
+  "all_targets_revise": true,
+  "compatibility_table_violations_full_corpus": 0,
+  "compatibility_violation_examples": [],
+  "conflicting_cross_split_exact_candidate_duplicates": 0,
+  "contradictory_identical_inputs": 0,
+  "coverage_assessment": {
+    "assessment": "SPARSE_AND_OVERLY_TEMPLATED",
+    "finding": "The code is rare relative to the corpus and every example uses the same single-field-omission pattern. Scenario coverage is two training examples and no validation examples. All targets consistently teach revise, so sparsity—not contradiction—is the supported contributing factor.",
+    "predicted_reject_examples": 0,
+    "scenario_expected_result_training_examples": 2,
+    "scenario_expected_result_validation_examples": 0,
+    "training_examples": 10,
+    "validation_examples": 2
+  },
+  "cross_split_exact_candidate_duplicates": 1,
+  "exact_candidate_duplicates_among_code_examples": 1,
+  "failed_case_overlap": {
+    "exact_candidate_matches": 0,
+    "leakage_detected": false,
+    "maximum_candidate_token_jaccard": 0.25,
+    "near_candidate_matches_at_0_90": 0
+  },
+  "near_duplicate_pairs_among_code_examples_at_0_90": 0,
+  "occurrences": {
+    "train": {
+      "all_are_true_field_absence": true,
+      "co_occurring_reason_code_sets": {
+        "REQUIRED_FIELD_MISSING": 10
+      },
+      "corpus_fraction": 0.0015748031496062992,
+      "dataset_type_distribution": {
+        "classification": 2,
+        "custom": 2,
+        "instruction_response": 2,
+        "question_answer": 2,
+        "scenario_expected_result": 2
+      },
+      "decision_distribution": {
+        "revise": 10
+      },
+      "defect_category_distribution": {
+        "REQUIRED_FIELD_MISSING": 10
+      },
+      "occurrences": 10,
+      "records": 6350,
+      "structural_signature_count": 5,
+      "template_pattern": "one omitted required schema field with a single revise-only reason code"
+    },
+    "validation": {
+      "all_are_true_field_absence": true,
+      "co_occurring_reason_code_sets": {
+        "REQUIRED_FIELD_MISSING": 2
+      },
+      "corpus_fraction": 0.0024813895781637717,
+      "dataset_type_distribution": {
+        "custom": 1,
+        "question_answer": 1
+      },
+      "decision_distribution": {
+        "revise": 2
+      },
+      "defect_category_distribution": {
+        "REQUIRED_FIELD_MISSING": 2
+      },
+      "occurrences": 2,
+      "records": 806,
+      "structural_signature_count": 2,
+      "template_pattern": "one omitted required schema field with a single revise-only reason code"
+    }
+  },
+  "reason_code": "REQUIRED_FIELD_MISSING",
+  "schema_representation_gap": {
+    "failed_case_uses_required": true,
+    "interpretation": "The representation differs, but the emitted reason code proves the model recognized the missing-field semantics; it does not explain the wrong reject decision.",
+    "training_code_examples_use_required": 0,
+    "training_code_examples_use_required_fields": 12
+  },
+  "schema_version": "phase-e2.5-reason-code-corpus-audit-v1",
+  "total_occurrences": 12
+}

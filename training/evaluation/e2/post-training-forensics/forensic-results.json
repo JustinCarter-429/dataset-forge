@@ -1,0 +1,117 @@
+{
+  "adapter_preserved": true,
+  "certification_run": false,
+  "certification_status": "BLOCKED_POST_TRAINING_SMOKE_FAIL",
+  "component_findings": {
+    "corpus": "CONSISTENT_BUT_SPARSE_AND_TEMPLATED",
+    "expected_label": "CORRECT",
+    "model": "WRONG_DECISION",
+    "parser": "CORRECT"
+  },
+  "decision_gate": "A. MODEL_ERROR",
+  "evidence_integrity": {
+    "adapter_matches": true,
+    "adapter_sha256": "7e85179525db5ebcb0875e5520379b4e8a272bc602678cfb8aa8b049b98ae71a",
+    "evidence_archive_matches": true,
+    "evidence_archive_sha256": "312008177462208f7bc7c471324be0ad5e0f2d7b7d1849acd70f88bf6903e5a3"
+  },
+  "failed_case": {
+    "case_id": "e1-scenario_expected_result-08",
+    "emitted_code": "REQUIRED_FIELD_MISSING",
+    "emitted_decision": "reject",
+    "parser_error": "INVALID_CODE_COMBINATION:REQUIRED_FIELD_MISSING"
+  },
+  "generated_at_utc": "2026-09-13T04:19:00.728187+00:00",
+  "gpu_used": false,
+  "inference_run": false,
+  "retraining_run": false,
+  "root_cause_classifications": {
+    "adapter-loading failure": "RULED_OUT",
+    "ambiguous distinction between related reason codes": "RULED_OUT",
+    "contradictory training targets": "RULED_OUT",
+    "dataset-schema interpretation defect": "RULED_OUT",
+    "evaluation-runner mismatch": "RULED_OUT",
+    "expected-label defect": "RULED_OUT",
+    "held-out leakage": "RULED_OUT",
+    "insufficient ontology coverage": "CONTRIBUTING",
+    "malformed JSON": "RULED_OUT",
+    "model semantic misclassification": "CONFIRMED",
+    "parser compatibility-table defect": "RULED_OUT",
+    "prompt-definition ambiguity": "RULED_OUT",
+    "quantization or precision effects": "UNRESOLVED",
+    "termination failure": "RULED_OUT",
+    "truncation": "RULED_OUT"
+  },
+  "schema_version": "phase-e2.5-forensic-results-v1",
+  "smoke_metrics": {
+    "accuracy": 0.8666666666666667,
+    "approved_case_sensitive_code_count": 15,
+    "confidence_exactly_one_count": 15,
+    "confusion_matrix": {
+      "accept": {
+        "accept": 4,
+        "invalid": 0,
+        "reject": 1,
+        "revise": 0
+      },
+      "reject": {
+        "accept": 0,
+        "invalid": 0,
+        "reject": 5,
+        "revise": 0
+      },
+      "revise": {
+        "accept": 0,
+        "invalid": 1,
+        "reject": 0,
+        "revise": 4
+      }
+    },
+    "contract_validity_rate": 0.9333333333333333,
+    "examples_per_minute": 8.927051577576282,
+    "external_prose_count": 0,
+    "false_accept_rate": 0.0,
+    "false_reject_rate": 0.2,
+    "immediate_termination_count": 15,
+    "input_tokens": 17370,
+    "latency": {
+      "mean_seconds": 6.721144095404695,
+      "median_seconds": 7.482443541986868,
+      "p95_seconds": 7.735492065199651
+    },
+    "macro_f1": 0.8956228956228957,
+    "macro_precision": 0.9444444444444444,
+    "macro_recall": 0.8666666666666667,
+    "markdown_fence_count": 0,
+    "output_tokens": 778,
+    "parse_failure_rate": 0.06666666666666667,
+    "per_class": {
+      "accept": {
+        "f1": 0.888888888888889,
+        "precision": 1.0,
+        "recall": 0.8,
+        "support": 5
+      },
+      "reject": {
+        "f1": 0.9090909090909091,
+        "precision": 0.8333333333333334,
+        "recall": 1.0,
+        "support": 5
+      },
+      "revise": {
+        "f1": 0.888888888888889,
+        "precision": 1.0,
+        "recall": 0.8,
+        "support": 5
+      }
+    },
+    "raw_emitted_code_lexical_match": 0.5333333333333333,
+    "reason_code_exact_match_strict": 0.4666666666666667,
+    "revise_accuracy": 0.8,
+    "sample_count": 15,
+    "strict_five_field_count": 15,
+    "token_limit_hit_count": 0
+  },
+  "training_status": "COMPLETE",
+  "training_steps": 2382
+}

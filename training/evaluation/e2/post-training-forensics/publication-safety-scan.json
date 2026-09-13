@@ -1,0 +1,20 @@
+{
+  "findings": [],
+  "heldout_source_fragments_checked": 105,
+  "png_files_checked": [],
+  "schema_version": "phase-e2.5-publication-safety-scan-v1",
+  "status": "PASS",
+  "text_files_checked": [
+    "analyze_forensics.py",
+    "failed-case-analysis.json",
+    "forensic-report.md",
+    "forensic-results.json",
+    "reason-code-corpus-audit.json",
+    "remediation-plan.md",
+    "reproducibility-manifest.json",
+    "root-cause-matrix.md",
+    "smoke-recomputed-metrics.json",
+    "test-evidence.json",
+    "test_forensics.py"
+  ]
+}

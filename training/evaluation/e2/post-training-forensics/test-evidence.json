@@ -1,0 +1,38 @@
+{
+  "schema_version": "phase-e2.5-test-evidence-v1",
+  "status": "PASS",
+  "collected": 70,
+  "passed": 70,
+  "failed": 0,
+  "errors": 0,
+  "skipped": 0,
+  "duration_seconds": 15.796,
+  "exit_code": 0,
+  "repository_owned_base_temp_worked": true,
+  "modules": [
+    "training/evaluation/e2/post-training-forensics/test_forensics.py",
+    "training/tests/test_e2_contract.py",
+    "training/tests/test_e2_reason_code_remediation.py",
+    "training/tests/test_gemma.py",
+    "training/evaluation/e2/full-retraining/tests/test_full_retraining.py"
+  ],
+  "covered": [
+    "reason-code ontology validation",
+    "decision/reason compatibility",
+    "dataset-type compatibility",
+    "exact case sensitivity",
+    "unknown codes",
+    "conflicting combinations",
+    "failed-case reproduction",
+    "metrics recomputation",
+    "evidence immutability",
+    "secret/private-path redaction"
+  ],
+  "excluded_optional_modules": [
+    {
+      "module": "training/tests/test_live_dashboard.py",
+      "reason": "Optional TensorBoard dependency is unavailable in the local environment.",
+      "result": "NOT_RUN"
+    }
+  ]
+}

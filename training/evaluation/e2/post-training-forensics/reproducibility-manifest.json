@@ -1,0 +1,29 @@
+{
+  "identities": {
+    "git_sha_used_for_training": "f17563714f5acab1054f010eabb7962cb49a0444",
+    "model_id": "google/gemma-4-E4B-it",
+    "model_revision": "ee0ef6023621cff504d758262d4e04895a5af4a2",
+    "ontology_version": "dataset-forge-reason-codes-v1",
+    "prompt_version": "critic-system-v2",
+    "tree_sha_used_for_training": "737d871b06776e6048ce37e4013ea4678f3e5a86"
+  },
+  "inputs": {
+    "adapter_archive": "7e85179525db5ebcb0875e5520379b4e8a272bc602678cfb8aa8b049b98ae71a",
+    "contract": "d05bac02e7bfb19c211eb7fad0646b115b23207b16a37f5e95bf9c559d21caff",
+    "evidence_archive": "312008177462208f7bc7c471324be0ad5e0f2d7b7d1849acd70f88bf6903e5a3",
+    "heldout_corpus": "d9b046ebc9a73f39860c241329417f6606976939e03ac53e4f7ae4599ada2500",
+    "normalized_responses": "ef1dc8bd9d6de7fce3e77a06f70b3256c7281d84bf30065e4f706852daec3df8",
+    "original_smoke_result": "71f5c7c54e742753776511bfded9b0e8cae8cdb58661bf58c550d46cabaace15",
+    "prompt": "0c4a0bd3ce3a4563e0acc19ef6c60574ead5385913ab99e17e81d3d097d969a8",
+    "raw_responses": "c73a4dcaf0a9e6273e521198f58e3e45104c2406fa7912811cab0f60898511f8",
+    "training_corpus": "04071a019311c191777bd0e931109d26eb9022f9ead75918862ba0bf31528b2c",
+    "validation_corpus": "b91d7b11779165d228574a682a65d2ce71842443cc2c037c2229d685d15a0052"
+  },
+  "method": {
+    "malformed_as_failure": true,
+    "near_overlap_threshold": 0.9,
+    "repair": false,
+    "strict_parser": "dataset_forge_critic.e2_contract.parse_strict_response"
+  },
+  "schema_version": "phase-e2.5-reproducibility-manifest-v1"
+}
